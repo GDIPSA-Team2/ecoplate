@@ -10,6 +10,7 @@ import {
   LogOut,
   Menu,
   X,
+  Package,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "../lib/utils";
@@ -18,6 +19,7 @@ const navItems = [
   { to: "/", icon: Home, label: "Dashboard" },
   { to: "/myfridge", icon: Refrigerator, label: "MyFridge" },
   { to: "/marketplace", icon: Store, label: "Marketplace" },
+  { to: "/vending-machine", icon: Package, label: "Vending" },
   { to: "/messages", icon: MessageCircle, label: "Messages" },
   { to: "/ecoboard", icon: Trophy, label: "EcoBoard" },
   { to: "/badges", icon: Award, label: "Badges" },

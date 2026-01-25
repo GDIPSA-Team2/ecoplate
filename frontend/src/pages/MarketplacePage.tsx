@@ -6,7 +6,7 @@ import { Input } from "../components/ui/input";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Plus, Search, MapPin, Clock, Eye } from "lucide-react";
-import { formatDate, getDaysUntilExpiry } from "../lib/utils";
+import { getDaysUntilExpiry } from "../lib/utils";
 
 interface Listing {
   id: number;

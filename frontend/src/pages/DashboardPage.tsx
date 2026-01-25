@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
 import { Badge } from "../components/ui/badge";
 import { Refrigerator, Store, Trophy, AlertTriangle, TrendingUp, Leaf } from "lucide-react";
-import { formatDate, getDaysUntilExpiry, getExpiryStatus } from "../lib/utils";
+import { getDaysUntilExpiry, getExpiryStatus } from "../lib/utils";
 
 interface DashboardData {
   products: {

@@ -15,9 +15,8 @@ import {
   Share,
   DollarSign,
   X,
-  Edit2,
 } from "lucide-react";
-import { cn, formatDate, getDaysUntilExpiry, getExpiryStatus } from "../lib/utils";
+import { cn, getDaysUntilExpiry, getExpiryStatus } from "../lib/utils";
 
 interface Product {
   id: number;
