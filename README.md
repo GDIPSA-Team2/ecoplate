@@ -119,70 +119,116 @@ flowchart TD
 
 ```mermaid
 erDiagram
-    users ||--o{ products : owns
+    users ||--o{ products : has
     users ||--o{ marketplace_listings : sells
-    users ||--o{ messages : sends
-    users ||--|| user_points : has
-    users ||--|| user_sustainability_metrics : has
+    users ||--o| user_points : has
     users ||--o{ user_badges : earns
+    users ||--o{ conversation : participates
 
-    products ||--o{ consumption_logs : tracks
-    products ||--o{ marketplace_listings : listed_as
+    products ||--o{ product_interaction : records
+    products ||--o| marketplace_listings : "listed as"
 
-    marketplace_listings ||--o{ listing_images : has
-    marketplace_listings ||--o{ messages : contains
+    marketplace_listings ||--o{ image_listing : has
+    marketplace_listings ||--o{ conversation : "belongs to"
 
-    badges ||--o{ user_badges : awarded_to
+    conversation ||--o{ message : contains
+
+    badges ||--o{ user_badges : "awarded as"
 
     users {
         int id PK
         string email UK
         string password_hash
         string name
+        string avatar_url
         timestamp created_at
+        timestamp updated_at
+        string user_location
     }
 
     products {
         int id PK
-        int user_id FK
-        string name
+        int userId FK
+        string productName
         string category
         float quantity
-        date expiry_date
-        string storage_location
-        boolean is_consumed
+        float unit_price
+        date purchase_date
+        string description
+        float co2_emission
     }
 
     marketplace_listings {
         int id PK
         int seller_id FK
+        int buyer_id
+        int product_id FK
         string title
+        string description
+        string category
+        float quantity
         float price
+        float original_price
+        date expiry_date
+        string pickup_location
         string status
-        int view_count
+        timestamp created_at
+        timestamp completed_at
+    }
+
+    image_listing {
+        int id PK
+        int listing_id FK
+        string image_url
+    }
+
+    conversation {
+        int id PK
+        int listing_id
+        int seller_id FK
+        int buyer_id FK
+    }
+
+    message {
+        int id PK
+        int conversation_id
+        int user_id FK
+        string message_text
+        timestamp created_at
+    }
+
+    product_interaction {
+        int id PK
+        int product_id FK
+        int user_id FK
+        date today_date
+        float quantity
+        string type
     }
 
     user_points {
         int id PK
-        int user_id FK
+        int userId FK
         int total_points
         int current_streak
     }
 
     badges {
         int id PK
-        string code UK
+        string code
         string name
+        string description
+        string category
         int points_awarded
+        int sort_order
+        string badge_image_url
     }
 
-    user_sustainability_metrics {
+    user_badges {
         int id PK
-        int user_id FK
-        int items_consumed
-        int items_wasted
-        float co2_saved
-        float waste_reduction_rate
+        int userId FK
+        int badge_id FK
+        timestamp earned_at
     }
 ```
 
@@ -515,10 +561,10 @@ bun run build:android     # Build and copy to Android
 
 The application uses SQLite stored at `backend/ecoplate.db`. The schema includes:
 
-- **Users & Auth**: users, refresh_tokens, password_reset_tokens
-- **MyFridge**: products, receipt_scans, consumption_logs
-- **Marketplace**: marketplace_listings, listing_images, messages
-- **Gamification**: user_points, point_transactions, badges, user_badges, user_sustainability_metrics, daily_sustainability_snapshots
+- **Users**: users
+- **MyFridge**: products, product_interaction
+- **Marketplace**: marketplace_listings, image_listing, conversation, message
+- **Gamification**: user_points, badges, user_badges
 
 ## License
 

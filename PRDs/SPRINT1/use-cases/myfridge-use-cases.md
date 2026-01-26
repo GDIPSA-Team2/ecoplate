@@ -128,42 +128,28 @@
 ```sql
 -- Products table
 CREATE TABLE products (
-    product_id UUID PRIMARY KEY,
-    user_id UUID NOT NULL,
-    product_name VARCHAR(255) NOT NULL,
+    id INT PRIMARY KEY,
+    userId INT NOT NULL,
+    productName VARCHAR(255) NOT NULL,
     category VARCHAR(100),
-    quantity DECIMAL(10,2),
-    unit VARCHAR(50),
+    quantity FLOAT,
+    unit_price FLOAT,
     purchase_date DATE,
-    expiry_date DATE,
-    estimated_co2_kg DECIMAL(10,2),
-    status ENUM('active', 'consumed', 'wasted', 'sold'),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id)
+    description TEXT,
+    co2_emission FLOAT,
+    FOREIGN KEY (userId) REFERENCES users(id)
 );
 
--- Receipt scans table
-CREATE TABLE receipt_scans (
-    scan_id UUID PRIMARY KEY,
-    user_id UUID NOT NULL,
-    image_url VARCHAR(500),
-    scan_date TIMESTAMP,
-    extraction_status ENUM('pending', 'completed', 'failed'),
-    raw_ocr_data TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id)
-);
-
--- Consumption logs table
-CREATE TABLE consumption_logs (
-    log_id UUID PRIMARY KEY,
-    product_id UUID NOT NULL,
-    action_type ENUM('consumed', 'wasted', 'sold'),
-    waste_reason VARCHAR(255),
-    quantity_affected DECIMAL(10,2),
-    logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES products(product_id)
+-- Product interaction table (tracks consumption, waste, sharing, selling)
+CREATE TABLE product_interaction (
+    id INT PRIMARY KEY,
+    product_id INT NOT NULL,
+    user_id INT NOT NULL,
+    today_date DATE,
+    quantity FLOAT,
+    type VARCHAR(100),
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 ```
 

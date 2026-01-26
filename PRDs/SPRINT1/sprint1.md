@@ -223,24 +223,21 @@ flowchart TB
 
 ```mermaid
 erDiagram
-    users ||--o{ products : "owns"
+    users ||--o{ products : "has"
     users ||--o{ marketplace_listings : "sells"
-    users ||--o{ messages : "sends"
-    users ||--|| user_points : "has"
-    users ||--|| user_sustainability_metrics : "has"
+    users ||--o| user_points : "has"
     users ||--o{ user_badges : "earns"
-    users ||--o{ consumption_logs : "logs"
-    users ||--o{ daily_sustainability_snapshots : "records"
+    users ||--o{ conversation : "participates"
 
-    products ||--o{ consumption_logs : "tracked_in"
-    products ||--o| marketplace_listings : "listed_as"
+    products ||--o{ product_interaction : "records"
+    products ||--o| marketplace_listings : "listed as"
 
-    marketplace_listings ||--o{ listing_images : "has"
-    marketplace_listings ||--o{ messages : "contains"
+    marketplace_listings ||--o{ image_listing : "has"
+    marketplace_listings ||--o{ conversation : "belongs to"
 
-    badges ||--o{ user_badges : "awarded_as"
+    conversation ||--o{ message : "contains"
 
-    user_points ||--o{ point_transactions : "records"
+    badges ||--o{ user_badges : "awarded as"
 
     users {
         int id PK
@@ -250,27 +247,25 @@ erDiagram
         string avatar_url
         timestamp created_at
         timestamp updated_at
+        string user_location
     }
 
     products {
         int id PK
-        int user_id FK
-        string name
+        int userId FK
+        string productName
         string category
         float quantity
-        string unit
+        float unit_price
         date purchase_date
-        date expiry_date
-        string storage_location
-        string notes
-        string barcode
-        boolean is_consumed
-        timestamp created_at
+        string description
+        float co2_emission
     }
 
     marketplace_listings {
         int id PK
         int seller_id FK
+        int buyer_id
         int product_id FK
         string title
         string description
@@ -281,97 +276,63 @@ erDiagram
         date expiry_date
         string pickup_location
         string status
-        int reserved_by FK
-        int view_count
         timestamp created_at
+        timestamp completed_at
     }
 
-    listing_images {
+    image_listing {
         int id PK
         int listing_id FK
         string image_url
-        int sort_order
     }
 
-    messages {
+    conversation {
         int id PK
-        int listing_id FK
-        int sender_id FK
-        int receiver_id FK
-        string content
-        boolean is_read
-        timestamp created_at
+        int listing_id
+        int seller_id FK
+        int buyer_id FK
     }
 
-    consumption_logs {
+    message {
         int id PK
+        int conversation_id
         int user_id FK
-        int product_id FK
-        string action
-        float quantity
-        string notes
+        string message_text
         timestamp created_at
+    }
+
+    product_interaction {
+        int id PK
+        int product_id FK
+        int user_id FK
+        date today_date
+        float quantity
+        string type
     }
 
     user_points {
         int id PK
-        int user_id FK
+        int userId FK
         int total_points
-        int available_points
-        int lifetime_points
         int current_streak
-        int longest_streak
-        date last_activity_date
-    }
-
-    point_transactions {
-        int id PK
-        int user_id FK
-        int amount
-        string type
-        string action
-        string reference_type
-        int reference_id
-        timestamp created_at
     }
 
     badges {
         int id PK
-        string code UK
+        string code
         string name
         string description
         string category
         int points_awarded
         int sort_order
+        string badge_image_url
     }
 
     user_badges {
         int id PK
-        int user_id FK
+        int userId FK
         int badge_id FK
         timestamp earned_at
-    }
-
-    user_sustainability_metrics {
-        int id PK
-        int user_id FK
-        int total_items_consumed
-        int total_items_wasted
-        int total_items_shared
-        int total_items_sold
-        float estimated_money_saved
-        float estimated_co2_saved
-        float waste_reduction_rate
-    }
-
-    daily_sustainability_snapshots {
-        int id PK
-        int user_id FK
-        date date
-        int items_consumed
-        int items_wasted
-        int items_shared
-        int points_earned
     }
 ```
 

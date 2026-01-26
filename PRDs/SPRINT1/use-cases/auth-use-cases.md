@@ -147,44 +147,14 @@
 ```sql
 -- Users table
 CREATE TABLE users (
-    user_id UUID PRIMARY KEY,
+    id INT PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    full_name VARCHAR(255),
+    name VARCHAR(255),
     avatar_url VARCHAR(500),
-    phone_number VARCHAR(20),
-    location_lat DECIMAL(10,8),
-    location_lng DECIMAL(11,8),
-    notification_email BOOLEAN DEFAULT TRUE,
-    notification_push BOOLEAN DEFAULT TRUE,
-    account_status ENUM('active', 'suspended', 'deleted') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    last_login_at TIMESTAMP NULL,
-    INDEX idx_email (email)
-);
-
--- Refresh tokens table (for JWT rotation)
-CREATE TABLE refresh_tokens (
-    token_id UUID PRIMARY KEY,
-    user_id UUID NOT NULL,
-    refresh_token VARCHAR(500) NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    INDEX idx_token (refresh_token)
-);
-
--- Password reset tokens
-CREATE TABLE password_reset_tokens (
-    token_id UUID PRIMARY KEY,
-    user_id UUID NOT NULL,
-    reset_token VARCHAR(255) NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    used BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    INDEX idx_token (reset_token)
+    user_location VARCHAR(500)
 );
 ```
 

@@ -193,53 +193,52 @@
 ```sql
 -- Marketplace listings table
 CREATE TABLE marketplace_listings (
-    listing_id UUID PRIMARY KEY,
-    seller_id UUID NOT NULL,
-    product_id UUID, -- NULL if not from MyFridge
+    id INT PRIMARY KEY,
+    seller_id INT NOT NULL,
+    buyer_id INT,
+    product_id INT,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     category VARCHAR(100),
-    price DECIMAL(10,2) NOT NULL,
-    suggested_price DECIMAL(10,2),
-    quantity DECIMAL(10,2),
-    unit VARCHAR(50),
+    quantity FLOAT,
+    price FLOAT,
+    original_price FLOAT,
     expiry_date DATE,
-    pickup_location POINT, -- Geospatial data
-    location_address VARCHAR(500),
-    status ENUM('active', 'sold', 'expired', 'deleted') DEFAULT 'active',
-    view_count INT DEFAULT 0,
+    pickup_location VARCHAR(500),
+    status VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (seller_id) REFERENCES users(user_id),
-    FOREIGN KEY (product_id) REFERENCES products(product_id),
-    INDEX idx_category (category),
-    INDEX idx_status (status),
-    SPATIAL INDEX idx_location (pickup_location)
+    completed_at TIMESTAMP,
+    FOREIGN KEY (seller_id) REFERENCES users(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
--- Listing images table
-CREATE TABLE listing_images (
-    image_id UUID PRIMARY KEY,
-    listing_id UUID NOT NULL,
+-- Image listing table
+CREATE TABLE image_listing (
+    id INT PRIMARY KEY,
+    listing_id INT NOT NULL,
     image_url VARCHAR(500) NOT NULL,
-    display_order INT DEFAULT 0,
-    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (listing_id) REFERENCES marketplace_listings(listing_id) ON DELETE CASCADE
+    FOREIGN KEY (listing_id) REFERENCES marketplace_listings(id)
 );
 
--- Messages table
-CREATE TABLE messages (
-    message_id UUID PRIMARY KEY,
-    listing_id UUID NOT NULL,
-    sender_id UUID NOT NULL,
-    receiver_id UUID NOT NULL,
+-- Conversation table
+CREATE TABLE conversation (
+    id INT PRIMARY KEY,
+    listing_id INT,
+    seller_id INT NOT NULL,
+    buyer_id INT NOT NULL,
+    FOREIGN KEY (seller_id) REFERENCES users(id),
+    FOREIGN KEY (buyer_id) REFERENCES users(id)
+);
+
+-- Message table
+CREATE TABLE message (
+    id INT PRIMARY KEY,
+    conversation_id INT,
+    user_id INT NOT NULL,
     message_text TEXT NOT NULL,
-    read_status BOOLEAN DEFAULT FALSE,
-    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (listing_id) REFERENCES marketplace_listings(listing_id),
-    FOREIGN KEY (sender_id) REFERENCES users(user_id),
-    FOREIGN KEY (receiver_id) REFERENCES users(user_id),
-    INDEX idx_listing_conversation (listing_id, sender_id, receiver_id)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (conversation_id) REFERENCES conversation(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 ```
 

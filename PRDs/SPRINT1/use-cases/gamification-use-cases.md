@@ -256,85 +256,38 @@
 
 ## 4. Database Schema
 
-```sql
--- User points table
-CREATE TABLE user_points (
-    user_id UUID PRIMARY KEY,
-    total_points INT DEFAULT 0,
-    redeemable_points INT DEFAULT 0,
-    lifetime_points INT DEFAULT 0,
-    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id)
-);
+> **Note:** UserPoint schema is currently marked as **Unconfirmed** in the LDM and may change.
 
--- Point transactions table
-CREATE TABLE point_transactions (
-    transaction_id UUID PRIMARY KEY,
-    user_id UUID NOT NULL,
-    points_change INT NOT NULL, -- Can be negative for redemptions
-    action_type VARCHAR(100) NOT NULL, -- 'consume_product', 'sell_product', 'streak_bonus', etc.
-    reference_id UUID, -- Links to products, listings, etc.
-    description VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    INDEX idx_user_created (user_id, created_at)
+```sql
+-- User points table (Unconfirmed)
+CREATE TABLE user_points (
+    id INT PRIMARY KEY,
+    userId INT NOT NULL,
+    total_points INT DEFAULT 0,
+    current_streak INT DEFAULT 0,
+    FOREIGN KEY (userId) REFERENCES users(id)
 );
 
 -- Badges table
 CREATE TABLE badges (
-    badge_id UUID PRIMARY KEY,
-    badge_name VARCHAR(100) NOT NULL,
-    badge_description TEXT,
-    badge_icon_url VARCHAR(500),
-    badge_tier ENUM('bronze', 'silver', 'gold', 'platinum'),
-    unlock_criteria JSON, -- Stores rule conditions
-    points_required INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id INT PRIMARY KEY,
+    code VARCHAR(100),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    category VARCHAR(100),
+    points_awarded INT,
+    sort_order INT,
+    badge_image_url VARCHAR(500)
 );
 
 -- User badges table
 CREATE TABLE user_badges (
-    user_badge_id UUID PRIMARY KEY,
-    user_id UUID NOT NULL,
-    badge_id UUID NOT NULL,
+    id INT PRIMARY KEY,
+    userId INT NOT NULL,
+    badge_id INT NOT NULL,
     earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    shared_at TIMESTAMP NULL,
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    FOREIGN KEY (badge_id) REFERENCES badges(badge_id),
-    UNIQUE KEY unique_user_badge (user_id, badge_id)
-);
-
--- Sustainability metrics table
-CREATE TABLE user_sustainability_metrics (
-    user_id UUID PRIMARY KEY,
-    total_co2_saved_kg DECIMAL(10,2) DEFAULT 0,
-    total_co2_wasted_kg DECIMAL(10,2) DEFAULT 0,
-    total_items_consumed INT DEFAULT 0,
-    total_items_sold INT DEFAULT 0,
-    total_items_wasted INT DEFAULT 0,
-    total_money_saved DECIMAL(10,2) DEFAULT 0,
-    current_streak_days INT DEFAULT 0,
-    longest_streak_days INT DEFAULT 0,
-    last_activity_date DATE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id)
-);
-
--- Daily sustainability snapshots (for time-series charts)
-CREATE TABLE daily_sustainability_snapshots (
-    snapshot_id UUID PRIMARY KEY,
-    user_id UUID NOT NULL,
-    snapshot_date DATE NOT NULL,
-    co2_saved_kg DECIMAL(10,2) DEFAULT 0,
-    co2_wasted_kg DECIMAL(10,2) DEFAULT 0,
-    items_consumed INT DEFAULT 0,
-    items_wasted INT DEFAULT 0,
-    money_saved DECIMAL(10,2) DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    UNIQUE KEY unique_user_date (user_id, snapshot_date),
-    INDEX idx_user_date (user_id, snapshot_date)
+    FOREIGN KEY (userId) REFERENCES users(id),
+    FOREIGN KEY (badge_id) REFERENCES badges(id)
 );
 ```
 
