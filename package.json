@@ -2,7 +2,10 @@
   "name": "ecoplate",
   "version": "1.0.0",
   "private": true,
-  "workspaces": ["backend", "frontend"],
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "scripts": {
     "dev:backend": "cd backend && bun --watch src/index.ts",
     "dev:frontend": "cd frontend && bun run dev",
@@ -14,5 +17,8 @@
     "db:generate": "cd backend && bunx drizzle-kit generate",
     "db:migrate": "cd backend && bun run src/db/migrate.ts",
     "db:seed": "cd backend && bun run src/db/seed.ts"
+  },
+  "dependencies": {
+    "drizzle-kit": "^0.31.8"
   }
 }

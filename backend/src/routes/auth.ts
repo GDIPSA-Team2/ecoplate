@@ -16,6 +16,7 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   name: z.string().min(1).max(100),
+  userLocation: z.string().optional(), // Optional default location (e.g., "Singapore 123456")
 });
 
 const loginSchema = z.object({
@@ -52,6 +53,7 @@ export function registerAuthRoutes(router: Router) {
           email: data.email,
           passwordHash,
           name: data.name,
+          userLocation: data.userLocation,
         })
         .returning();
 
@@ -82,6 +84,8 @@ export function registerAuthRoutes(router: Router) {
           id: user.id,
           email: user.email,
           name: user.name,
+          avatarUrl: user.avatarUrl,
+          userLocation: user.userLocation,
         },
         accessToken,
         refreshToken,
@@ -139,6 +143,8 @@ export function registerAuthRoutes(router: Router) {
           id: user.id,
           email: user.email,
           name: user.name,
+          avatarUrl: user.avatarUrl,
+          userLocation: user.userLocation,
         },
         accessToken,
         refreshToken,
@@ -229,6 +235,94 @@ export function registerAuthRoutes(router: Router) {
       return json({ message: "Logged out successfully" });
     } catch (e) {
       return json({ message: "Logged out" });
+    }
+  });
+
+  // Get current user profile
+  router.get("/api/v1/auth/me", async (req) => {
+    try {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return error("Unauthorized", 401);
+      }
+
+      const token = authHeader.slice(7);
+      const payload = await verifyToken(token);
+
+      if (!payload) {
+        return error("Invalid token", 401);
+      }
+
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, parseInt(payload.sub, 10)),
+      });
+
+      if (!user) {
+        return error("User not found", 404);
+      }
+
+      return json({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatarUrl: user.avatarUrl,
+        userLocation: user.userLocation,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      });
+    } catch (e) {
+      console.error("Get user error:", e);
+      return error("Failed to get user", 500);
+    }
+  });
+
+  // Update user profile
+  router.patch("/api/v1/auth/profile", async (req) => {
+    try {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return error("Unauthorized", 401);
+      }
+
+      const token = authHeader.slice(7);
+      const payload = await verifyToken(token);
+
+      if (!payload) {
+        return error("Invalid token", 401);
+      }
+
+      const updateSchema = z.object({
+        name: z.string().min(1).max(100).optional(),
+        avatarUrl: z.string().url().optional().nullable(),
+        userLocation: z.string().optional().nullable(),
+      });
+
+      const body = await parseBody(req);
+      const data = updateSchema.parse(body);
+
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          ...data,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, parseInt(payload.sub, 10)))
+        .returning();
+
+      return json({
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        avatarUrl: updatedUser.avatarUrl,
+        userLocation: updatedUser.userLocation,
+        updatedAt: updatedUser.updatedAt,
+      });
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        return error(e.errors[0].message, 400);
+      }
+      console.error("Update profile error:", e);
+      return error("Failed to update profile", 500);
     }
   });
 }

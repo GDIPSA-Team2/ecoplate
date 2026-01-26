@@ -9,6 +9,7 @@ export const users = sqliteTable("users", {
   passwordHash: text("password_hash").notNull(),
   name: text("name").notNull(),
   avatarUrl: text("avatar_url"),
+  userLocation: text("user_location"), // Default location for user (e.g., "Singapore 123456")
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -105,6 +106,7 @@ export const marketplaceListings = sqliteTable("marketplace_listings", {
   sellerId: integer("seller_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
+  buyerId: integer("buyer_id").references(() => users.id), // Final buyer who completes the transaction
   productId: integer("product_id").references(() => products.id, {
     onDelete: "set null",
   }),
@@ -116,12 +118,13 @@ export const marketplaceListings = sqliteTable("marketplace_listings", {
   price: real("price"), // null = free
   originalPrice: real("original_price"),
   expiryDate: integer("expiry_date", { mode: "timestamp" }),
-  pickupLocation: text("pickup_location"),
+  pickupLocation: text("pickup_location"), // Specific pickup location with Google Maps address
   pickupInstructions: text("pickup_instructions"),
-  status: text("status").default("active"), // "active", "reserved", "sold", "expired", "cancelled"
+  status: text("status").default("active"), // "active", "reserved", "completed", "expired", "cancelled"
   reservedBy: integer("reserved_by").references(() => users.id),
   reservedAt: integer("reserved_at", { mode: "timestamp" }),
   soldAt: integer("sold_at", { mode: "timestamp" }),
+  completedAt: integer("completed_at", { mode: "timestamp" }), // When transaction is completed
   viewCount: integer("view_count").default(0),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
@@ -143,19 +146,35 @@ export const listingImages = sqliteTable("listing_images", {
     .$defaultFn(() => new Date()),
 });
 
-export const messages = sqliteTable("messages", {
+// Conversation groups messages between buyer and seller for a listing
+export const conversations = sqliteTable("conversations", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   listingId: integer("listing_id")
     .notNull()
     .references(() => marketplaceListings.id, { onDelete: "cascade" }),
+  sellerId: integer("seller_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  buyerId: integer("buyer_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const messages = sqliteTable("messages", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  conversationId: integer("conversation_id")
+    .notNull()
+    .references(() => conversations.id, { onDelete: "cascade" }),
   senderId: integer("sender_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  receiverId: integer("receiver_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  content: text("content").notNull(),
-  isRead: integer("is_read", { mode: "boolean" }).default(false),
+  messageText: text("message_text").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -272,8 +291,10 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   receiptScans: many(receiptScans),
   consumptionLogs: many(consumptionLogs),
   listings: many(marketplaceListings, { relationName: "seller" }),
+  boughtListings: many(marketplaceListings, { relationName: "buyer" }),
   sentMessages: many(messages, { relationName: "sender" }),
-  receivedMessages: many(messages, { relationName: "receiver" }),
+  sellerConversations: many(conversations, { relationName: "seller" }),
+  buyerConversations: many(conversations, { relationName: "buyer" }),
   points: one(userPoints),
   pointTransactions: many(pointTransactions),
   badges: many(userBadges),
@@ -295,6 +316,11 @@ export const marketplaceListingsRelations = relations(
       references: [users.id],
       relationName: "seller",
     }),
+    buyer: one(users, {
+      fields: [marketplaceListings.buyerId],
+      references: [users.id],
+      relationName: "buyer",
+    }),
     product: one(products, {
       fields: [marketplaceListings.productId],
       references: [products.id],
@@ -304,24 +330,37 @@ export const marketplaceListingsRelations = relations(
       references: [users.id],
     }),
     images: many(listingImages),
-    messages: many(messages),
+    conversations: many(conversations),
   })
 );
 
-export const messagesRelations = relations(messages, ({ one }) => ({
+export const conversationsRelations = relations(conversations, ({ one, many }) => ({
   listing: one(marketplaceListings, {
-    fields: [messages.listingId],
+    fields: [conversations.listingId],
     references: [marketplaceListings.id],
+  }),
+  seller: one(users, {
+    fields: [conversations.sellerId],
+    references: [users.id],
+    relationName: "seller",
+  }),
+  buyer: one(users, {
+    fields: [conversations.buyerId],
+    references: [users.id],
+    relationName: "buyer",
+  }),
+  messages: many(messages),
+}));
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  conversation: one(conversations, {
+    fields: [messages.conversationId],
+    references: [conversations.id],
   }),
   sender: one(users, {
     fields: [messages.senderId],
     references: [users.id],
     relationName: "sender",
-  }),
-  receiver: one(users, {
-    fields: [messages.receiverId],
-    references: [users.id],
-    relationName: "receiver",
   }),
 }));
 
