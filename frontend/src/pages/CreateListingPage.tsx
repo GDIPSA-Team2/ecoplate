@@ -220,10 +220,21 @@ export default function CreateListingPage() {
               onChange={(value, coords) => {
                 setFormData((prev) => ({ ...prev, pickupLocation: value }));
                 setCoordinates(coords);
+                console.log("Location changed:", value, "Coordinates:", coords);
               }}
               label="Pickup Location"
               placeholder="Search for address, postal code, or landmark in Singapore"
             />
+            {/* Coordinates indicator */}
+            {coordinates ? (
+              <p className="text-xs text-green-600 mt-1">
+                Location coordinates captured (will appear on map)
+              </p>
+            ) : formData.pickupLocation.length > 0 ? (
+              <p className="text-xs text-orange-600 mt-1">
+                Please select a location from the dropdown to enable map display
+              </p>
+            ) : null}
 
             {/* Submit Buttons */}
             <div className="flex gap-4 pt-4">

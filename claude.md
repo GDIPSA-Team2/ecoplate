@@ -21,33 +21,35 @@ The project uses SQLite with Drizzle ORM. Schema is defined in `backend/src/db/s
 
 **CRITICAL: Database Migration Process**
 
-To prevent database drift and ensure consistency across all developers:
+The SQLite database (`backend/ecoplate.db`) is **committed to git** to share data among team members.
 
 1. **Never modify the database directly** - Always modify `schema.ts`
-2. **Never commit `.db` files** - Already in .gitignore
-3. **When pulling changes that modify schema:**
-   ```bash
-   cd backend
-   bun run db:reset    # Deletes DB, runs migration, seeds data
-   ```
+2. **The `.db` file IS committed** - Shared dev data via version control
+3. **When pulling changes:**
+   - If schema changed, you may need to run migrations
+   - If only data changed, git pull will update your local database
+   - **Stop the backend server before pulling** to avoid file lock conflicts
 
-4. **To reset your local database:**
+4. **To reset your local database (if needed):**
    ```bash
    cd backend
-   bun run db:reset    # Full reset (delete + migrate + seed)
-   # OR step-by-step:
-   rm -f ecoplate.db   # Delete existing database
-   bun run db:migrate  # Apply schema
-   bun run db:seed     # Add demo data
+   # Stop the server first!
+   # Windows:
+   del ecoplate.db
+   bun run db:migrate
+   bun run db:seed
+   # Linux/macOS:
+   rm -f ecoplate.db && bun run db:migrate && bun run db:seed
    ```
 
 5. **When modifying schema:**
    - Edit `backend/src/db/schema.ts`
-   - Delete old migration: `rm -rf backend/src/db/migrations`
+   - Delete old migration: `rm -rf backend/src/db/migrations` (or `rmdir /s backend\src\db\migrations` on Windows)
    - Generate new migration: `cd backend && bunx drizzle-kit generate:sqlite`
    - Update `migrate.ts` to reference new migration file name
-   - Test locally with `bun run db:reset`
-   - Commit schema.ts and migration files (NOT .db files)
+   - Test locally, then commit schema.ts, migration files, AND the updated `.db` file
+
+**Note:** Avoid committing sensitive data (real user emails, passwords). The database should only contain demo/test data.
 
 ## Backend (Bun API Server)
 

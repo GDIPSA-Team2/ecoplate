@@ -151,8 +151,13 @@ export function registerMarketplaceRoutes(router: Router) {
   router.post("/api/v1/marketplace/listings", async (req) => {
     try {
       const user = getUser(req);
+      console.log("Create listing - User:", user.id);
+
       const body = await parseBody(req);
+      console.log("Create listing - Body:", JSON.stringify(body, null, 2));
+
       const data = listingSchema.parse(body);
+      console.log("Create listing - Validated data:", JSON.stringify(data, null, 2));
 
       let pickupLocationValue = data.pickupLocation;
       if (data.coordinates && data.pickupLocation) {
@@ -176,12 +181,15 @@ export function registerMarketplaceRoutes(router: Router) {
         .returning();
 
       return json(listing);
-    } catch (e) {
+    } catch (e: any) {
       if (e instanceof z.ZodError) {
+        console.error("Create listing validation error:", e.errors);
         return error(e.errors[0].message, 400);
       }
       console.error("Create listing error:", e);
-      return error("Failed to create listing", 500);
+      console.error("Error message:", e?.message);
+      console.error("Error stack:", e?.stack);
+      return error(e?.message || "Failed to create listing", 500);
     }
   });
 

@@ -13,8 +13,8 @@ build/
 backend/public/assets/
 *.js.map
 
-# Database
-*.db
+# Database (allow ecoplate.db for shared dev data)
+# *.db
 *.db-journal
 *.db-wal
 *.db-shm

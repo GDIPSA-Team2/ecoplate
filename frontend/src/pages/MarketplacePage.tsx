@@ -27,22 +27,32 @@ export default function MarketplacePage() {
   const loadListings = async () => {
     try {
       const data = await marketplaceService.getListings();
+      console.log("Raw listings from API:", data);
 
       // Parse coordinates from pickupLocation if stored as "address|lat,lng"
       const parsedListings = data.map((listing) => {
         if (listing.pickupLocation && listing.pickupLocation.includes("|")) {
           const [address, coords] = listing.pickupLocation.split("|");
-          const [lat, lng] = coords.split(",").map(parseFloat);
+          const coordParts = coords.split(",");
+          const lat = parseFloat(coordParts[0]);
+          const lng = parseFloat(coordParts[1]);
 
-          return {
-            ...listing,
-            pickupLocation: address,
-            coordinates: { latitude: lat, longitude: lng },
-          };
+          console.log(`Listing ${listing.id}: parsed coords lat=${lat}, lng=${lng} from "${listing.pickupLocation}"`);
+
+          // Only set coordinates if both are valid numbers
+          if (!isNaN(lat) && !isNaN(lng)) {
+            return {
+              ...listing,
+              pickupLocation: address,
+              coordinates: { latitude: lat, longitude: lng },
+            };
+          }
         }
+        console.log(`Listing ${listing.id}: no coordinates found in "${listing.pickupLocation}"`);
         return listing;
       });
 
+      console.log("Parsed listings with coordinates:", parsedListings);
       setListings(parsedListings);
     } catch (error) {
       console.error("Failed to load listings:", error);
