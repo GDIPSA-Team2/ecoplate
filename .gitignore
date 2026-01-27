@@ -55,3 +55,9 @@ coverage/
 # Misc
 *.pem
 .vercel
+
+# Mobile platforms
+android/
+ios/
+!android/.gitignore  # Keep the Android .gitignore
+!ios/.gitignore      # Keep the iOS .gitignore
