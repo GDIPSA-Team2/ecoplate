@@ -25,6 +25,8 @@ backend/public/assets/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.ml
+.env.mobile
 
 # IDE
 .idea/
