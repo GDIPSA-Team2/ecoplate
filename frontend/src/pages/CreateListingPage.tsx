@@ -7,6 +7,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { ArrowLeft } from "lucide-react";
+import { LocationAutocomplete } from "../components/common/LocationAutocomplete";
 
 export default function CreateListingPage() {
   const [title, setTitle] = useState("");
@@ -18,6 +19,7 @@ export default function CreateListingPage() {
   const [originalPrice, setOriginalPrice] = useState<string>("");
   const [expiryDate, setExpiryDate] = useState("");
   const [pickupLocation, setPickupLocation] = useState("");
+  const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | undefined>();
   const [pickupInstructions, setPickupInstructions] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -38,6 +40,7 @@ export default function CreateListingPage() {
         originalPrice: originalPrice ? parseFloat(originalPrice) : undefined,
         expiryDate: expiryDate || undefined,
         pickupLocation: pickupLocation || undefined,
+        coordinates: coordinates,
         pickupInstructions: pickupInstructions || undefined,
       });
 
@@ -181,15 +184,15 @@ export default function CreateListingPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="pickupLocation">Pickup Location</Label>
-              <Input
-                id="pickupLocation"
-                value={pickupLocation}
-                onChange={(e) => setPickupLocation(e.target.value)}
-                placeholder="e.g., Downtown, near Central Station"
-              />
-            </div>
+            <LocationAutocomplete
+              value={pickupLocation}
+              onChange={(value, coords) => {
+                setPickupLocation(value);
+                setCoordinates(coords);
+              }}
+              label="Pickup Location"
+              placeholder="Search for address, postal code, or landmark in Singapore"
+            />
 
             <div className="space-y-2">
               <Label htmlFor="pickupInstructions">Pickup Instructions</Label>

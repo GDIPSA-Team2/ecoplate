@@ -5,6 +5,7 @@ import { eq, and, desc, ne, or, like } from "drizzle-orm";
 import { z } from "zod";
 import { getUser } from "../middleware/auth";
 import OpenAI from "openai";
+import { calculateDistance, parseCoordinates, type Coordinates } from "../utils/distance";
 
 const listingSchema = z.object({
   title: z.string().min(1).max(200),
@@ -16,6 +17,10 @@ const listingSchema = z.object({
   originalPrice: z.number().positive().optional(),
   expiryDate: z.string().optional(),
   pickupLocation: z.string().optional(),
+  coordinates: z.object({
+    latitude: z.number(),
+    longitude: z.number(),
+  }).optional(),
   pickupInstructions: z.string().optional(),
   productId: z.number().optional(),
 });
@@ -63,6 +68,66 @@ export function registerMarketplaceRoutes(router: Router) {
     }
 
     return json(filtered);
+  });
+
+  // Get nearby listings (for map view)
+  router.get("/api/v1/marketplace/listings/nearby", async (req) => {
+    const user = getUser(req);
+    const url = new URL(req.url);
+
+    const lat = parseFloat(url.searchParams.get("lat") || "");
+    const lng = parseFloat(url.searchParams.get("lng") || "");
+    const radius = parseFloat(url.searchParams.get("radius") || "10"); // Default 10km
+
+    if (isNaN(lat) || isNaN(lng)) {
+      return error("Invalid latitude or longitude", 400);
+    }
+
+    const userLocation: Coordinates = { latitude: lat, longitude: lng };
+
+    // Get all active listings (exclude user's own)
+    const allListings = await db.query.marketplaceListings.findMany({
+      where: and(
+        ne(marketplaceListings.sellerId, user.id),
+        eq(marketplaceListings.status, "active")
+      ),
+      with: {
+        seller: {
+          columns: { id: true, name: true, avatarUrl: true },
+        },
+        images: true,
+      },
+      orderBy: [desc(marketplaceListings.createdAt)],
+    });
+
+    // Parse coordinates and calculate distances
+    const listingsWithDistance = allListings
+      .map((listing) => {
+        const coords = parseCoordinates(listing.pickupLocation);
+
+        if (!coords) {
+          return null; // Skip listings without coordinates
+        }
+
+        const distance = calculateDistance(userLocation, coords);
+
+        // Parse pickup location to separate address from coordinates
+        let cleanAddress = listing.pickupLocation;
+        if (listing.pickupLocation?.includes("|")) {
+          cleanAddress = listing.pickupLocation.split("|")[0];
+        }
+
+        return {
+          ...listing,
+          pickupLocation: cleanAddress,
+          coordinates: coords,
+          distance,
+        };
+      })
+      .filter((listing) => listing !== null && listing.distance <= radius)
+      .sort((a, b) => (a!.distance || 0) - (b!.distance || 0)); // Sort by distance
+
+    return json(listingsWithDistance);
   });
 
   // Get user's own listings
@@ -114,6 +179,12 @@ export function registerMarketplaceRoutes(router: Router) {
       const body = await parseBody(req);
       const data = listingSchema.parse(body);
 
+      // Store coordinates in pickupLocation as "address|lat,lng" format
+      let pickupLocationValue = data.pickupLocation;
+      if (data.coordinates && data.pickupLocation) {
+        pickupLocationValue = `${data.pickupLocation}|${data.coordinates.latitude},${data.coordinates.longitude}`;
+      }
+
       const [listing] = await db
         .insert(marketplaceListings)
         .values({
@@ -127,7 +198,7 @@ export function registerMarketplaceRoutes(router: Router) {
           price: data.price,
           originalPrice: data.originalPrice,
           expiryDate: data.expiryDate ? new Date(data.expiryDate) : undefined,
-          pickupLocation: data.pickupLocation,
+          pickupLocation: pickupLocationValue,
           pickupInstructions: data.pickupInstructions,
         })
         .returning();

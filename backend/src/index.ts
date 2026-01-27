@@ -5,6 +5,7 @@ import { authMiddleware, type AuthenticatedRequest } from "./middleware/auth";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerMyFridgeRoutes } from "./routes/myfridge";
 import { registerMarketplaceRoutes } from "./routes/marketplace";
+import { registerConversationRoutes } from "./routes/conversations";
 import { registerGamificationRoutes } from "./routes/gamification";
 import * as schema from "./db/schema";
 import { existsSync } from "fs";
@@ -26,6 +27,7 @@ protectedRouter.use(authMiddleware);
 registerAuthRoutes(publicRouter);
 registerMyFridgeRoutes(protectedRouter);
 registerMarketplaceRoutes(protectedRouter);
+registerConversationRoutes(protectedRouter);
 registerGamificationRoutes(protectedRouter);
 
 // Health check

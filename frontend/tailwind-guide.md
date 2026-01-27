@@ -1,4 +1,4 @@
-# How to Get Away with Tailwind CSS & shadcn/ui (No pun intended 😉)
+# How to Get Away with Tailwind CSS & shadcn/ui
 
 ## Table of Contents
 1. [Getting Started](#getting-started)
