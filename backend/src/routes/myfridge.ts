@@ -220,7 +220,8 @@ For each item, determine its eco-focused sub-category (Ruminant meat, Non-rumina
    - Vegetables, Fruits, Legumes & pulses → "produce"
    - Grains & cereals, Nuts & seeds, Oils & fats, Sugar & sweeteners → "pantry"
    - Processed plant-based foods → "other"
-2. Estimate co2Emission in kg CO2e per unit based on the eco-focused sub-category.`,
+2. Estimate co2Emission in kg CO2e per unit based on the eco-focused sub-category.
+3. Determine the unit of measurement for the quantity (e.g. kg, g, ml, L, pcs, pack, loaf, dozen, bottle, can).`,
               },
               {
                 type: "image_url",
@@ -253,12 +254,16 @@ For each item, determine its eco-focused sub-category (Ruminant meat, Non-rumina
                         enum: ["produce", "dairy", "meat", "bakery", "frozen", "beverages", "pantry", "other"],
                         description: "Simple food category",
                       },
+                      unit: {
+                        type: "string",
+                        description: "Unit of measurement for the quantity (e.g. kg, g, ml, L, pcs, pack, loaf, dozen, bottle, can)",
+                      },
                       co2Emission: {
                         type: "number",
                         description: "Estimated kg CO2e per unit based on eco-focused sub-category",
                       },
                     },
-                    required: ["name", "quantity", "category", "co2Emission"],
+                    required: ["name", "quantity", "category", "unit", "co2Emission"],
                     additionalProperties: false,
                   },
                 },
@@ -275,7 +280,7 @@ For each item, determine its eco-focused sub-category (Ruminant meat, Non-rumina
       console.log("Finish reason:", response.choices[0]?.finish_reason);
       console.log("Refusal:", response.choices[0]?.message?.refusal);
       const parsed = JSON.parse(content) as {
-        items: Array<{ name: string; quantity: number; category: string; co2Emission: number }>;
+        items: Array<{ name: string; quantity: number; category: string; unit: string; co2Emission: number }>;
       };
 
       return json({ items: parsed.items });
