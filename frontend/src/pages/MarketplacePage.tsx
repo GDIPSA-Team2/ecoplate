@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { marketplaceService } from "../services/marketplace";
 import { uploadService } from "../services/upload";
 import { formatQuantityWithUnit } from "../constants/units";
@@ -7,7 +7,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import { Plus, Search, MapPin, Clock, List, Map, Package } from "lucide-react";
+import { Plus, Search, MapPin, Clock, List, Map, Package, MessageCircle } from "lucide-react";
 import { getDaysUntilExpiry } from "../lib/utils";
 import MarketplaceMap from "./Marketplace/MarketplaceMap";
 import type { MarketplaceListing, MarketplaceListingWithDistance } from "../types/marketplace";
@@ -184,6 +184,7 @@ export default function MarketplacePage() {
 }
 
 function ListingCard({ listing }: { listing: MarketplaceListing }) {
+  const navigate = useNavigate();
   const daysUntil = getDaysUntilExpiry(listing.expiryDate);
   const discount =
     listing.originalPrice && listing.price
@@ -193,6 +194,12 @@ function ListingCard({ listing }: { listing: MarketplaceListing }) {
   // Get first image as thumbnail
   const imageUrls = uploadService.getListingImageUrls(listing.images);
   const thumbnailUrl = imageUrls[0];
+
+  const handleMessageClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(`/messages/${listing.id}`);
+  };
 
   return (
     <Link to={`/marketplace/${listing.id}`}>
@@ -269,11 +276,20 @@ function ListingCard({ listing }: { listing: MarketplaceListing }) {
           </div>
 
           {listing.seller && (
-            <div className="mt-3 flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs text-primary font-medium">
-                {listing.seller.name.charAt(0).toUpperCase()}
+            <div className="mt-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs text-primary font-medium">
+                  {listing.seller.name.charAt(0).toUpperCase()}
+                </div>
+                <span className="text-sm text-gray-600">{listing.seller.name}</span>
               </div>
-              <span className="text-sm text-gray-600">{listing.seller.name}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleMessageClick}
+              >
+                <MessageCircle className="h-4 w-4" />
+              </Button>
             </div>
           )}
         </CardContent>

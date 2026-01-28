@@ -8,7 +8,7 @@ import { useToast } from "../contexts/ToastContext";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import { ArrowLeft, MapPin, Clock, Edit, Trash2, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Edit, Trash2, CheckCircle, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
 import { formatDate, getDaysUntilExpiry } from "../lib/utils";
 import type { MarketplaceListing } from "../types/marketplace";
 
@@ -340,15 +340,15 @@ export default function ListingDetailPage() {
               )}
             </div>
           ) : (
-            <div>
+            <div className="space-y-3">
               {listing.status === "active" ? (
-                <Card className="bg-blue-50 border-blue-200">
-                  <CardContent className="p-4">
-                    <p className="text-sm text-blue-800">
-                      Contact the seller at their pickup location to arrange collection.
-                    </p>
-                  </CardContent>
-                </Card>
+                <Button
+                  onClick={() => navigate(`/messages/${listing.id}`)}
+                  className="w-full"
+                >
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Message Seller
+                </Button>
               ) : (
                 <Card className="bg-gray-50">
                   <CardContent className="p-4">

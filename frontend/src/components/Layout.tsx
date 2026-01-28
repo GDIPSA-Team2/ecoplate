@@ -11,8 +11,10 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "../lib/utils";
+import { messageService } from "../services/messages";
+import { Badge } from "./ui/badge";
 
 const navItems = [
   { to: "/", icon: Home, label: "Dashboard" },
@@ -27,6 +29,23 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    loadUnreadCount();
+    // Poll for unread count every 30 seconds
+    const interval = setInterval(loadUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadUnreadCount = async () => {
+    try {
+      const { count } = await messageService.getUnreadCount();
+      setUnreadCount(count);
+    } catch (error) {
+      // Silently fail - don't show error for background polling
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -69,6 +88,11 @@ export default function Layout() {
               >
                 <item.icon size={20} />
                 {item.label}
+                {item.to === "/messages" && unreadCount > 0 && (
+                  <Badge variant="destructive" className="h-5 w-5 flex items-center justify-center p-0 text-xs">
+                    {unreadCount}
+                  </Badge>
+                )}
               </NavLink>
             ))}
             <div className="border-t pt-2 mt-2">
@@ -143,6 +167,11 @@ export default function Layout() {
               >
                 <item.icon size={20} />
                 {item.label}
+                {item.to === "/messages" && unreadCount > 0 && (
+                  <Badge variant="destructive" className="h-5 w-5 flex items-center justify-center p-0 text-xs">
+                    {unreadCount}
+                  </Badge>
+                )}
               </NavLink>
             ))}
           </nav>

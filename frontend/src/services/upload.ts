@@ -1,5 +1,3 @@
-import { api } from "./api";
-
 /**
  * Image Upload Service
  * Handles image uploads to the backend

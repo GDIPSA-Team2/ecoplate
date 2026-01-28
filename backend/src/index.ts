@@ -4,6 +4,7 @@ import { Router, json, error } from "./utils/router";
 import { authMiddleware } from "./middleware/auth";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerMarketplaceRoutes } from "./routes/marketplace";
+import { registerMessageRoutes } from "./routes/messages";
 import { registerUploadRoutes } from "./routes/upload";
 import { initializeUploadDir } from "./services/image-upload";
 import * as schema from "./db/schema";
@@ -29,6 +30,7 @@ protectedRouter.use(authMiddleware);
 // Register routes
 registerAuthRoutes(publicRouter);
 registerMarketplaceRoutes(protectedRouter);
+registerMessageRoutes(protectedRouter);
 registerUploadRoutes(protectedRouter);
 
 // Health check

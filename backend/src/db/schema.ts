@@ -61,12 +61,34 @@ export const marketplaceListings = sqliteTable("marketplace_listings", {
   completedAt: integer("completed_at", { mode: "timestamp" }),
 });
 
+// ==================== Messages ====================
+
+export const messages = sqliteTable("messages", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  listingId: integer("listing_id")
+    .notNull()
+    .references(() => marketplaceListings.id, { onDelete: "cascade" }),
+  senderId: integer("sender_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  receiverId: integer("receiver_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 // ==================== Relations ====================
 
 export const usersRelations = relations(users, ({ many }) => ({
   products: many(products),
   listings: many(marketplaceListings),
   purchases: many(marketplaceListings),
+  sentMessages: many(messages),
+  receivedMessages: many(messages),
 }));
 
 export const productsRelations = relations(products, ({ one, many }) => ({
@@ -79,7 +101,7 @@ export const productsRelations = relations(products, ({ one, many }) => ({
 
 export const marketplaceListingsRelations = relations(
   marketplaceListings,
-  ({ one }) => ({
+  ({ one, many }) => ({
     seller: one(users, {
       fields: [marketplaceListings.sellerId],
       references: [users.id],
@@ -92,5 +114,21 @@ export const marketplaceListingsRelations = relations(
       fields: [marketplaceListings.productId],
       references: [products.id],
     }),
+    messages: many(messages),
   })
 );
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  listing: one(marketplaceListings, {
+    fields: [messages.listingId],
+    references: [marketplaceListings.id],
+  }),
+  sender: one(users, {
+    fields: [messages.senderId],
+    references: [users.id],
+  }),
+  receiver: one(users, {
+    fields: [messages.receiverId],
+    references: [users.id],
+  }),
+}));
