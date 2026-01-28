@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
     },
     server: {
+      host: '0.0.0.0',  // 允许外部连接（Android 模拟器需要）
       port: 5173,
       proxy: {
         "/api": {
