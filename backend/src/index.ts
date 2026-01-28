@@ -5,6 +5,7 @@ import { authMiddleware } from "./middleware/auth";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerMarketplaceRoutes } from "./routes/marketplace";
 import { registerGamificationRoutes } from "./routes/gamification";
+import { registerMyFridgeRoutes } from "./routes/myfridge";
 import * as schema from "./db/schema";
 import { existsSync } from "fs";
 import { join } from "path";
@@ -26,6 +27,7 @@ protectedRouter.use(authMiddleware);
 registerAuthRoutes(publicRouter);
 registerMarketplaceRoutes(protectedRouter);
 registerGamificationRoutes(protectedRouter);
+registerMyFridgeRoutes(protectedRouter);
 
 // Health check
 publicRouter.get("/api/v1/health", () => json({ status: "ok" }));

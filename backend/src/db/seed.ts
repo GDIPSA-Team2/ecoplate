@@ -33,6 +33,7 @@ const sampleProducts = [
     unitPrice: 6.0,
     description: "Sweet and crispy organic apples from local farm",
     daysAgo: 2,
+    expiryDays: 10,
   },
   {
     productName: "Whole Wheat Bread",
@@ -41,6 +42,25 @@ const sampleProducts = [
     unitPrice: 2.25,
     description: "Freshly baked whole wheat bread",
     daysAgo: 1,
+    expiryDays: 5,
+  },
+  {
+    productName: "Greek Yogurt",
+    category: "dairy",
+    quantity: 3.0,
+    unitPrice: 4.5,
+    description: "Creamy Greek yogurt with live cultures",
+    daysAgo: 3,
+    expiryDays: 14,
+  },
+  {
+    productName: "Organic Milk",
+    category: "dairy",
+    quantity: 1.0,
+    unitPrice: 5.0,
+    description: "Fresh organic whole milk",
+    daysAgo: 1,
+    expiryDays: 7,
   },
 ];
 
@@ -68,14 +88,25 @@ const sampleListings = [
   },
 ];
 
+// Sample product interactions (per LDM)
+const sampleInteractions = [
+  { type: "consumed", quantity: 2.0, daysAgo: 5 },
+  { type: "consumed", quantity: 1.0, daysAgo: 4 },
+  { type: "shared", quantity: 3.0, daysAgo: 3 },
+  { type: "consumed", quantity: 1.0, daysAgo: 2 },
+  { type: "sold", quantity: 2.0, daysAgo: 1 },
+];
+
 async function seed() {
   try {
     // Clear existing data in correct order (respecting foreign keys)
     console.log("Clearing existing data...");
+    try { sqlite.exec("DELETE FROM product_interaction"); } catch (e) {}
+    try { sqlite.exec("DELETE FROM user_points"); } catch (e) {}
     sqlite.exec("DELETE FROM marketplace_listings");
     sqlite.exec("DELETE FROM products");
     sqlite.exec("DELETE FROM users");
-    sqlite.exec("DELETE FROM sqlite_sequence");
+    try { sqlite.exec("DELETE FROM sqlite_sequence"); } catch (e) {}
 
     // Create users
     console.log("Creating demo users...");
@@ -97,9 +128,22 @@ async function seed() {
       console.log(`  ✓ ${user.email}`);
     }
 
+    // Create user points for each user (per LDM: id, userId, total_points, current_streak)
+    // Reset to 0 - points and streaks are earned through actions only
+    console.log("\nInitializing user points...");
+    const userPointsData = [
+      { userId: createdUsers[0].id, totalPoints: 0, currentStreak: 0 },
+      { userId: createdUsers[1].id, totalPoints: 0, currentStreak: 0 },
+    ];
+
+    for (const points of userPointsData) {
+      await db.insert(schema.userPoints).values(points);
+      console.log(`  ✓ Points for user ${points.userId}: ${points.totalPoints} pts, ${points.currentStreak} day streak`);
+    }
+
     // Create products (MyFridge items)
     console.log("\nCreating sample products (MyFridge)...");
-    const createdProducts: { id: number; productName: string }[] = [];
+    const createdProducts: { id: number; productName: string; userId: number; quantity: number }[] = [];
 
     for (let i = 0; i < sampleProducts.length; i++) {
       const product = sampleProducts[i];
@@ -121,7 +165,12 @@ async function seed() {
         })
         .returning();
 
-      createdProducts.push({ id: created.id, productName: created.productName });
+      createdProducts.push({
+        id: created.id,
+        productName: created.productName,
+        userId: owner.id,
+        quantity: product.quantity
+      });
       console.log(`  ✓ "${product.productName}" owned by ${owner.name}`);
     }
 
@@ -152,10 +201,30 @@ async function seed() {
       console.log(`  ✓ "${listing.title}" by ${seller.name}`);
     }
 
+    // Create product interactions (per LDM)
+    console.log("\nCreating sample product interactions...");
+    for (let i = 0; i < sampleInteractions.length; i++) {
+      const interaction = sampleInteractions[i];
+      const product = createdProducts[i % createdProducts.length];
+
+      const todayDate = new Date();
+      todayDate.setDate(todayDate.getDate() - interaction.daysAgo);
+
+      await db.insert(schema.ProductSustainabilityMetrics).values({
+        productId: product.id,
+        userId: product.userId,
+        todayDate,
+        quantity: interaction.quantity,
+        type: interaction.type,
+      });
+
+      console.log(`  ✓ ${interaction.type}: ${interaction.quantity} units`);
+    }
+
     console.log("\n========================================");
     console.log("Done! Demo accounts (password: demo123):");
-    console.log("  - alice@demo.com");
-    console.log("  - bob@demo.com");
+    console.log("  - alice@demo.com (0 pts, 0 day streak)");
+    console.log("  - bob@demo.com (0 pts, 0 day streak)");
     console.log("========================================\n");
 
   } catch (error) {

@@ -23,8 +23,8 @@ export const users = sqliteTable("users", {
 export const products = sqliteTable("products", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
   productName: text("product_name").notNull(),
   category: text("category"),
   quantity: real("quantity").notNull(),
@@ -32,6 +32,36 @@ export const products = sqliteTable("products", {
   purchaseDate: integer("purchase_date", { mode: "timestamp" }),
   description: text("description"),
   co2Emission: real("co2_emission"),
+});
+
+// ==================== User Points (per LDM) ====================
+
+export const userPoints = sqliteTable("user_points", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: "cascade" }),
+  totalPoints: integer("total_points").notNull().default(0),
+  currentStreak: integer("current_streak").notNull().default(0),
+});
+
+// ==================== Product Interaction (per LDM) ====================
+// Records each product action (consumed, wasted, shared, sold)
+
+export const ProductSustainabilityMetrics = sqliteTable("product_interaction", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  productId: integer("product_id")
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  todayDate: integer("today_date", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  quantity: real("quantity").notNull(),
+  type: text("type").notNull(), // consumed, wasted, shared, sold
 });
 
 // ==================== Marketplace Listings ====================
@@ -60,10 +90,30 @@ export const marketplaceListings = sqliteTable("marketplace_listings", {
 
 // ==================== Relations ====================
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   products: many(products),
   listings: many(marketplaceListings),
   purchases: many(marketplaceListings),
+  points: one(userPoints),
+  interactions: many(ProductSustainabilityMetrics),
+}));
+
+export const userPointsRelations = relations(userPoints, ({ one }) => ({
+  user: one(users, {
+    fields: [userPoints.userId],
+    references: [users.id],
+  }),
+}));
+
+export const ProductSustainabilityMetricsRelations = relations(ProductSustainabilityMetrics, ({ one }) => ({
+  product: one(products, {
+    fields: [ProductSustainabilityMetrics.productId],
+    references: [products.id],
+  }),
+  user: one(users, {
+    fields: [ProductSustainabilityMetrics.userId],
+    references: [users.id],
+  }),
 }));
 
 export const productsRelations = relations(products, ({ one, many }) => ({
@@ -72,6 +122,7 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     references: [users.id],
   }),
   listings: many(marketplaceListings),
+  interactions: many(ProductSustainabilityMetrics),
 }));
 
 export const marketplaceListingsRelations = relations(
