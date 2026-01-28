@@ -444,6 +444,8 @@ interface ScannedItem {
   id: string;
   name: string;
   quantity: number;
+  unit: string;
+  unitPrice: number;
   category: string;
   co2Emission: number;
 }
@@ -473,7 +475,7 @@ function ScanReceiptModal({
 
       try {
         const response = await api.post<{
-          items: Array<{ name: string; quantity: number; category: string; co2Emission: number }>;
+          items: Array<{ name: string; quantity: number; category: string; unit: string; unitPrice: number; co2Emission: number }>;
         }>("/myfridge/receipt/scan", { imageBase64: base64 });
 
         setScannedItems(
@@ -553,6 +555,7 @@ function ScanReceiptModal({
           productName: item.name,
           quantity: item.quantity,
           category: item.category,
+          unitPrice: item.unitPrice || undefined,
           co2Emission: item.co2Emission,
         });
         addedCount++;
@@ -771,50 +774,105 @@ function ScanReceiptModal({
               <p className="text-sm text-gray-600">
                 Found {scannedItems.length} items. Review and edit before adding:
               </p>
-              <div className="space-y-3 max-h-60 overflow-y-auto">
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
                 {scannedItems.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center gap-2 p-2 bg-gray-50 rounded"
+                    className="p-3 bg-gray-50 rounded-lg space-y-2"
                   >
-                    <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
                       <Input
                         value={item.name}
                         onChange={(e) => updateItem(item.id, "name", e.target.value)}
-                        className="h-8 text-sm"
+                        className="h-8 text-sm font-medium"
+                        placeholder="Product name"
                       />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => removeItem(item.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-gray-400 hover:text-red-500" />
+                      </Button>
                     </div>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) =>
-                        updateItem(item.id, "quantity", parseInt(e.target.value) || 1)
-                      }
-                      className="h-8 w-16 text-sm text-center"
-                    />
-                    <select
-                      value={item.category}
-                      onChange={(e) => updateItem(item.id, "category", e.target.value)}
-                      className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-                    >
-                      <option value="produce">Produce</option>
-                      <option value="dairy">Dairy</option>
-                      <option value="meat">Meat</option>
-                      <option value="bakery">Bakery</option>
-                      <option value="frozen">Frozen</option>
-                      <option value="beverages">Beverages</option>
-                      <option value="pantry">Pantry</option>
-                      <option value="other">Other</option>
-                    </select>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 shrink-0"
-                      onClick={() => removeItem(item.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-gray-400 hover:text-red-500" />
-                    </Button>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-xs text-gray-500">Qty</label>
+                        <Input
+                          type="number"
+                          min="0.1"
+                          step="0.1"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            updateItem(item.id, "quantity", parseFloat(e.target.value) || 1)
+                          }
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Unit</label>
+                        <select
+                          value={item.unit}
+                          onChange={(e) => updateItem(item.id, "unit", e.target.value)}
+                          className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm"
+                        >
+                          <option value="pcs">pcs</option>
+                          <option value="kg">kg</option>
+                          <option value="g">g</option>
+                          <option value="L">L</option>
+                          <option value="ml">ml</option>
+                          <option value="pack">pack</option>
+                          <option value="bottle">bottle</option>
+                          <option value="can">can</option>
+                          <option value="loaf">loaf</option>
+                          <option value="dozen">dozen</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Price ($)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.unitPrice}
+                          onChange={(e) =>
+                            updateItem(item.id, "unitPrice", parseFloat(e.target.value) || 0)
+                          }
+                          className="h-8 text-sm"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-gray-500">Category</label>
+                        <select
+                          value={item.category}
+                          onChange={(e) => updateItem(item.id, "category", e.target.value)}
+                          className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm"
+                        >
+                          <option value="produce">Produce</option>
+                          <option value="dairy">Dairy</option>
+                          <option value="meat">Meat</option>
+                          <option value="bakery">Bakery</option>
+                          <option value="frozen">Frozen</option>
+                          <option value="beverages">Beverages</option>
+                          <option value="pantry">Pantry</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">CO2 (kg)</label>
+                        <Input
+                          type="number"
+                          value={item.co2Emission}
+                          readOnly
+                          disabled
+                          className="h-8 text-sm bg-gray-100"
+                        />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

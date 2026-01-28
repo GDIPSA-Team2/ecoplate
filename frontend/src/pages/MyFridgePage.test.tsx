@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import MyFridgePage from "./MyFridgePage";
 import { ToastProvider } from "../contexts/ToastContext";
 
@@ -40,7 +39,6 @@ vi.mock("@capacitor/core", () => ({
 }));
 
 import { api } from "../services/api";
-import { useCamera } from "../hooks/useCamera";
 
 function renderWithProviders(ui: React.ReactElement) {
   return render(<ToastProvider>{ui}</ToastProvider>);
@@ -196,12 +194,7 @@ describe("ScanReceiptModal", () => {
       expect(screen.getByText("Take Photo")).toBeInTheDocument();
     });
 
-    // Find the close button (X icon) in the modal header
-    const closeButtons = screen.getAllByRole("button");
-    const closeButton = closeButtons.find((btn) => {
-      return btn.closest('[class*="CardTitle"]') !== null || btn.querySelector('svg');
-    });
-    // Click the last X button which is in the scan modal header
+    // Find and click the close button (X icon) in the scan modal header
     const modalCloseBtn = screen.getAllByRole("button").filter((btn) => {
       const svg = btn.querySelector("svg");
       return svg && btn.closest(".max-w-md");
@@ -214,8 +207,8 @@ describe("ScanReceiptModal", () => {
   it("should process file upload via file input", async () => {
     vi.mocked(api.post).mockResolvedValue({
       items: [
-        { name: "Bananas", quantity: 6, category: "produce", co2Emission: 0.9 },
-        { name: "Chicken Breast", quantity: 2, category: "meat", co2Emission: 6.1 },
+        { name: "Bananas", quantity: 6, category: "produce", unit: "pcs", unitPrice: 1.5, co2Emission: 0.9 },
+        { name: "Chicken Breast", quantity: 2, category: "meat", unit: "pcs", unitPrice: 8.99, co2Emission: 6.1 },
       ],
     });
 
@@ -256,8 +249,8 @@ describe("ScanReceiptModal", () => {
   it("should display scanned items for review", async () => {
     vi.mocked(api.post).mockResolvedValueOnce({
       items: [
-        { name: "Bananas", quantity: 6, category: "produce", co2Emission: 0.9 },
-        { name: "Chicken Breast", quantity: 2, category: "meat", co2Emission: 6.1 },
+        { name: "Bananas", quantity: 6, category: "produce", unit: "pcs", unitPrice: 1.5, co2Emission: 0.9 },
+        { name: "Chicken Breast", quantity: 2, category: "meat", unit: "pcs", unitPrice: 8.99, co2Emission: 6.1 },
       ],
     });
 
@@ -288,12 +281,23 @@ describe("ScanReceiptModal", () => {
       expect(screen.getByText("Found 2 items. Review and edit before adding:")).toBeInTheDocument();
     });
 
-    // Check the scanned items are editable
+    // Check the scanned items are editable — name and quantity
     const nameInputs = screen.getAllByDisplayValue("Bananas");
     expect(nameInputs.length).toBeGreaterThan(0);
 
     const quantityInputs = screen.getAllByDisplayValue("6");
     expect(quantityInputs.length).toBeGreaterThan(0);
+
+    // Verify new fields: unit dropdown, price input, CO2 input
+    const unitSelects = screen.getAllByDisplayValue("pcs");
+    expect(unitSelects.length).toBeGreaterThan(0);
+
+    const co2Inputs = screen.getAllByDisplayValue("0.9");
+    expect(co2Inputs.length).toBeGreaterThan(0);
+
+    // Price extracted from receipt
+    const priceInputs = screen.getAllByDisplayValue("1.5");
+    expect(priceInputs.length).toBeGreaterThan(0);
   });
 
   it("should reject non-image files", async () => {
@@ -388,7 +392,7 @@ describe("ScanReceiptModal", () => {
     vi.mocked(api.post)
       .mockResolvedValueOnce({
         items: [
-          { name: "Eggs", quantity: 12, category: "dairy", co2Emission: 4.7 },
+          { name: "Eggs", quantity: 12, category: "dairy", unit: "pcs", unitPrice: 0, co2Emission: 4.7 },
         ],
       })
       // Second call: adding products
@@ -425,11 +429,12 @@ describe("ScanReceiptModal", () => {
     fireEvent.click(screen.getByText("Add 1 Items"));
 
     await waitFor(() => {
-      // Should have called the add product endpoint with productName and co2Emission
+      // Should have called the add product endpoint with productName, co2Emission, and unitPrice
       expect(api.post).toHaveBeenCalledWith("/myfridge/products", {
         productName: "Eggs",
         quantity: 12,
         category: "dairy",
+        unitPrice: undefined,
         co2Emission: 4.7,
       });
     });
@@ -438,8 +443,8 @@ describe("ScanReceiptModal", () => {
   it("should remove a scanned item", async () => {
     vi.mocked(api.post).mockResolvedValueOnce({
       items: [
-        { name: "Milk", quantity: 1, category: "dairy", co2Emission: 3.2 },
-        { name: "Bread", quantity: 2, category: "pantry", co2Emission: 0.8 },
+        { name: "Milk", quantity: 1, category: "dairy", unit: "pcs", unitPrice: 3.5, co2Emission: 3.2 },
+        { name: "Bread", quantity: 2, category: "pantry", unit: "loaf", unitPrice: 2.0, co2Emission: 0.8 },
       ],
     });
 
@@ -482,6 +487,220 @@ describe("ScanReceiptModal", () => {
         ).toBeInTheDocument();
       });
     }
+  });
+
+  it("should display all editable fields (unit, price, CO2) after scan", async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({
+      items: [
+        { name: "Salmon", quantity: 1, category: "meat", unit: "kg", unitPrice: 12.99, co2Emission: 5.2 },
+      ],
+    });
+
+    renderWithProviders(<MyFridgePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Scan Receipt")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Scan Receipt"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Take Photo")).toBeInTheDocument();
+    });
+
+    const fileInput = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    const file = new File(["data"], "receipt.png", { type: "image/png" });
+
+    stubFileReader("data:image/png;base64,abc");
+
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(screen.getByText("Found 1 items. Review and edit before adding:")).toBeInTheDocument();
+    });
+
+    // Product Name
+    expect(screen.getByDisplayValue("Salmon")).toBeInTheDocument();
+    // Quantity
+    expect(screen.getByDisplayValue("1")).toBeInTheDocument();
+    // Unit dropdown — value is "kg"
+    expect(screen.getByDisplayValue("kg")).toBeInTheDocument();
+    // Price — extracted from receipt as 12.99
+    expect(screen.getByDisplayValue("12.99")).toBeInTheDocument();
+    // Category select — selected option text is "Meat"
+    const categorySelect = screen.getByDisplayValue("Meat") as HTMLSelectElement;
+    expect(categorySelect).toBeInTheDocument();
+    expect(categorySelect.value).toBe("meat");
+    // CO2 emission — displayed but read-only
+    const co2Input = screen.getByDisplayValue("5.2") as HTMLInputElement;
+    expect(co2Input).toBeInTheDocument();
+    expect(co2Input).toBeDisabled();
+  });
+
+  it("should allow editing unit price", async () => {
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({
+        items: [
+          { name: "Apples", quantity: 3, category: "produce", unit: "pcs", unitPrice: 1.20, co2Emission: 0.4 },
+        ],
+      })
+      .mockResolvedValue({ id: 1, productName: "Apples" });
+
+    renderWithProviders(<MyFridgePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Scan Receipt")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Scan Receipt"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Take Photo")).toBeInTheDocument();
+    });
+
+    const fileInput = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    const file = new File(["data"], "receipt.jpg", { type: "image/jpeg" });
+
+    stubFileReader("data:image/jpeg;base64,abc");
+
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(screen.getByText("Add 1 Items")).toBeInTheDocument();
+    });
+
+    // Change unit price from 1.2 (extracted from receipt) to 2.50
+    const priceInput = screen.getByDisplayValue("1.2");
+    fireEvent.change(priceInput, { target: { value: "2.50" } });
+
+    // Click Add
+    fireEvent.click(screen.getByText("Add 1 Items"));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith("/myfridge/products", {
+        productName: "Apples",
+        quantity: 3,
+        category: "produce",
+        unitPrice: 2.5,
+        co2Emission: 0.4,
+      });
+    });
+  });
+
+  it("should allow editing unit dropdown", async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({
+      items: [
+        { name: "Rice", quantity: 2, category: "pantry", unit: "pcs", unitPrice: 5.0, co2Emission: 1.1 },
+      ],
+    });
+
+    renderWithProviders(<MyFridgePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Scan Receipt")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Scan Receipt"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Take Photo")).toBeInTheDocument();
+    });
+
+    const fileInput = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    const file = new File(["data"], "receipt.jpg", { type: "image/jpeg" });
+
+    stubFileReader("data:image/jpeg;base64,abc");
+
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("pcs")).toBeInTheDocument();
+    });
+
+    // Change unit from "pcs" to "kg"
+    const unitSelect = screen.getByDisplayValue("pcs");
+    fireEvent.change(unitSelect, { target: { value: "kg" } });
+
+    // Verify the select now shows "kg"
+    expect(screen.getByDisplayValue("kg")).toBeInTheDocument();
+  });
+
+  it("should not allow editing CO2 emission (read-only)", async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({
+      items: [
+        { name: "Beef", quantity: 1, category: "meat", unit: "kg", unitPrice: 15.0, co2Emission: 27.0 },
+      ],
+    });
+
+    renderWithProviders(<MyFridgePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Scan Receipt")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Scan Receipt"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Take Photo")).toBeInTheDocument();
+    });
+
+    const fileInput = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    const file = new File(["data"], "receipt.jpg", { type: "image/jpeg" });
+
+    stubFileReader("data:image/jpeg;base64,abc");
+
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(screen.getByText("Add 1 Items")).toBeInTheDocument();
+    });
+
+    // CO2 input should be disabled and read-only
+    const co2Input = screen.getByDisplayValue("27") as HTMLInputElement;
+    expect(co2Input).toBeDisabled();
+    expect(co2Input).toHaveAttribute("readonly");
+  });
+
+  it("should reject unsupported image formats (e.g. HEIC)", async () => {
+    renderWithProviders(<MyFridgePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Scan Receipt")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Scan Receipt"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Take Photo")).toBeInTheDocument();
+    });
+
+    const fileInput = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+
+    const heicFile = new File(["fake-heic-data"], "photo.heic", {
+      type: "image/heic",
+    });
+
+    fireEvent.change(fileInput, { target: { files: [heicFile] } });
+
+    // API should not have been called
+    expect(api.post).not.toHaveBeenCalled();
+
+    // Toast should show unsupported format message
+    await waitFor(() => {
+      expect(
+        screen.getByText("Unsupported format. Please use PNG, JPEG, GIF, or WebP.")
+      ).toBeInTheDocument();
+    });
   });
 
   it("should show info toast when no items found", async () => {
