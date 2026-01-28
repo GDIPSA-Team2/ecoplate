@@ -52,6 +52,15 @@ interface IdentifiedIngredient {
 }
 
 
+interface PendingConsumptionRecord {
+  id: number;
+  rawPhoto: string;
+  ingredients: IdentifiedIngredient[];
+  disposalMethod: string;
+  status: "PENDING_WASTE_PHOTO" | "COMPLETED";
+  createdAt: string;
+}
+
 export default function MyFridgePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,10 +68,13 @@ export default function MyFridgePage() {
   const [showScanModal, setShowScanModal] = useState(false);
   const [showTrackConsumption, setShowTrackConsumption] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [pendingConsumptions, setPendingConsumptions] = useState<PendingConsumptionRecord[]>([]);
+  const [selectedPendingRecord, setSelectedPendingRecord] = useState<PendingConsumptionRecord | null>(null);
   const { addToast } = useToast();
 
   useEffect(() => {
     loadProducts();
+    loadPendingConsumptions();
   }, []);
 
   const loadProducts = async () => {
@@ -73,6 +85,30 @@ export default function MyFridgePage() {
       addToast("Failed to load products", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPendingConsumptions = async () => {
+    try {
+      const data = await api.get<PendingConsumptionRecord[]>("/myfridge/consumption/pending");
+      setPendingConsumptions(data);
+    } catch {
+      // Silently fail - pending consumptions are optional
+    }
+  };
+
+  const handleResumePendingConsumption = (record: PendingConsumptionRecord) => {
+    setSelectedPendingRecord(record);
+    setShowTrackConsumption(true);
+  };
+
+  const handleDeletePendingConsumption = async (id: number) => {
+    try {
+      await api.delete(`/myfridge/consumption/pending/${id}`);
+      setPendingConsumptions((prev) => prev.filter((p) => p.id !== id));
+      addToast("Pending record deleted", "success");
+    } catch {
+      addToast("Failed to delete pending record", "error");
     }
   };
 
@@ -150,6 +186,66 @@ export default function MyFridgePage() {
         </div>
       </div>
 
+      {/* Pending Consumptions Banner */}
+      {pendingConsumptions.length > 0 && (
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <h3 className="font-medium text-yellow-800">
+                  {pendingConsumptions.length} pending consumption{pendingConsumptions.length > 1 ? "s" : ""}
+                </h3>
+                <p className="text-sm text-yellow-700 mt-1">
+                  You have meals waiting for waste photo. Add them to complete tracking.
+                </p>
+                <div className="mt-3 space-y-2">
+                  {pendingConsumptions.map((record) => (
+                    <div
+                      key={record.id}
+                      className="flex items-center justify-between bg-white rounded-lg p-2 border border-yellow-200"
+                    >
+                      <div className="flex items-center gap-3">
+                        {record.rawPhoto && (
+                          <img
+                            src={record.rawPhoto}
+                            alt="Meal"
+                            className="w-10 h-10 object-cover rounded"
+                          />
+                        )}
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">
+                            {record.ingredients.length} ingredient{record.ingredients.length !== 1 ? "s" : ""}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(record.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeletePendingConsumption(record.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleResumePendingConsumption(record)}
+                        >
+                          Add Photo
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -210,11 +306,17 @@ export default function MyFridgePage() {
       {/* Track Consumption Modal */}
       {showTrackConsumption && (
         <TrackConsumptionModal
-          onClose={() => setShowTrackConsumption(false)}
+          onClose={() => {
+            setShowTrackConsumption(false);
+            setSelectedPendingRecord(null);
+          }}
           onComplete={() => {
             setShowTrackConsumption(false);
+            setSelectedPendingRecord(null);
             loadProducts();
+            loadPendingConsumptions();
           }}
+          pendingRecord={selectedPendingRecord}
         />
       )}
     </div>
@@ -942,22 +1044,31 @@ type TrackConsumptionStep = "raw-input" | "raw-review" | "waste-input" | "waste-
 function TrackConsumptionModal({
   onClose,
   onComplete,
+  pendingRecord,
 }: {
   onClose: () => void;
   onComplete: () => void;
+  pendingRecord?: PendingConsumptionRecord | null;
 }) {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const camera = useCamera();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [step, setStep] = useState<TrackConsumptionStep>("raw-input");
-  const [rawPhoto, setRawPhoto] = useState<string | null>(null);
+  // If resuming a pending record, start at waste-input step
+  const [step, setStep] = useState<TrackConsumptionStep>(
+    pendingRecord ? "waste-input" : "raw-input"
+  );
+  const [rawPhoto, setRawPhoto] = useState<string | null>(pendingRecord?.rawPhoto || null);
   const [wastePhoto, setWastePhoto] = useState<string | null>(null);
-  const [ingredients, setIngredients] = useState<IdentifiedIngredient[]>([]);
-  const [disposalMethod, setDisposalMethod] = useState("landfill");
+  const [ingredients, setIngredients] = useState<IdentifiedIngredient[]>(
+    pendingRecord?.ingredients || []
+  );
+  const [disposalMethod, setDisposalMethod] = useState(pendingRecord?.disposalMethod || "landfill");
   const [showCamera, setShowCamera] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [pendingRecordId, setPendingRecordId] = useState<number | undefined>(pendingRecord?.id);
   const [editableWasteItems, setEditableWasteItems] = useState<Array<{
     id: string;
     productName: string;
@@ -1088,6 +1199,41 @@ function TrackConsumptionModal({
         co2Emission: 0,
       },
     ]);
+  };
+
+  const handleDoLater = async () => {
+    if (!rawPhoto) {
+      addToast("No raw photo to save", "error");
+      return;
+    }
+
+    setSavingDraft(true);
+    try {
+      // Save draft consumption record with PENDING_WASTE_PHOTO status
+      const draftData = {
+        rawPhoto,
+        ingredients,
+        disposalMethod,
+        status: "PENDING_WASTE_PHOTO",
+      };
+
+      if (pendingRecordId) {
+        // Update existing pending record
+        await api.put(`/myfridge/consumption/pending/${pendingRecordId}`, draftData);
+      } else {
+        // Create new pending record
+        const response = await api.post<{ id: number }>("/myfridge/consumption/pending", draftData);
+        setPendingRecordId(response.id);
+      }
+
+      addToast("Saved! You can add waste photo later.", "success");
+      onComplete();
+      navigate("/");
+    } catch (error) {
+      addToast("Failed to save draft", "error");
+    } finally {
+      setSavingDraft(false);
+    }
   };
 
   const handleDone = () => {
@@ -1467,25 +1613,143 @@ function TrackConsumptionModal({
     );
   }
 
-  // --- PAGE 3: Waste Photo Input ---
+  // --- PAGE 3: Waste Photo Input (OPTIONAL) ---
   if (step === "waste-input") {
+    // Guard: If no rawPhoto exists, redirect to Page 1
+    if (!rawPhoto) {
+      return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardContent className="p-6 text-center">
+              <AlertCircle className="h-12 w-12 mx-auto text-yellow-500 mb-4" />
+              <p className="text-gray-600 mb-4">No raw photo found. Please start from the beginning.</p>
+              <Button onClick={() => setStep("raw-input")} className="w-full">
+                Start Over
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     return (
-      <PhotoInputView
-        title="Capture Leftovers"
-        subtitle="Step 3 of 4 — Photo your plate after eating"
-        cameraLabel="Capture your plate after eating"
-        onFileProcess={processWastePhoto}
-        backButton={
-          <Button
-            variant="ghost"
-            onClick={() => setStep("raw-review")}
-            className="w-full mt-2"
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Back to ingredients
-          </Button>
-        }
-      />
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <Card className="w-full max-w-md max-h-[80vh] overflow-y-auto">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Capture Leftovers
+              <Button variant="ghost" size="icon" onClick={handleClose}>
+                <X className="h-4 w-4" />
+              </Button>
+            </CardTitle>
+            <p className="text-sm text-gray-500">Step 3 of 4 — Photo your plate after eating</p>
+            <StepIndicator />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Info message about optional waste photo */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-700">
+                  You can add the waste photo later after you finish eating.
+                  Tap "Do Later" to save your progress and return anytime.
+                </p>
+              </div>
+
+              <Button
+                variant="outline"
+                className="w-full h-auto py-4 flex flex-col items-center gap-2"
+                onClick={handleOpenCamera}
+              >
+                <Camera className="h-8 w-8 text-gray-500" />
+                <span className="font-medium">Take Photo</span>
+                <span className="text-xs text-gray-400">Capture your plate after eating</span>
+              </Button>
+
+              <div className="flex items-center gap-3">
+                <div className="flex-1 border-t border-gray-200" />
+                <span className="text-xs text-gray-400">or</span>
+                <div className="flex-1 border-t border-gray-200" />
+              </div>
+
+              <div
+                className={cn(
+                  "border-2 border-dashed rounded-lg p-6 transition-colors cursor-pointer text-center",
+                  isDragging
+                    ? "border-primary bg-primary/5"
+                    : "border-gray-300 hover:border-gray-400"
+                )}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  const file = e.dataTransfer.files[0];
+                  if (file) processFile(file, processWastePhoto);
+                }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                <p className="text-gray-600 font-medium text-sm">
+                  {isDragging ? "Drop your photo here" : "Upload from files"}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Drag and drop, or click to browse
+                </p>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) processFile(file, processWastePhoto);
+                }}
+                className="hidden"
+              />
+
+              <div className="pt-2">
+                <label className="text-xs text-gray-500">Disposal method</label>
+                <select
+                  value={disposalMethod}
+                  onChange={(e) => setDisposalMethod(e.target.value)}
+                  className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm"
+                >
+                  <option value="landfill">Landfill</option>
+                  <option value="composting">Composting</option>
+                  <option value="incineration">Incineration</option>
+                  <option value="anaerobic_digestion">Anaerobic Digestion</option>
+                  <option value="sewer">Sewer</option>
+                </select>
+              </div>
+
+              {/* Do Later button */}
+              <Button
+                variant="secondary"
+                onClick={handleDoLater}
+                disabled={savingDraft}
+                className="w-full"
+              >
+                {savingDraft ? "Saving..." : "Do Later"}
+              </Button>
+
+              {/* Back button - only show if not resuming a pending record */}
+              {!pendingRecordId && (
+                <Button
+                  variant="ghost"
+                  onClick={() => setStep("raw-review")}
+                  className="w-full"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Back to ingredients
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
