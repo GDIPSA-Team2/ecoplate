@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getUser } from "../middleware/auth";
 import { calculateDistance, parseCoordinates, type Coordinates } from "../utils/distance";
 import { awardPoints, recordProductSustainabilityMetrics } from "../services/gamification-service";
+import { POINT_VALUES} from "../services/gamification-service";
 
 const listingSchema = z.object({
   productId: z.number().optional(),
@@ -442,7 +443,7 @@ export function registerMarketplaceRoutes(router: Router) {
       const pointResult = await awardPoints(user.id, "sold");
 
       return json({
-        message: "Listing marked as completed",
+        message: `Listing marked as completed`,
         pointsAwarded: pointResult.amount,
       });
     } catch (e) {

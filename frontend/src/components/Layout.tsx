@@ -3,7 +3,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useUnreadCount } from "../contexts/UnreadCountContext";
 import {
   Home,
-  // Refrigerator,
+  Refrigerator,
   Store,
   MessageCircle,
   Trophy,
@@ -38,6 +38,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith("/myfridge")) return "MyFridge";
   if (pathname.startsWith("/marketplace")) return "Marketplace";
   if (pathname.startsWith("/messages")) return "Messages";
+  if (pathname.startsWith("/ecopoints")) return "Eco Points";
   if (pathname.startsWith("/ecoboard")) return "EcoBoard";
   if (pathname.startsWith("/badges")) return "Badges";
   if (pathname.startsWith("/account")) return "Account";
