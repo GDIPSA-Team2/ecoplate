@@ -1,5 +1,6 @@
 import { Database } from "bun:sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
+import { eq } from "drizzle-orm";
 import * as schema from "./schema";
 import { hashPassword } from "../middleware/auth";
 
@@ -22,173 +23,337 @@ const demoUsers = [
     name: "Bob Tan",
     userLocation: "Clementi, Singapore 129588",
   },
+  {
+    email: "charlie@demo.com",
+    password: "demo123",
+    name: "Charlie Lim",
+    userLocation: "Tampines, Singapore 529510",
+  },
+  {
+    email: "diana@demo.com",
+    password: "demo123",
+    name: "Diana Chen",
+    userLocation: "Jurong East, Singapore 609731",
+  },
+  {
+    email: "evan@demo.com",
+    password: "demo123",
+    name: "Evan Ng",
+    userLocation: "Bishan, Singapore 570283",
+  },
 ];
 
-// Sample listings
+// Sample products (MyFridge items)
+const sampleProducts = [
+  {
+    productName: "Fresh Organic Apples",
+    category: "produce",
+    quantity: 5.0,
+    unitPrice: 6.0,
+    description: "Sweet and crispy organic apples from local farm",
+    daysAgo: 2,
+  },
+  {
+    productName: "Whole Wheat Bread",
+    category: "bakery",
+    quantity: 2.0,
+    unitPrice: 2.25,
+    description: "Freshly baked whole wheat bread",
+    daysAgo: 1,
+  },
+];
+
+// Sample marketplace listings
 const sampleListings = [
+  // PRODUCE - Apples (multiple for similarity testing)
   {
     title: "Fresh Organic Apples",
-    description: "Sweet and crispy organic apples from local farm.",
+    description: "Sweet and crispy organic apples from local farm. Selling half my stock!",
     category: "produce",
-    quantity: 2,
+    quantity: 2.0,
     unit: "kg",
     price: 5.0,
     originalPrice: 12.0,
     expiryDays: 5,
-    location: "Queenstown MRT Station, Singapore 149305|1.2943,103.8016",
+    location: "Queenstown MRT Station|1.2946,103.8060",
+    sellerIndex: 0, // Alice
   },
   {
-    title: "Whole Wheat Bread",
-    description: "Freshly baked whole wheat bread.",
-    category: "bakery",
-    quantity: 2,
-    unit: "loaf",
-    price: null,
-    originalPrice: 4.5,
+    title: "Red Fuji Apples",
+    description: "Imported Japanese Fuji apples, super sweet and crunchy. Bought too many!",
+    category: "produce",
+    quantity: 1.5,
+    unit: "kg",
+    price: 6.0,
+    originalPrice: 15.0,
+    expiryDays: 7,
+    location: "Tampines Mall|1.3525,103.9447",
+    sellerIndex: 2, // Charlie
+  },
+  {
+    title: "Green Granny Smith Apples",
+    description: "Tart and crisp green apples, perfect for baking or eating fresh.",
+    category: "produce",
+    quantity: 1.0,
+    unit: "kg",
+    price: 4.5,
+    originalPrice: 10.0,
+    expiryDays: 6,
+    location: "Jurong Point|1.3397,103.7066",
+    sellerIndex: 3, // Diana
+  },
+  // PRODUCE - Other fruits
+  {
+    title: "Fresh Bananas",
+    description: "Ripe bananas from Malaysia. Perfect for smoothies or snacking.",
+    category: "produce",
+    quantity: 1.0,
+    unit: "kg",
+    price: 2.0,
+    originalPrice: 4.0,
+    expiryDays: 3,
+    location: "Bishan MRT|1.3513,103.8492",
+    sellerIndex: 4, // Evan
+  },
+  {
+    title: "Organic Oranges",
+    description: "Juicy navel oranges, great for fresh juice. Selling excess from bulk purchase.",
+    category: "produce",
+    quantity: 2.0,
+    unit: "kg",
+    price: 5.5,
+    originalPrice: 12.0,
+    expiryDays: 10,
+    location: "Clementi MRT|1.3151,103.7654",
+    sellerIndex: 1, // Bob
+  },
+  {
+    title: "Fresh Strawberries",
+    description: "Sweet Korean strawberries. Need to sell before they go bad!",
+    category: "produce",
+    quantity: 500,
+    unit: "g",
+    price: 4.0,
+    originalPrice: 9.0,
     expiryDays: 2,
-    location: "Clementi Mall, Singapore 129588|1.3149,103.7651",
+    location: "Tampines Hub|1.3535,103.9395",
+    sellerIndex: 2, // Charlie
+  },
+  // PRODUCE - Vegetables
+  {
+    title: "Organic Spinach",
+    description: "Fresh organic baby spinach leaves. Great for salads and smoothies.",
+    category: "produce",
+    quantity: 300,
+    unit: "g",
+    price: 2.5,
+    originalPrice: 5.0,
+    expiryDays: 3,
+    location: "Jurong East MRT|1.3331,103.7422",
+    sellerIndex: 3, // Diana
   },
   {
-    title: "Fresh Milk (2L)",
-    description: "Full cream fresh milk, unopened.",
+    title: "Fresh Tomatoes",
+    description: "Vine-ripened tomatoes from Cameron Highlands. Perfect for cooking.",
+    category: "produce",
+    quantity: 1.0,
+    unit: "kg",
+    price: 3.0,
+    originalPrice: 6.0,
+    expiryDays: 5,
+    location: "Queenstown|1.2946,103.8060",
+    sellerIndex: 0, // Alice
+  },
+  // DAIRY
+  {
+    title: "Fresh Milk 2L",
+    description: "Meiji fresh milk, expiring soon but still good. Half price!",
     category: "dairy",
     quantity: 2,
-    unit: "l",
+    unit: "L",
     price: 3.5,
-    originalPrice: 6.0,
-    expiryDays: 3,
-    location: "Buona Vista MRT, Singapore 138600|1.3073,103.7897",
+    originalPrice: 7.0,
+    expiryDays: 2,
+    location: "Bishan Junction 8|1.3500,103.8488",
+    sellerIndex: 4, // Evan
   },
   {
-    title: "Mixed Vegetables Pack",
-    description: "Assorted fresh vegetables - carrots, broccoli, lettuce.",
-    category: "produce",
+    title: "Greek Yogurt Tub",
+    description: "Fage Greek yogurt 500g. Bought extra, need to clear.",
+    category: "dairy",
+    quantity: 500,
+    unit: "g",
+    price: 4.0,
+    originalPrice: 8.5,
+    expiryDays: 5,
+    location: "Clementi Mall|1.3148,103.7641",
+    sellerIndex: 1, // Bob
+  },
+  {
+    title: "Cheddar Cheese Block",
+    description: "Mainland cheddar cheese. Opened but well-sealed. Great for sandwiches.",
+    category: "dairy",
+    quantity: 250,
+    unit: "g",
+    price: 3.0,
+    originalPrice: 7.0,
+    expiryDays: 14,
+    location: "Tampines|1.3525,103.9447",
+    sellerIndex: 2, // Charlie
+  },
+  // BAKERY
+  {
+    title: "Whole Wheat Bread",
+    description: "Freshly baked whole wheat bread. Free to good home!",
+    category: "bakery",
     quantity: 1,
-    unit: "pack",
+    unit: "pcs",
+    price: 0,
+    originalPrice: 4.5,
+    expiryDays: 2,
+    location: "Clementi Mall|1.3148,103.7641",
+    sellerIndex: 1, // Bob
+  },
+  {
+    title: "Croissants Pack",
+    description: "Pack of 4 butter croissants from BreadTalk. Still fresh!",
+    category: "bakery",
+    quantity: 4,
+    unit: "pcs",
+    price: 3.0,
+    originalPrice: 8.0,
+    expiryDays: 1,
+    location: "Jurong Point|1.3397,103.7066",
+    sellerIndex: 3, // Diana
+  },
+  {
+    title: "Sourdough Loaf",
+    description: "Artisan sourdough bread. Baked yesterday, still soft inside.",
+    category: "bakery",
+    quantity: 1,
+    unit: "pcs",
+    price: 4.0,
+    originalPrice: 9.0,
+    expiryDays: 3,
+    location: "Bishan|1.3513,103.8492",
+    sellerIndex: 4, // Evan
+  },
+  // MEAT
+  {
+    title: "Chicken Breast Pack",
+    description: "Fresh chicken breast 500g. Bought too much for meal prep.",
+    category: "meat",
+    quantity: 500,
+    unit: "g",
     price: 4.0,
     originalPrice: 8.0,
-    expiryDays: 4,
-    location: "Commonwealth MRT, Singapore 149732|1.3025,103.7981",
+    expiryDays: 2,
+    location: "Queenstown|1.2946,103.8060",
+    sellerIndex: 0, // Alice
+  },
+  {
+    title: "Minced Beef",
+    description: "Premium Australian minced beef. Great for burgers or pasta sauce.",
+    category: "meat",
+    quantity: 400,
+    unit: "g",
+    price: 5.0,
+    originalPrice: 12.0,
+    expiryDays: 1,
+    location: "Tampines|1.3525,103.9447",
+    sellerIndex: 2, // Charlie
+  },
+  // FROZEN
+  {
+    title: "Frozen Dumplings",
+    description: "Homemade frozen pork dumplings. 20 pieces per pack.",
+    category: "frozen",
+    quantity: 20,
+    unit: "pcs",
+    price: 6.0,
+    originalPrice: 12.0,
+    expiryDays: 30,
+    location: "Jurong East|1.3331,103.7422",
+    sellerIndex: 3, // Diana
+  },
+  {
+    title: "Frozen Mixed Vegetables",
+    description: "Birds Eye frozen mixed veggies. Unopened pack.",
+    category: "frozen",
+    quantity: 500,
+    unit: "g",
+    price: 2.5,
+    originalPrice: 5.5,
+    expiryDays: 60,
+    location: "Bishan|1.3513,103.8492",
+    sellerIndex: 4, // Evan
+  },
+  // BEVERAGES
+  {
+    title: "Orange Juice Carton",
+    description: "Tropicana pure premium OJ. Opened yesterday, still fresh.",
+    category: "beverages",
+    quantity: 1,
+    unit: "L",
+    price: 2.0,
+    originalPrice: 6.0,
+    expiryDays: 3,
+    location: "Clementi|1.3151,103.7654",
+    sellerIndex: 1, // Bob
+  },
+  {
+    title: "Coconut Water Pack",
+    description: "UFC coconut water 6-pack. Selling 4 remaining bottles.",
+    category: "beverages",
+    quantity: 4,
+    unit: "bottles",
+    price: 4.0,
+    originalPrice: 10.0,
+    expiryDays: 30,
+    location: "Queenstown|1.2946,103.8060",
+    sellerIndex: 0, // Alice
+  },
+  // PANTRY
+  {
+    title: "Pasta Pack",
+    description: "Barilla spaghetti 500g. Bought by mistake, prefer penne.",
+    category: "pantry",
+    quantity: 500,
+    unit: "g",
+    price: 2.0,
+    originalPrice: 4.5,
+    expiryDays: 180,
+    location: "Tampines|1.3525,103.9447",
+    sellerIndex: 2, // Charlie
+  },
+  {
+    title: "Canned Tuna",
+    description: "Ayam Brand tuna chunks in water. 3 cans available.",
+    category: "pantry",
+    quantity: 3,
+    unit: "pcs",
+    price: 4.5,
+    originalPrice: 9.0,
+    expiryDays: 365,
+    location: "Jurong|1.3397,103.7066",
+    sellerIndex: 3, // Diana
   },
 ];
 
-// Sample products (fridge items)
-const sampleProducts = [
-  {
-    productName: "Organic Eggs",
-    category: "dairy",
-    quantity: 12,
-    unitPrice: 5.9,
-    daysAgo: 2,
-    description: "Free-range organic eggs",
-    co2Emission: 0.4,
-  },
-  {
-    productName: "Fresh Salmon Fillet",
-    category: "meat",
-    quantity: 2,
-    unitPrice: 12.5,
-    daysAgo: 1,
-    description: "Norwegian salmon, 200g each",
-    co2Emission: 1.2,
-  },
-  {
-    productName: "Broccoli",
-    category: "produce",
-    quantity: 1,
-    unitPrice: 2.8,
-    daysAgo: 3,
-    description: "Fresh broccoli head",
-    co2Emission: 0.2,
-  },
-  {
-    productName: "Greek Yogurt",
-    category: "dairy",
-    quantity: 4,
-    unitPrice: 3.5,
-    daysAgo: 5,
-    description: "Plain Greek yogurt, 200g tubs",
-    co2Emission: 0.3,
-  },
-  {
-    productName: "Chicken Breast",
-    category: "meat",
-    quantity: 3,
-    unitPrice: 8.9,
-    daysAgo: 1,
-    description: "Boneless skinless chicken breast",
-    co2Emission: 0.9,
-  },
-  {
-    productName: "Sourdough Bread",
-    category: "bakery",
-    quantity: 1,
-    unitPrice: 6.5,
-    daysAgo: 0,
-    description: "Artisan sourdough loaf",
-    co2Emission: 0.15,
-  },
-  {
-    productName: "Baby Spinach",
-    category: "produce",
-    quantity: 2,
-    unitPrice: 3.2,
-    daysAgo: 2,
-    description: "Pre-washed baby spinach, 150g bags",
-    co2Emission: 0.1,
-  },
-  {
-    productName: "Cheddar Cheese",
-    category: "dairy",
-    quantity: 1,
-    unitPrice: 7.8,
-    daysAgo: 7,
-    description: "Aged cheddar cheese block, 250g",
-    co2Emission: 0.6,
-  },
-  {
-    productName: "Orange Juice",
-    category: "beverages",
-    quantity: 1,
-    unitPrice: 4.5,
-    daysAgo: 4,
-    description: "Freshly squeezed orange juice, 1L",
-    co2Emission: 0.25,
-  },
-  {
-    productName: "Frozen Mixed Berries",
-    category: "frozen",
-    quantity: 1,
-    unitPrice: 8.0,
-    daysAgo: 10,
-    description: "Strawberries, blueberries, raspberries, 500g",
-    co2Emission: 0.3,
-  },
-  {
-    productName: "Jasmine Rice",
-    category: "pantry",
-    quantity: 1,
-    unitPrice: 9.5,
-    daysAgo: 14,
-    description: "Thai jasmine rice, 2kg bag",
-    co2Emission: 0.5,
-  },
-  {
-    productName: "Avocados",
-    category: "produce",
-    quantity: 3,
-    unitPrice: 2.5,
-    daysAgo: 1,
-    description: "Ripe Hass avocados",
-    co2Emission: 0.35,
-  },
+// Sample conversation messages
+const sampleConversationMessages = [
+  { text: "Hi! Is this still available?", fromBuyer: true },
+  { text: "Yes, it is! When would you like to pick it up?", fromBuyer: false },
+  { text: "Can I come by tomorrow afternoon around 3pm?", fromBuyer: true },
+  { text: "That works for me. See you then!", fromBuyer: false },
 ];
 
 async function seed() {
   try {
-    // Clear existing data (order matters for foreign keys)
+    // Clear existing data in correct order (respecting foreign keys)
     console.log("Clearing existing data...");
-    sqlite.exec("DELETE FROM listing_images");
+    sqlite.exec("DELETE FROM messages");
+    sqlite.exec("DELETE FROM conversations");
     sqlite.exec("DELETE FROM marketplace_listings");
     sqlite.exec("DELETE FROM products");
     sqlite.exec("DELETE FROM users");
@@ -201,29 +366,60 @@ async function seed() {
     for (const user of demoUsers) {
       const passwordHash = await hashPassword(user.password);
       const [created] = await db
-          .insert(schema.users)
-          .values({
-            email: user.email,
-            passwordHash,
-            name: user.name,
-            userLocation: user.userLocation,
-          })
-          .returning();
+        .insert(schema.users)
+        .values({
+          email: user.email,
+          passwordHash,
+          name: user.name,
+          userLocation: user.userLocation,
+        })
+        .returning();
 
       createdUsers.push({ id: created.id, name: created.name });
       console.log(`  ✓ ${user.email}`);
     }
 
-    // Create listings
-    console.log("\nCreating sample listings...");
+    // Create products (MyFridge items)
+    console.log("\nCreating sample products (MyFridge)...");
+    const createdProducts: { id: number; productName: string }[] = [];
+
+    for (let i = 0; i < sampleProducts.length; i++) {
+      const product = sampleProducts[i];
+      const owner = createdUsers[i % createdUsers.length];
+
+      const purchaseDate = new Date();
+      purchaseDate.setDate(purchaseDate.getDate() - product.daysAgo);
+
+      const [created] = await db
+        .insert(schema.products)
+        .values({
+          userId: owner.id,
+          productName: product.productName,
+          category: product.category,
+          quantity: product.quantity,
+          unitPrice: product.unitPrice,
+          purchaseDate,
+          description: product.description,
+        })
+        .returning();
+
+      createdProducts.push({ id: created.id, productName: created.productName });
+      console.log(`  ✓ "${product.productName}" owned by ${owner.name}`);
+    }
+
+    // Create marketplace listings
+    console.log("\nCreating sample marketplace listings...");
+    const createdListings: { id: number; sellerId: number; title: string }[] = [];
+
     for (let i = 0; i < sampleListings.length; i++) {
       const listing = sampleListings[i];
-      const seller = createdUsers[i % createdUsers.length];
+      const sellerIndex = listing.sellerIndex !== undefined ? listing.sellerIndex : (i % createdUsers.length);
+      const seller = createdUsers[sellerIndex];
 
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() + listing.expiryDays);
 
-      await db.insert(schema.marketplaceListings).values({
+      const [created] = await db.insert(schema.marketplaceListings).values({
         sellerId: seller.id,
         title: listing.title,
         description: listing.description,
@@ -232,45 +428,68 @@ async function seed() {
         unit: listing.unit,
         price: listing.price,
         originalPrice: listing.originalPrice,
-        expiryDate: expiryDate,
+        expiryDate,
         pickupLocation: listing.location,
         status: "active",
-      });
+      }).returning();
 
+      createdListings.push({ id: created.id, sellerId: seller.id, title: created.title });
       console.log(`  ✓ "${listing.title}" by ${seller.name}`);
     }
 
-    // Create products (fridge items)
-    console.log("\nCreating sample products...");
-    for (let i = 0; i < sampleProducts.length; i++) {
-      const product = sampleProducts[i];
-      const owner = createdUsers[i % createdUsers.length];
+    // Create sample conversations and messages
+    console.log("\nCreating sample conversations and messages...");
 
-      const purchaseDate = new Date();
-      purchaseDate.setDate(purchaseDate.getDate() - product.daysAgo);
+    // Create a conversation for the first listing (Alice's apples, Bob inquiring)
+    const listing1 = createdListings[0]; // Alice's apples
+    const alice = createdUsers[0]; // Alice (seller)
+    const bob = createdUsers[1]; // Bob (buyer)
 
-      await db.insert(schema.products).values({
-        userId: owner.id,
-        productName: product.productName,
-        category: product.category,
-        quantity: product.quantity,
-        unitPrice: product.unitPrice,
-        purchaseDate: purchaseDate.toISOString().split('T')[0], // YYYY-MM-DD format
-        description: product.description,
-        co2Emission: product.co2Emission,
+    const [conversation1] = await db.insert(schema.conversations).values({
+      listingId: listing1.id,
+      sellerId: alice.id,
+      buyerId: bob.id,
+    }).returning();
+
+    console.log(`  ✓ Conversation for "${listing1.title}" between ${alice.name} and ${bob.name}`);
+
+    // Add messages to the conversation
+    for (let i = 0; i < sampleConversationMessages.length; i++) {
+      const msg = sampleConversationMessages[i];
+      const senderId = msg.fromBuyer ? bob.id : alice.id;
+
+      // Add small delay between messages for ordering
+      const messageDate = new Date();
+      messageDate.setMinutes(messageDate.getMinutes() - (sampleConversationMessages.length - i));
+
+      await db.insert(schema.messages).values({
+        conversationId: conversation1.id,
+        userId: senderId,
+        messageText: msg.text,
+        isRead: i < sampleConversationMessages.length - 1, // Last message unread
+        createdAt: messageDate,
       });
-
-      console.log(`  ✓ "${product.productName}" for ${owner.name}`);
     }
+
+    console.log(`    Added ${sampleConversationMessages.length} messages`);
+
+    // Update conversation timestamp
+    await db.update(schema.conversations)
+      .set({ updatedAt: new Date() })
+      .where(eq(schema.conversations.id, conversation1.id));
 
     console.log("\n========================================");
     console.log("Done! Demo accounts (password: demo123):");
-    console.log("  - alice@demo.com");
-    console.log("  - bob@demo.com");
+    console.log("  - alice@demo.com (seller)");
+    console.log("  - bob@demo.com (seller)");
+    console.log("  - charlie@demo.com (seller)");
+    console.log("  - diana@demo.com (seller)");
+    console.log("  - evan@demo.com (seller)");
+    console.log(`\nCreated ${createdListings.length} marketplace listings`);
     console.log("========================================\n");
 
-  } catch (err) {
-    console.error("Seeding failed:", err);
+  } catch (error) {
+    console.error("Seeding failed:", error);
     process.exit(1);
   }
 
