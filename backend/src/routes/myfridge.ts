@@ -4,7 +4,7 @@ import { products } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { z } from "zod";
 import { getUser } from "../middleware/auth";
-import { awardPoints, recordProductInteraction } from "../services/gamification-service";
+import { awardPoints, recordProductSustainabilityMetrics } from "../services/gamification-service";
 
 const productSchema = z.object({
   name: z.string().min(1).max(200), // Frontend sends 'name', we map to 'productName'
@@ -181,8 +181,8 @@ export function registerMyFridgeRoutes(router: Router) {
         return error("Product not found", 404);
       }
 
-      // Record the interaction in product_interaction table (per ERD)
-      await recordProductInteraction(
+      // Record the interaction in ProductSustainabilityMetrics table (per ERD)
+      await recordProductSustainabilityMetrics(
         product.id,
         user.id,
         product.quantity,

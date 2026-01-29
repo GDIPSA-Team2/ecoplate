@@ -8,8 +8,6 @@ export const POINT_VALUES = {
   shared: 10,
   sold: 8,
   wasted: -3,
-  create_listing: 3,
-  complete_sale: 5,
 } as const;
 
 export type PointAction = keyof typeof POINT_VALUES;
@@ -51,6 +49,11 @@ export async function awardPoints(userId: number, action: PointAction) {
   const streakActions = ["consumed", "shared", "sold"];
   if (streakActions.includes(action)) {
     await updateStreak(userId);
+  } else if (action === "wasted") {
+    await db
+      .update(schema.userPoints)
+      .set({ currentStreak: 0 })
+      .where(eq(schema.userPoints.userId, userId));
   }
 
   return { action, amount, newTotal };
@@ -128,7 +131,7 @@ export async function updateStreak(userId: number) {
 /**
  * Record a product interaction (consumed, wasted, shared, sold)
  */
-export async function recordProductInteraction(
+export async function recordProductSustainabilityMetrics(
   productId: number,
   userId: number,
   quantity: number,

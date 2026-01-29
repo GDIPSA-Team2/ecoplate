@@ -4,6 +4,7 @@ import * as schema from "../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getUser } from "../middleware/auth";
 import { getOrCreateUserPoints, getUserMetrics } from "../services/gamification-service";
+import { POINT_VALUES } from "../services/gamification-service";
 
 export function registerGamificationRoutes(router: Router) {
   // ================================
@@ -26,16 +27,9 @@ export function registerGamificationRoutes(router: Router) {
       },
     });
 
-    const pointsMap = new Map<string, number>([
-      ["wasted", -3],
-      ["consumed", 5],
-      ["shared", 10],
-      ["sold", +8],
-    ]);
-
     // Map interactions to transaction like format
     const transactions = recentInteractions.map((i) => {
-      const amount = pointsMap.get(i.type) ?? 8;
+      const amount = POINT_VALUES[i.type as keyof typeof POINT_VALUES] ?? 0;
 
       return {
         id: i.id,
