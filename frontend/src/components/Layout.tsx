@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
   Home,
-  Refrigerator,
+  // Refrigerator,
   Store,
   MessageCircle,
   Trophy,
@@ -16,7 +16,7 @@ import { cn } from "../lib/utils";
 
 const navItems = [
   { to: "/", icon: Home, label: "Dashboard" },
-  { to: "/myfridge", icon: Refrigerator, label: "MyFridge" },
+  // { to: "/myfridge", icon: Refrigerator, label: "MyFridge" },
   { to: "/marketplace", icon: Store, label: "Marketplace" },
   { to: "/messages", icon: MessageCircle, label: "Messages" },
   { to: "/ecoboard", icon: Trophy, label: "EcoBoard" },

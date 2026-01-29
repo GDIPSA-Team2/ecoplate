@@ -294,14 +294,12 @@ export function registerMarketplaceRoutes(router: Router) {
         .where(eq(marketplaceListings.id, listingId));
 
       // Record the sale in sustainability metrics
-      if (listing.productId) {
-        await recordProductSustainabilityMetrics(
-          listing.productId,
-          user.id,
-          listing.quantity,
-          "sold"
-        );
-      }
+      await recordProductSustainabilityMetrics(
+        listing.productId ?? null,
+        user.id,
+        listing.quantity,
+        "sold"
+      );
 
       // Award points to seller for completing sale
       const pointResult = await awardPoints(user.id, "sold");

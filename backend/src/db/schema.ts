@@ -46,13 +46,12 @@ export const userPoints = sqliteTable("user_points", {
   currentStreak: integer("current_streak").notNull().default(0),
 });
 
-// ==================== Product Interaction (per LDM) ====================
+// ==================== Product Sustainability Metrics (per LDM) ====================
 // Records each product action (consumed, wasted, shared, sold)
 
 export const ProductSustainabilityMetrics = sqliteTable("product_interaction", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   productId: integer("product_id")
-    .notNull()
     .references(() => products.id, { onDelete: "cascade" }),
   userId: integer("user_id")
     .notNull()

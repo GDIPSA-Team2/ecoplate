@@ -132,7 +132,7 @@ export async function updateStreak(userId: number) {
  * Record a product interaction (consumed, wasted, shared, sold)
  */
 export async function recordProductSustainabilityMetrics(
-  productId: number,
+  productId: number | null,
   userId: number,
   quantity: number,
   type: "consumed" | "wasted" | "shared" | "sold"
@@ -146,7 +146,9 @@ export async function recordProductSustainabilityMetrics(
 }
 
 /**
- * Get user metrics computed from product_interaction table
+ * Get user metrics computed from product_interaction table,
+ * @ JASON , TONY , i left this here for your reference, delete if u think not needed, or modify
+ * -yh
  */
 export async function getUserMetrics(userId: number) {
   const interactions = await db.query.ProductSustainabilityMetrics.findMany({

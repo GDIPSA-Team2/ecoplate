@@ -7,9 +7,7 @@ const migrationsDir = join(import.meta.dir, "migrations");
 
 // List of migrations in order
 const migrationFiles = [
-  "0000_past_blackheart.sql",
-  "0001_clever_lockheed.sql",
-  "0002_fix_ldm_schema.sql",
+  "0000_init.sql",
 ];
 
 console.log("Running database migrations...\n");

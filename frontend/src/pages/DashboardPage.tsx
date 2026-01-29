@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Button } from "../components/ui/button";
+// import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
 import { Badge } from "../components/ui/badge";
 import { Refrigerator, Store, Trophy, AlertTriangle, TrendingUp, Leaf } from "lucide-react";
@@ -182,16 +182,16 @@ export default function DashboardPage() {
                 );
               })}
             </div>
-            <Button variant="outline" className="w-full mt-4" asChild>
+            {/* <Button variant="outline" className="w-full mt-4" asChild>
               <Link to="/myfridge">View all items</Link>
-            </Button>
+            </Button> */}
           </CardContent>
         </Card>
       )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="hover:shadow-md transition-shadow">
+        {/* <Card className="hover:shadow-md transition-shadow">
           <Link to="/myfridge">
             <CardContent className="p-6 flex items-center gap-4">
               <div className="p-3 rounded-full bg-primary/10">
@@ -205,7 +205,7 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Link>
-        </Card>
+        </Card> */}
 
         <Card className="hover:shadow-md transition-shadow">
           <Link to="/marketplace/create">
