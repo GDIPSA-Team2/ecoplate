@@ -43,23 +43,173 @@ const demoUsers = [
   },
 ];
 
-// Sample products (MyFridge items)
+// Sample products (MyFridge items) with co2Emission data for dashboard charts
 const sampleProducts = [
   {
     productName: "Fresh Organic Apples",
     category: "produce",
     quantity: 5.0,
+    unit: "kg",
     unitPrice: 6.0,
+    co2Emission: 0.4,
     description: "Sweet and crispy organic apples from local farm",
     daysAgo: 2,
+    ownerIndex: 0,
   },
   {
     productName: "Whole Wheat Bread",
     category: "bakery",
     quantity: 2.0,
+    unit: "pcs",
     unitPrice: 2.25,
+    co2Emission: 0.8,
     description: "Freshly baked whole wheat bread",
     daysAgo: 1,
+    ownerIndex: 0,
+  },
+  {
+    productName: "Chicken Breast",
+    category: "meat",
+    quantity: 1.0,
+    unit: "kg",
+    unitPrice: 8.0,
+    co2Emission: 5.7,
+    description: "Free-range chicken breast",
+    daysAgo: 5,
+    ownerIndex: 0,
+  },
+  {
+    productName: "Brown Rice",
+    category: "pantry",
+    quantity: 2.0,
+    unit: "kg",
+    unitPrice: 4.5,
+    co2Emission: 1.2,
+    description: "Premium Thai brown rice",
+    daysAgo: 10,
+    ownerIndex: 0,
+  },
+  {
+    productName: "Fresh Milk",
+    category: "dairy",
+    quantity: 2.0,
+    unit: "L",
+    unitPrice: 3.5,
+    co2Emission: 3.2,
+    description: "Full cream fresh milk",
+    daysAgo: 3,
+    ownerIndex: 0,
+  },
+  {
+    productName: "Eggs",
+    category: "dairy",
+    quantity: 10,
+    unit: "pcs",
+    unitPrice: 3.0,
+    co2Emission: 2.0,
+    description: "Free-range eggs",
+    daysAgo: 4,
+    ownerIndex: 0,
+  },
+  {
+    productName: "Broccoli",
+    category: "produce",
+    quantity: 0.5,
+    unit: "kg",
+    unitPrice: 2.5,
+    co2Emission: 0.3,
+    description: "Fresh organic broccoli",
+    daysAgo: 6,
+    ownerIndex: 0,
+  },
+  {
+    productName: "Salmon Fillet",
+    category: "meat",
+    quantity: 0.4,
+    unit: "kg",
+    unitPrice: 12.0,
+    co2Emission: 3.5,
+    description: "Norwegian salmon fillet",
+    daysAgo: 7,
+    ownerIndex: 0,
+  },
+  {
+    productName: "Greek Yogurt",
+    category: "dairy",
+    quantity: 0.5,
+    unit: "kg",
+    unitPrice: 4.0,
+    co2Emission: 1.4,
+    description: "Plain Greek yogurt",
+    daysAgo: 8,
+    ownerIndex: 0,
+  },
+  {
+    productName: "Tofu",
+    category: "produce",
+    quantity: 0.6,
+    unit: "kg",
+    unitPrice: 2.0,
+    co2Emission: 0.5,
+    description: "Firm tofu block",
+    daysAgo: 12,
+    ownerIndex: 0,
+  },
+  {
+    productName: "Pasta",
+    category: "pantry",
+    quantity: 0.5,
+    unit: "kg",
+    unitPrice: 3.0,
+    co2Emission: 0.9,
+    description: "Penne pasta",
+    daysAgo: 15,
+    ownerIndex: 0,
+  },
+  {
+    productName: "Carrots",
+    category: "produce",
+    quantity: 1.0,
+    unit: "kg",
+    unitPrice: 1.8,
+    co2Emission: 0.2,
+    description: "Fresh carrots",
+    daysAgo: 20,
+    ownerIndex: 0,
+  },
+  // Products for Bob (user index 1)
+  {
+    productName: "Bananas",
+    category: "produce",
+    quantity: 1.5,
+    unit: "kg",
+    unitPrice: 2.0,
+    co2Emission: 0.6,
+    description: "Ripe bananas",
+    daysAgo: 3,
+    ownerIndex: 1,
+  },
+  {
+    productName: "Beef Mince",
+    category: "meat",
+    quantity: 0.5,
+    unit: "kg",
+    unitPrice: 10.0,
+    co2Emission: 13.0,
+    description: "Australian beef mince",
+    daysAgo: 7,
+    ownerIndex: 1,
+  },
+  {
+    productName: "Cheddar Cheese",
+    category: "dairy",
+    quantity: 0.3,
+    unit: "kg",
+    unitPrice: 5.0,
+    co2Emission: 4.2,
+    description: "Aged cheddar cheese",
+    daysAgo: 14,
+    ownerIndex: 1,
   },
 ];
 
@@ -355,6 +505,7 @@ async function seed() {
     sqlite.exec("DELETE FROM messages");
     sqlite.exec("DELETE FROM conversations");
     sqlite.exec("DELETE FROM marketplace_listings");
+    sqlite.exec("DELETE FROM product_sustainability_metrics");
     sqlite.exec("DELETE FROM products");
     sqlite.exec("DELETE FROM users");
     sqlite.exec("DELETE FROM sqlite_sequence");
@@ -381,11 +532,12 @@ async function seed() {
 
     // Create products (MyFridge items)
     console.log("\nCreating sample products (MyFridge)...");
-    const createdProducts: { id: number; productName: string }[] = [];
+    const createdProducts: { id: number; productName: string; userId: number }[] = [];
 
     for (let i = 0; i < sampleProducts.length; i++) {
       const product = sampleProducts[i];
-      const owner = createdUsers[i % createdUsers.length];
+      const ownerIndex = product.ownerIndex !== undefined ? product.ownerIndex : (i % createdUsers.length);
+      const owner = createdUsers[ownerIndex];
 
       const purchaseDate = new Date();
       purchaseDate.setDate(purchaseDate.getDate() - product.daysAgo);
@@ -397,15 +549,100 @@ async function seed() {
           productName: product.productName,
           category: product.category,
           quantity: product.quantity,
+          unit: product.unit,
           unitPrice: product.unitPrice,
           purchaseDate,
           description: product.description,
+          co2Emission: product.co2Emission,
         })
         .returning();
 
-      createdProducts.push({ id: created.id, productName: created.productName });
+      createdProducts.push({ id: created.id, productName: created.productName, userId: owner.id });
       console.log(`  ✓ "${product.productName}" owned by ${owner.name}`);
     }
+
+    // Create sustainability metrics (meal reports) spread over recent months
+    console.log("\nCreating sustainability metrics...");
+    const metricTypes: Array<"consumed" | "sold" | "wasted"> = ["consumed", "consumed", "consumed", "sold", "wasted"];
+
+    // Generate metrics for Alice's products over the past 12 months, with increasing trend
+    const aliceProducts = createdProducts.filter((p) => p.userId === createdUsers[0].id);
+    let metricCount = 0;
+
+    for (let monthsAgo = 11; monthsAgo >= 0; monthsAgo--) {
+      // More entries in recent months (growth trend): 4 entries 12 months ago → 10+ now
+      const baseEntries = 4 + Math.round((11 - monthsAgo) * 0.7);
+      const entriesThisMonth = baseEntries + Math.floor(Math.random() * 3);
+      for (let e = 0; e < entriesThisMonth; e++) {
+        const product = aliceProducts[Math.floor(Math.random() * aliceProducts.length)];
+        const metricDate = new Date();
+        metricDate.setMonth(metricDate.getMonth() - monthsAgo);
+        metricDate.setDate(1 + Math.floor(Math.random() * 27));
+
+        // Bias towards consumed/sold (80%) to make dashboard stats meaningful
+        const type = metricTypes[Math.floor(Math.random() * metricTypes.length)];
+        const qty = 0.3 + Math.random() * 2.0;
+
+        await db.insert(schema.productSustainabilityMetrics).values({
+          productId: product.id,
+          userId: product.userId,
+          todayDate: metricDate,
+          quantity: Math.round(qty * 100) / 100,
+          type,
+        });
+        metricCount++;
+      }
+    }
+
+    // Also add daily-level data for the last 30 days so "Day" period view has granularity
+    for (let daysAgo = 29; daysAgo >= 0; daysAgo--) {
+      // 1-3 entries per day
+      const entriesThisDay = 1 + Math.floor(Math.random() * 3);
+      for (let e = 0; e < entriesThisDay; e++) {
+        const product = aliceProducts[Math.floor(Math.random() * aliceProducts.length)];
+        const metricDate = new Date();
+        metricDate.setDate(metricDate.getDate() - daysAgo);
+        metricDate.setHours(8 + Math.floor(Math.random() * 12), Math.floor(Math.random() * 60));
+
+        const type = metricTypes[Math.floor(Math.random() * metricTypes.length)];
+        const qty = 0.2 + Math.random() * 1.5;
+
+        await db.insert(schema.productSustainabilityMetrics).values({
+          productId: product.id,
+          userId: product.userId,
+          todayDate: metricDate,
+          quantity: Math.round(qty * 100) / 100,
+          type,
+        });
+        metricCount++;
+      }
+    }
+
+    // Also add some metrics for Bob's products
+    const bobProducts = createdProducts.filter((p) => p.userId === createdUsers[1].id);
+    for (let monthsAgo = 3; monthsAgo >= 0; monthsAgo--) {
+      const entriesThisMonth = 2 + Math.floor(Math.random() * 3);
+      for (let e = 0; e < entriesThisMonth; e++) {
+        const product = bobProducts[Math.floor(Math.random() * bobProducts.length)];
+        const metricDate = new Date();
+        metricDate.setMonth(metricDate.getMonth() - monthsAgo);
+        metricDate.setDate(1 + Math.floor(Math.random() * 27));
+
+        const type = metricTypes[Math.floor(Math.random() * metricTypes.length)];
+        const qty = 0.3 + Math.random() * 1.0;
+
+        await db.insert(schema.productSustainabilityMetrics).values({
+          productId: product.id,
+          userId: product.userId,
+          todayDate: metricDate,
+          quantity: Math.round(qty * 100) / 100,
+          type,
+        });
+        metricCount++;
+      }
+    }
+
+    console.log(`  ✓ Created ${metricCount} sustainability metric entries`);
 
     // Create marketplace listings
     console.log("\nCreating sample marketplace listings...");
@@ -435,6 +672,49 @@ async function seed() {
 
       createdListings.push({ id: created.id, sellerId: seller.id, title: created.title });
       console.log(`  ✓ "${listing.title}" by ${seller.name}`);
+    }
+
+    // Mark a few listings as sold for Alice to populate money saved
+    console.log("\nCreating sold listings for dashboard data...");
+    const soldItems = [
+      { title: "Extra Rice Bag", price: 5.0, daysAgo: 330 },
+      { title: "Bulk Oats", price: 3.5, daysAgo: 290 },
+      { title: "Canned Soup Pack", price: 4.0, daysAgo: 250 },
+      { title: "Leftover Pasta Sauce", price: 3.0, daysAgo: 210 },
+      { title: "Frozen Berries", price: 6.0, daysAgo: 180 },
+      { title: "Excess Bread Loaves", price: 2.0, daysAgo: 150 },
+      { title: "Organic Honey Jar", price: 8.0, daysAgo: 120 },
+      { title: "Surplus Eggs", price: 2.5, daysAgo: 90 },
+      { title: "Extra Cheese Block", price: 5.5, daysAgo: 60 },
+      { title: "Overstock Milk", price: 4.0, daysAgo: 45 },
+      { title: "Leftover Chicken", price: 6.0, daysAgo: 30 },
+      { title: "Extra Yogurt Tubs", price: 3.0, daysAgo: 15 },
+      { title: "Spare Juice Cartons", price: 4.5, daysAgo: 7 },
+      { title: "Ripe Bananas", price: 1.5, daysAgo: 3 },
+    ];
+
+    for (const item of soldItems) {
+      const completedAt = new Date();
+      completedAt.setDate(completedAt.getDate() - item.daysAgo);
+      const createdAt = new Date(completedAt);
+      createdAt.setDate(createdAt.getDate() - 2);
+
+      await db.insert(schema.marketplaceListings).values({
+        sellerId: createdUsers[0].id,
+        buyerId: createdUsers[1].id,
+        title: item.title,
+        description: "Sold item for dashboard demo data",
+        category: "pantry",
+        quantity: 1,
+        unit: "pcs",
+        price: item.price,
+        originalPrice: item.price * 2,
+        status: "sold",
+        pickupLocation: "Queenstown|1.2946,103.8060",
+        createdAt,
+        completedAt,
+      });
+      console.log(`  ✓ Sold: "${item.title}" for $${item.price}`);
     }
 
     // Create sample conversations and messages

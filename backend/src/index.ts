@@ -6,6 +6,7 @@ import { registerAuthRoutes } from "./routes/auth";
 import { registerMarketplaceRoutes } from "./routes/marketplace";
 import { registerMessageRoutes } from "./routes/messages";
 import { registerUploadRoutes } from "./routes/upload";
+import { registerDashboardRoutes } from "./routes/dashboard";
 import { initializeUploadDir } from "./services/image-upload";
 import * as schema from "./db/schema";
 import { existsSync } from "fs";
@@ -32,6 +33,7 @@ registerAuthRoutes(publicRouter);
 registerMarketplaceRoutes(protectedRouter);
 registerMessageRoutes(protectedRouter);
 registerUploadRoutes(protectedRouter);
+registerDashboardRoutes(protectedRouter);
 
 // Health check
 publicRouter.get("/api/v1/health", () => json({ status: "ok" }));

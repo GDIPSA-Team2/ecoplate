@@ -35,6 +35,26 @@ export const products = sqliteTable("products", {
   co2Emission: real("co2_emission"),
 });
 
+// ==================== Product Sustainability Metrics ====================
+
+export const productSustainabilityMetrics = sqliteTable(
+  "product_sustainability_metrics",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    productId: integer("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    todayDate: integer("today_date", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    quantity: real("quantity").notNull(),
+    type: text("type").notNull(), // e.g., "consumed", "wasted", "sold"
+  }
+);
+
 // ==================== Marketplace Listings ====================
 
 export const marketplaceListings = sqliteTable("marketplace_listings", {
@@ -103,6 +123,7 @@ export const messages = sqliteTable("messages", {
 
 export const usersRelations = relations(users, ({ many }) => ({
   products: many(products),
+  sustainabilityMetrics: many(productSustainabilityMetrics),
   listings: many(marketplaceListings, { relationName: "seller" }),
   purchases: many(marketplaceListings, { relationName: "buyer" }),
   conversationsAsSeller: many(conversations, { relationName: "seller" }),
@@ -116,7 +137,22 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     references: [users.id],
   }),
   listings: many(marketplaceListings),
+  sustainabilityMetrics: many(productSustainabilityMetrics),
 }));
+
+export const productSustainabilityMetricsRelations = relations(
+  productSustainabilityMetrics,
+  ({ one }) => ({
+    product: one(products, {
+      fields: [productSustainabilityMetrics.productId],
+      references: [products.id],
+    }),
+    user: one(users, {
+      fields: [productSustainabilityMetrics.userId],
+      references: [users.id],
+    }),
+  })
+);
 
 export const marketplaceListingsRelations = relations(
   marketplaceListings,

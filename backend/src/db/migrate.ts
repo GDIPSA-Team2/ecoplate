@@ -3,29 +3,31 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 const dbPath = "ecoplate.db";
-const migrationFile = join(
-  import.meta.dir,
-  "migrations",
-  "0000_yummy_frank_castle.sql"
-);
+const migrationFiles = [
+  join(import.meta.dir, "migrations", "0000_yummy_frank_castle.sql"),
+  join(import.meta.dir, "migrations", "0001_ancient_the_fallen.sql"),
+];
 
 console.log("Running database migration...\n");
 
 try {
   const sqlite = new Database(dbPath);
-  const migration = readFileSync(migrationFile, "utf-8");
 
-  // Split by statement breakpoint and execute each statement
-  const statements = migration
-    .split("--> statement-breakpoint")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  for (const migrationFile of migrationFiles) {
+    console.log(`Running: ${migrationFile}`);
+    const migration = readFileSync(migrationFile, "utf-8");
 
-  console.log(`Found ${statements.length} statements to execute\n`);
+    const statements = migration
+      .split("--> statement-breakpoint")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
 
-  for (let i = 0; i < statements.length; i++) {
-    console.log(`Executing statement ${i + 1}/${statements.length}...`);
-    sqlite.exec(statements[i]);
+    console.log(`Found ${statements.length} statements to execute\n`);
+
+    for (let i = 0; i < statements.length; i++) {
+      console.log(`Executing statement ${i + 1}/${statements.length}...`);
+      sqlite.exec(statements[i]);
+    }
   }
 
   sqlite.close();
