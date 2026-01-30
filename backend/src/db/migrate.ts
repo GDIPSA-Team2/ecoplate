@@ -6,7 +6,7 @@ const dbPath = "ecoplate.db";
 const migrationsDir = join(import.meta.dir, "migrations");
 // List of migrations in order
 const migrationFiles = [
-  "0000_acoustic_the_hood.sql",
+  "0000_useful_firebird.sql",
 ];
 
 console.log("Running database migrations...\n");
