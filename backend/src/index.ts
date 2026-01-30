@@ -7,6 +7,7 @@ import { registerMarketplaceRoutes } from "./routes/marketplace";
 import { registerMessageRoutes } from "./routes/messages";
 import { registerUploadRoutes } from "./routes/upload";
 import { registerGamificationRoutes } from "./routes/gamification";
+import { registerDashboardRoutes } from "./routes/dashboard";
 import { initializeUploadDir } from "./services/image-upload";
 import * as schema from "./db/schema";
 import { existsSync } from "fs";
@@ -33,6 +34,7 @@ registerAuthRoutes(publicRouter);
 registerMarketplaceRoutes(protectedRouter);
 registerMessageRoutes(protectedRouter);
 registerUploadRoutes(protectedRouter);
+registerDashboardRoutes(protectedRouter);
 registerGamificationRoutes(protectedRouter);
 
 // Health check
