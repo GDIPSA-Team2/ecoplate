@@ -1,9 +1,87 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "e21f80d0-359f-4846-ab11-73b25d68c0fc",
+  "id": "1a8518f0-0d0d-4d9b-9eff-692361032872",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "product_sustainability_metrics": {
+      "name": "product_sustainability_metrics",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "today_date": {
+          "name": "today_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "product_sustainability_metrics_product_id_products_id_fk": {
+          "name": "product_sustainability_metrics_product_id_products_id_fk",
+          "tableFrom": "product_sustainability_metrics",
+          "tableTo": "products",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "product_sustainability_metrics_user_id_users_id_fk": {
+          "name": "product_sustainability_metrics_user_id_users_id_fk",
+          "tableFrom": "product_sustainability_metrics",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
     "badges": {
       "name": "badges",
       "columns": {
@@ -521,84 +599,6 @@
         "pending_consumption_records_user_id_users_id_fk": {
           "name": "pending_consumption_records_user_id_users_id_fk",
           "tableFrom": "pending_consumption_records",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
-    },
-    "product_sustainability_metrics": {
-      "name": "product_sustainability_metrics",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "product_id": {
-          "name": "product_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "today_date": {
-          "name": "today_date",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "quantity": {
-          "name": "quantity",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "product_sustainability_metrics_product_id_products_id_fk": {
-          "name": "product_sustainability_metrics_product_id_products_id_fk",
-          "tableFrom": "product_sustainability_metrics",
-          "tableTo": "products",
-          "columnsFrom": [
-            "product_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "product_sustainability_metrics_user_id_users_id_fk": {
-          "name": "product_sustainability_metrics_user_id_users_id_fk",
-          "tableFrom": "product_sustainability_metrics",
           "tableTo": "users",
           "columnsFrom": [
             "user_id"

@@ -181,18 +181,6 @@ export const messages = sqliteTable("messages", {
     .$defaultFn(() => new Date()),
 });
 
-// ==================== User Points (Gamification) ====================
-
-export const userPoints = sqliteTable("user_points", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id")
-    .notNull()
-    .unique()
-    .references(() => users.id, { onDelete: "cascade" }),
-  totalPoints: integer("total_points").notNull().default(0),
-  currentStreak: integer("current_streak").notNull().default(0),
-});
-
 // Alias for services that use PascalCase
 export const ProductSustainabilityMetrics = productSustainabilityMetrics;
 
