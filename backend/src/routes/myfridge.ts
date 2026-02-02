@@ -17,7 +17,7 @@ const productSchema = z.object({
 });
 
 const interactionSchema = z.object({
-  type: z.enum(["Add", "Consume", "Waste"]),
+  type: z.enum(["Consume", "Waste"]),
   quantity: z.number().positive(),
   todayDate: z.string().optional(),
 });
@@ -40,7 +40,7 @@ const pendingConsumptionSchema = z.object({
 
 // Points awarded for different actions
 const POINTS: Record<string, number> = {
-  Add: 2,
+  // Add: 2,
   Consume: 5,
   Waste: -2,
 };
@@ -80,7 +80,7 @@ export function registerMyFridgeRoutes(router: Router) {
         .returning();
 
       // Award points for adding a product
-      await awardPoints(user.id, POINTS.addProduct);
+      // await awardPoints(user.id, POINTS.addProduct);
 
       return json(product);
     } catch (e) {
