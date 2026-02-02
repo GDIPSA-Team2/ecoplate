@@ -58,8 +58,8 @@ function App() {
         <Route path="marketplace/:id/edit" element={<EditListingPage />} />
         <Route path="messages" element={<MessagesPage />} />
         <Route path="messages/:conversationId" element={<ConversationPage />} />
-        <Route path="ecoboard" element={<EcoBoardPage />} />
-        <Route path="ecopoints" element={<Navigate to="/ecoboard" replace />} />
+        <Route path="ecopoints" element={<EcoBoardPage />} />
+        <Route path="ecoboard" element={<Navigate to="/ecopoints" replace />} />
         <Route path="badges" element={<BadgesPage />} />
         <Route path="account" element={<AccountPage />} />
       </Route>

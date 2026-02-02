@@ -426,7 +426,7 @@ function AddProductModal({
         purchaseDate: purchaseDate || undefined,
         description: description || undefined,
       });
-      addToast("Product added! +2 points", "success");
+      addToast("Product added!", "success");
       onAdded();
     } catch (error) {
       addToast("Failed to add product", "error");
@@ -663,8 +663,7 @@ function ScanReceiptModal({
         });
         addedCount++;
       }
-      const points = addedCount * 2;
-      addToast(`Added ${addedCount} items to your fridge! +${points} points`, "success");
+      addToast(`Added ${addedCount} items to your fridge!`, "success");
       onScanned();
     } catch {
       if (addedCount > 0) {

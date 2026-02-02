@@ -199,12 +199,12 @@ export default function EcoBoardPage() {
             {hasPieData ? (
               <div className="flex flex-col lg:flex-row items-center gap-6">
                 {/* Pie Chart */}
-                <div className="w-full lg:w-1/2 h-[200px] sm:h-[250px]">
+                <div className="w-full lg:w-3/5 h-[200px] sm:h-[250px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={pieData}
-                        cx="40%"
+                        cx="45%"
                         cy="50%"
                         labelLine={false}
                         outerRadius={80}
@@ -234,7 +234,7 @@ export default function EcoBoardPage() {
                 </div>
 
                 {/* Breakdown List */}
-                <div className="w-full lg:w-1/2 space-y-3">
+                <div className="w-full lg:w-2/5 space-y-3">
                   {pieData.map((entry) => {
                     const pct =
                       totalPoints > 0
@@ -314,7 +314,7 @@ export default function EcoBoardPage() {
               return hasData ? (
                 <div className="h-[220px] sm:h-[260px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyData}>
+                    <BarChart data={monthlyData} margin={{ top: 10, right: 10, bottom: 10, left: -10 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                       <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                       <YAxis tick={{ fontSize: 12 }} />

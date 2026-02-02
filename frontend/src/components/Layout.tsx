@@ -20,7 +20,7 @@ const sidebarItems = [
   { to: "/myfridge", icon: Refrigerator, label: "MyFridge" },
   { to: "/marketplace", icon: Store, label: "Marketplace" },
   { to: "/messages", icon: MessageCircle, label: "Messages" },
-  { to: "/ecoboard", icon: Trophy, label: "EcoPoints" },
+  { to: "/ecopoints", icon: Trophy, label: "EcoPoints" },
   { to: "/badges", icon: Award, label: "Badges" },
 ];
 
