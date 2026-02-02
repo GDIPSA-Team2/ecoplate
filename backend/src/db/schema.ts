@@ -94,7 +94,7 @@ export const productSustainabilityMetrics = sqliteTable("product_sustainability_
   userId: integer("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  todayDate: text("today_date"), // YYYY-MM-DD format
+  todayDate: text("today_date").notNull(), // YYYY-MM-DD format
   quantity: real("quantity"),
   type: text("type"), // e.g., "consumed", "wasted", "shared", "sold"
 });

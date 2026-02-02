@@ -153,9 +153,11 @@ export async function recordProductSustainabilityMetrics(
   quantity: number,
   type: "consumed" | "wasted" | "shared" | "sold"
 ) {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
   await db.insert(schema.productSustainabilityMetrics).values({
     productId,
     userId,
+    todayDate: today,
     quantity,
     type,
   });
