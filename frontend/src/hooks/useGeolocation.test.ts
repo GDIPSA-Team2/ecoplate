@@ -11,8 +11,16 @@ vi.mock('@capacitor/core', () => ({
   },
 }));
 
-// Mock Capacitor Geolocation
-vi.mock('@capacitor/geolocation');
+// Mock Capacitor Geolocation with explicit implementation
+vi.mock('@capacitor/geolocation', () => ({
+  Geolocation: {
+    getCurrentPosition: vi.fn(),
+    checkPermissions: vi.fn(),
+    requestPermissions: vi.fn(),
+    watchPosition: vi.fn(),
+    clearWatch: vi.fn(),
+  },
+}));
 
 describe('useGeolocation', () => {
   const mockPosition = {
@@ -41,7 +49,7 @@ describe('useGeolocation', () => {
       vi.mocked(Capacitor.isNativePlatform).mockReturnValue(false);
 
       // Mock navigator.geolocation
-      Object.defineProperty(global.navigator, 'geolocation', {
+      Object.defineProperty(globalThis.navigator, 'geolocation', {
         value: {
           getCurrentPosition: vi.fn(),
           watchPosition: vi.fn(),

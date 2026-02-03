@@ -2,7 +2,7 @@ CREATE TABLE `product_sustainability_metrics` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`product_id` integer,
 	`user_id` integer NOT NULL,
-	`today_date` text,
+	`today_date` text NOT NULL,
 	`quantity` real,
 	`type` text,
 	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE cascade,
@@ -57,6 +57,7 @@ CREATE TABLE `marketplace_listings` (
 	`status` text DEFAULT 'active' NOT NULL,
 	`created_at` integer NOT NULL,
 	`completed_at` integer,
+	`co2_saved` real,
 	FOREIGN KEY (`seller_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`buyer_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action
@@ -112,6 +113,7 @@ CREATE TABLE `user_points` (
 	`user_id` integer NOT NULL,
 	`total_points` integer DEFAULT 0 NOT NULL,
 	`current_streak` integer DEFAULT 0 NOT NULL,
+	`total_co2_saved` real DEFAULT 0 NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint

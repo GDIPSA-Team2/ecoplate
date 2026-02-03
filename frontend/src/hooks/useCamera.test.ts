@@ -43,7 +43,7 @@ describe("useCamera", () => {
 
   describe("Web Platform", () => {
     beforeEach(() => {
-      Object.defineProperty(global.navigator, "mediaDevices", {
+      Object.defineProperty(globalThis.navigator, "mediaDevices", {
         value: {
           getUserMedia: vi.fn(),
         },
@@ -142,7 +142,7 @@ describe("useCamera", () => {
     });
 
     it("should handle browser without camera support", async () => {
-      Object.defineProperty(global.navigator, "mediaDevices", {
+      Object.defineProperty(globalThis.navigator, "mediaDevices", {
         value: undefined,
         writable: true,
         configurable: true,

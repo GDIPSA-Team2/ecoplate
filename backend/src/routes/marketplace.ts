@@ -9,6 +9,8 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { awardPoints, POINT_VALUES } from "../services/gamification-service";
+import { calculateCo2Saved } from "../utils/co2-calculator";
+import { generateSecureFilename, validateImageFile } from "../utils/file-utils";
 
 // Ensure uploads directory exists - inside public folder for static serving
 const UPLOADS_DIR = join(import.meta.dir, "../../public/uploads/listings");
@@ -18,20 +20,20 @@ if (!existsSync(UPLOADS_DIR)) {
 
 const listingSchema = z.object({
   title: z.string().min(1).max(200),
-  description: z.string().optional(),
-  category: z.string().optional(),
-  quantity: z.number().positive().default(1),
-  unit: z.string().default("item"),
-  price: z.number().min(0).nullable().optional(),
-  originalPrice: z.number().positive().optional(),
-  expiryDate: z.string().optional(),
-  pickupLocation: z.string().optional(),
+  description: z.string().max(2000).optional(),
+  category: z.string().max(50).optional(),
+  quantity: z.number().positive().max(10000).default(1),
+  unit: z.string().max(20).default("item"),
+  price: z.number().min(0).max(1000000).nullable().optional(),
+  originalPrice: z.number().positive().max(1000000).optional(),
+  expiryDate: z.string().max(50).optional(),
+  pickupLocation: z.string().max(500).optional(),
   coordinates: z.object({
-    latitude: z.number(),
-    longitude: z.number(),
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
   }).optional(),
-  pickupInstructions: z.string().optional(),
-  imageUrls: z.array(z.string()).optional(),
+  pickupInstructions: z.string().max(1000).optional(),
+  imageUrls: z.array(z.string().max(500)).max(5).optional(),
 });
 
 export function registerMarketplaceRoutes(router: Router) {
@@ -53,16 +55,14 @@ export function registerMarketplaceRoutes(router: Router) {
       const uploadedUrls: string[] = [];
 
       for (const file of files) {
-        if (!file.type.startsWith("image/")) {
-          return error("Only image files are allowed", 400);
+        // Comprehensive file validation with magic bytes check
+        const validation = await validateImageFile(file);
+        if (!validation.valid) {
+          return error(validation.error || "Invalid file", 400);
         }
 
-        if (file.size > 5 * 1024 * 1024) {
-          return error("Image size must be less than 5MB", 400);
-        }
-
-        const ext = file.name.split(".").pop() || "jpg";
-        const filename = `${user.id}-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+        // Generate secure filename
+        const filename = generateSecureFilename(user.id, file.name, "listing");
         const filepath = join(UPLOADS_DIR, filename);
 
         const buffer = await file.arrayBuffer();
@@ -123,8 +123,23 @@ export function registerMarketplaceRoutes(router: Router) {
     const lng = parseFloat(url.searchParams.get("lng") || "");
     const radius = parseFloat(url.searchParams.get("radius") || "10");
 
+    // Validate coordinates
     if (isNaN(lat) || isNaN(lng)) {
       return error("Invalid latitude or longitude", 400);
+    }
+
+    // Validate coordinate bounds (valid lat: -90 to 90, lng: -180 to 180)
+    if (lat < -90 || lat > 90) {
+      return error("Latitude must be between -90 and 90", 400);
+    }
+
+    if (lng < -180 || lng > 180) {
+      return error("Longitude must be between -180 and 180", 400);
+    }
+
+    // Validate radius bounds (0.1km to 100km max to prevent DoS)
+    if (isNaN(radius) || radius < 0.1 || radius > 100) {
+      return error("Radius must be between 0.1 and 100 km", 400);
     }
 
     const userLocation: Coordinates = { latitude: lat, longitude: lng };
@@ -321,6 +336,9 @@ export function registerMarketplaceRoutes(router: Router) {
         pickupLocationValue = `${data.pickupLocation}|${data.coordinates.latitude},${data.coordinates.longitude}`;
       }
 
+      // Calculate CO2 saved for this listing
+      const co2Saved = calculateCo2Saved(data.quantity, data.unit, data.category);
+
       const [listing] = await db
         .insert(marketplaceListings)
         .values({
@@ -335,6 +353,7 @@ export function registerMarketplaceRoutes(router: Router) {
           expiryDate: data.expiryDate ? new Date(data.expiryDate) : undefined,
           pickupLocation: pickupLocationValue,
           images: data.imageUrls ? JSON.stringify(data.imageUrls) : null,
+          co2Saved,
         })
         .returning();
 
@@ -498,7 +517,7 @@ export function registerMarketplaceRoutes(router: Router) {
     // Parse optional buyerId from request body
     let buyerId: number | null = null;
     try {
-      const body = await parseBody(req);
+      const body = await parseBody<{ buyerId?: number }>(req);
       if (body && typeof body.buyerId === "number") {
         buyerId = body.buyerId;
       }
@@ -529,8 +548,11 @@ export function registerMarketplaceRoutes(router: Router) {
       })
       .where(eq(marketplaceListings.id, listingId));
 
-    // Award points for selling (reduces food waste)
-    const pointsResult = await awardPoints(user.id, "sold");
+    // Award points for selling (reduces food waste) and track CO2
+    const pointsResult = await awardPoints(user.id, "sold", null, 1, {
+      co2Saved: listing.co2Saved,
+      buyerId: finalBuyerId,
+    });
 
     return json({
       message: "Listing marked as sold",
@@ -540,6 +562,7 @@ export function registerMarketplaceRoutes(router: Router) {
         newTotal: pointsResult.newTotal,
       },
       newBadges: pointsResult.newBadges,
+      co2Saved: pointsResult.co2Saved,
     });
   });
 }

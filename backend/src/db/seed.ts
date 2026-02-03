@@ -3,6 +3,8 @@ import { drizzle } from "drizzle-orm/bun-sqlite";
 import { eq } from "drizzle-orm";
 import * as schema from "./schema";
 import { hashPassword } from "../middleware/auth";
+import { BADGE_DEFINITIONS } from "../services/badge-service";
+import { calculateCo2Saved } from "../utils/co2-calculator";
 
 const sqlite = new Database("ecoplate.db");
 const db = drizzle(sqlite, { schema });
@@ -500,6 +502,9 @@ async function seed() {
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() + listing.expiryDays);
 
+      // Calculate CO2 saved for this listing
+      const co2Saved = calculateCo2Saved(listing.quantity, listing.unit, listing.category);
+
       const [created] = await db.insert(schema.marketplaceListings).values({
         sellerId: seller.id,
         title: listing.title,
@@ -512,10 +517,11 @@ async function seed() {
         expiryDate,
         pickupLocation: listing.location,
         status: "active",
+        co2Saved,
       }).returning();
 
       createdListings.push({ id: created.id, sellerId: seller.id, title: created.title });
-      console.log(`  ✓ "${listing.title}" by ${seller.name}`);
+      console.log(`  ✓ "${listing.title}" by ${seller.name} (${co2Saved}kg CO2)`);
     }
 
     // Create sample conversations and messages
@@ -656,6 +662,9 @@ async function seed() {
       const completedDate = new Date();
       completedDate.setDate(completedDate.getDate() - item.daysAgo);
 
+      // Calculate CO2 saved for sold items
+      const co2Saved = calculateCo2Saved(1, "pcs", "pantry");
+
       await db.insert(schema.marketplaceListings).values({
         sellerId: seller.id,
         title: item.title,
@@ -668,9 +677,10 @@ async function seed() {
         status: "sold",
         completedAt: completedDate,
         pickupLocation: "Singapore",
+        co2Saved,
       });
     }
-    console.log(`  ✓ Created ${soldItems.length} sold listings`);
+    console.log(`  ✓ Created ${soldItems.length} sold listings (with CO2 data)`);
 
     // ==================== User Points (Gamification) ====================
     console.log("\nCreating user points...");
@@ -691,6 +701,101 @@ async function seed() {
         currentStreak: up.currentStreak,
       });
       console.log(`  ✓ ${user.name}: ${up.totalPoints} points, ${up.currentStreak}-day streak`);
+    }
+
+    // ==================== Award Badges Based on Metrics ====================
+    console.log("\nAwarding badges based on user activity...");
+
+    // Get all badges from DB
+    const allBadges = await db.query.badges.findMany();
+    const badgeByCode = new Map(allBadges.map((b) => [b.code, b]));
+
+    for (const user of createdUsers) {
+      // Get user's metrics
+      const interactions = await db.query.productSustainabilityMetrics.findMany({
+        where: eq(schema.productSustainabilityMetrics.userId, user.id),
+      });
+
+      const userPoints = await db.query.userPoints.findFirst({
+        where: eq(schema.userPoints.userId, user.id),
+      });
+
+      let totalConsumed = 0;
+      let totalWasted = 0;
+      let totalShared = 0;
+      let totalSold = 0;
+
+      // Collect unique active dates for streak calculation
+      const activeDateSet = new Set<string>();
+      const streakActions = ["consumed", "consume", "shared", "sold"];
+
+      for (const interaction of interactions) {
+        const type = (interaction.type || "").toLowerCase();
+        if (type === "consumed" || type === "consume") totalConsumed++;
+        else if (type === "wasted" || type === "waste") totalWasted++;
+        else if (type === "shared") totalShared++;
+        else if (type === "sold") totalSold++;
+
+        if (streakActions.includes(type)) {
+          const d = new Date(interaction.todayDate);
+          d.setHours(0, 0, 0, 0);
+          activeDateSet.add(d.toISOString().split("T")[0]);
+        }
+      }
+
+      // Compute longest streak
+      const activeDates = Array.from(activeDateSet).sort().map((d) => new Date(d));
+      let longestStreak = 0;
+      let currentRun = 0;
+      for (let i = 0; i < activeDates.length; i++) {
+        if (i === 0) {
+          currentRun = 1;
+        } else {
+          const prev = activeDates[i - 1];
+          const curr = activeDates[i];
+          const diffMs = curr.getTime() - prev.getTime();
+          const diffDays = diffMs / (1000 * 60 * 60 * 24);
+          currentRun = diffDays === 1 ? currentRun + 1 : 1;
+        }
+        if (currentRun > longestStreak) longestStreak = currentRun;
+      }
+
+      const totalActions = totalConsumed + totalShared + totalSold;
+      const totalItems = totalActions + totalWasted;
+      const wasteReductionRate = totalItems > 0 ? (totalActions / totalItems) * 100 : 0;
+
+      const metrics = {
+        totalPoints: userPoints?.totalPoints || 0,
+        currentStreak: userPoints?.currentStreak || 0,
+        longestStreak,
+        totalConsumed,
+        totalWasted,
+        totalShared,
+        totalSold,
+        totalActions,
+        totalItems,
+        wasteReductionRate,
+      };
+
+      // Check each badge definition and award if condition met
+      let badgesAwarded = 0;
+      for (const def of BADGE_DEFINITIONS) {
+        const dbBadge = badgeByCode.get(def.code);
+        if (!dbBadge) continue;
+
+        if (def.condition(metrics)) {
+          try {
+            await db.insert(schema.userBadges).values({
+              userId: user.id,
+              badgeId: dbBadge.id,
+            });
+            badgesAwarded++;
+          } catch {
+            // Badge already exists, skip
+          }
+        }
+      }
+      console.log(`  ✓ ${user.name}: ${badgesAwarded} badges awarded`);
     }
 
     console.log("\n========================================");

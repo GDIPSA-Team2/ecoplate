@@ -7,7 +7,7 @@ import {
   hashPassword,
   verifyPassword,
   generateToken,
-  verifyToken,
+  verifyRequestAuth,
   type JWTPayload,
 } from "../middleware/auth";
 
@@ -128,16 +128,9 @@ export function registerAuthRoutes(router: Router) {
   // Get current user
   router.get("/api/v1/auth/me", async (req) => {
     try {
-      const authHeader = req.headers.get("Authorization");
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return error("Unauthorized", 401);
-      }
-
-      const token = authHeader.slice(7);
-      const payload = await verifyToken(token);
-
+      const payload = await verifyRequestAuth(req);
       if (!payload) {
-        return error("Invalid token", 401);
+        return error("Unauthorized", 401);
       }
 
       const user = await db.query.users.findFirst({
@@ -164,16 +157,9 @@ export function registerAuthRoutes(router: Router) {
   // Update profile
   router.patch("/api/v1/auth/profile", async (req) => {
     try {
-      const authHeader = req.headers.get("Authorization");
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return error("Unauthorized", 401);
-      }
-
-      const token = authHeader.slice(7);
-      const payload = await verifyToken(token);
-
+      const payload = await verifyRequestAuth(req);
       if (!payload) {
-        return error("Invalid token", 401);
+        return error("Unauthorized", 401);
       }
 
       const updateSchema = z.object({

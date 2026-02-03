@@ -13,52 +13,44 @@ import type * as schema from "../db/schema";
 
 // ==================== Validation Schemas ====================
 
+// Max base64 image size: ~7MB (5MB image + base64 overhead)
+const MAX_BASE64_SIZE = 7 * 1024 * 1024;
+
 const identifySchema = z.object({
-  imageBase64: z.string().min(1, "Image is required"),
+  imageBase64: z.string().min(1, "Image is required").max(MAX_BASE64_SIZE, "Image too large (max 5MB)"),
 });
 
 const ingredientSchema = z.object({
-  productId: z.number(),
-  productName: z.string(),
-  quantityUsed: z.number().positive(),
-  category: z.string(),
-  unitPrice: z.number(),
-  co2Emission: z.number().optional(),
+  productId: z.number().int().positive(),
+  productName: z.string().min(1).max(200),
+  quantityUsed: z.number().positive().max(10000),
+  category: z.string().max(50),
+  unitPrice: z.number().min(0).max(100000),
+  co2Emission: z.number().min(0).max(10000).optional(),
 });
 
 const analyzeWasteSchema = z.object({
-  imageBase64: z.string().min(1, "Image is required"),
-  ingredients: z.array(ingredientSchema).min(1, "Ingredients are required"),
+  imageBase64: z.string().min(1, "Image is required").max(MAX_BASE64_SIZE, "Image too large (max 5MB)"),
+  ingredients: z.array(ingredientSchema).min(1, "Ingredients are required").max(50, "Too many ingredients"),
 });
 
 const confirmIngredientsSchema = z.object({
-  ingredients: z.array(z.object({
-    productId: z.number(),
-    productName: z.string(),
-    quantityUsed: z.number().positive(),
-    category: z.string(),
-    unitPrice: z.number(),
-    co2Emission: z.number().optional(),
-  })).min(1, "Ingredients are required"),
-  pendingRecordId: z.number().optional(),
+  ingredients: z.array(ingredientSchema).min(1, "Ingredients are required").max(50, "Too many ingredients"),
+  pendingRecordId: z.number().int().positive().optional(),
+});
+
+const wasteItemSchema = z.object({
+  productId: z.number().int().positive(),
+  productName: z.string().min(1).max(200),
+  quantityWasted: z.number().min(0).max(10000),
 });
 
 const confirmWasteSchema = z.object({
-  ingredients: z.array(z.object({
-    productId: z.number(),
-    productName: z.string(),
-    quantityUsed: z.number().positive(),
-    interactionId: z.number().optional(),
-    category: z.string(),
-    unitPrice: z.number(),
-    co2Emission: z.number().optional(),
-  })).min(1, "Ingredients are required"),
-  wasteItems: z.array(z.object({
-    productId: z.number(),
-    productName: z.string(),
-    quantityWasted: z.number(),
-  })),
-  pendingRecordId: z.number().optional(),
+  ingredients: z.array(ingredientSchema.extend({
+    interactionId: z.number().int().positive().optional(),
+  })).min(1, "Ingredients are required").max(50, "Too many ingredients"),
+  wasteItems: z.array(wasteItemSchema).max(50, "Too many waste items"),
+  pendingRecordId: z.number().int().positive().optional(),
 });
 
 // ==================== Route Registration ====================

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 
 // ==================== Users ====================
@@ -45,6 +45,7 @@ export const userPoints = sqliteTable("user_points", {
     .references(() => users.id, { onDelete: "cascade" }),
   totalPoints: integer("total_points").notNull().default(0),
   currentStreak: integer("current_streak").notNull().default(0),
+  totalCo2Saved: real("total_co2_saved").notNull().default(0),
 });
 
 // ==================== Badges ====================
@@ -73,7 +74,10 @@ export const userBadges = sqliteTable("user_badges", {
   earnedAt: integer("earned_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
-});
+}, (table) => ({
+  // Unique constraint to prevent duplicate badge awards
+  userBadgeUnique: uniqueIndex("user_badge_unique_idx").on(table.userId, table.badgeId),
+}));
 
 // ==================== Listing Images ====================
 
@@ -141,6 +145,7 @@ export const marketplaceListings = sqliteTable("marketplace_listings", {
     .notNull()
     .$defaultFn(() => new Date()),
   completedAt: integer("completed_at", { mode: "timestamp" }),
+  co2Saved: real("co2_saved"), // Estimated kg CO2 saved by sharing this food
 });
 
 // ==================== Conversations ====================

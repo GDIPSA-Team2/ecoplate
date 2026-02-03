@@ -13,6 +13,7 @@ import { ArrowLeft, MapPin, Clock, Edit, Trash2, CheckCircle, ChevronLeft, Chevr
 import { formatDate, getDaysUntilExpiry } from "../lib/utils";
 import { SimilarProducts } from "../components/marketplace/SimilarProducts";
 import { showBadgeToasts } from "../utils/badgeNotification";
+import { Co2Badge } from "../components/common/Co2Badge";
 import type { MarketplaceListing } from "../types/marketplace";
 
 export default function ListingDetailPage() {
@@ -329,6 +330,17 @@ export default function ListingDetailPage() {
               <h3 className="font-semibold mb-2">Description</h3>
               <p className="text-muted-foreground whitespace-pre-wrap">
                 {listing.description}
+              </p>
+            </div>
+          )}
+
+          {/* CO2 Impact */}
+          {listing.co2Saved && listing.co2Saved > 0 && (
+            <div>
+              <h3 className="font-semibold mb-2">Environmental Impact</h3>
+              <Co2Badge co2Saved={listing.co2Saved} variant="full" />
+              <p className="text-xs text-muted-foreground mt-2">
+                By sharing this food instead of letting it go to waste, you're helping reduce greenhouse gas emissions.
               </p>
             </div>
           )}

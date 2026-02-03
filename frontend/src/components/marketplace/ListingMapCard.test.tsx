@@ -23,6 +23,7 @@ describe('ListingMapCard', () => {
     createdAt: new Date().toISOString(),
     completedAt: null,
     images: null,
+    co2Saved: 2.25,
     distance: 2.5,
   };
 
@@ -35,7 +36,7 @@ describe('ListingMapCard', () => {
     expect(screen.getByText('produce')).toBeInTheDocument();
     expect(screen.getByText('$10.00')).toBeInTheDocument();
     expect(screen.getByText('$15.00')).toBeInTheDocument(); // Original price
-    expect(screen.getByText('Quantity: 5')).toBeInTheDocument();
+    expect(screen.getByText('Quantity: 5 pieces')).toBeInTheDocument();
   });
 
   it('should display FREE badge when price is null', () => {

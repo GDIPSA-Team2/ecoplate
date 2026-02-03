@@ -59,6 +59,7 @@ coverage/
 # Misc
 *.pem
 .vercel
+.claude.md
 
 # Mobile platforms
 android/

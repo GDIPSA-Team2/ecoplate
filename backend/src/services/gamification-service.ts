@@ -33,14 +33,25 @@ export async function getOrCreateUserPoints(userId: number) {
 }
 
 /**
+ * Listing data for CO2 tracking on sale completion
+ */
+export interface ListingDataForCo2 {
+  co2Saved: number | null;
+  buyerId: number | null;
+}
+
+/**
  * Award points to a user for an action
  * Also records the sustainability metric for tracking
+ *
+ * For "sold" actions, pass listingData to award CO2 to both seller and buyer
  */
 export async function awardPoints(
   userId: number,
   action: PointAction,
   productId?: number | null,
-  quantity?: number
+  quantity?: number,
+  listingData?: ListingDataForCo2
 ) {
   const amount = POINT_VALUES[action];
   const userPoints = await getOrCreateUserPoints(userId);
@@ -73,10 +84,31 @@ export async function awardPoints(
       .where(eq(schema.userPoints.userId, userId));
   }
 
+  // Handle CO2 tracking for sold items
+  let co2Saved: number | null = null;
+  if (action === "sold" && listingData?.co2Saved) {
+    co2Saved = listingData.co2Saved;
+
+    // Award CO2 to seller
+    await db
+      .update(schema.userPoints)
+      .set({ totalCo2Saved: userPoints.totalCo2Saved + co2Saved })
+      .where(eq(schema.userPoints.userId, userId));
+
+    // Award CO2 to buyer if exists
+    if (listingData.buyerId) {
+      const buyerPoints = await getOrCreateUserPoints(listingData.buyerId);
+      await db
+        .update(schema.userPoints)
+        .set({ totalCo2Saved: buyerPoints.totalCo2Saved + co2Saved })
+        .where(eq(schema.userPoints.userId, listingData.buyerId));
+    }
+  }
+
   // Check and award any newly earned badges
   const newBadges = await checkAndAwardBadges(userId);
 
-  return { action, amount, newTotal, newBadges };
+  return { action, amount, newTotal, newBadges, co2Saved };
 }
 
 /**

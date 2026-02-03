@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "c85fbab1-219e-4afc-9410-676b8e52484f",
+  "id": "d9e94082-c650-488e-9d92-99056dd282b2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "product_sustainability_metrics": {
@@ -32,7 +32,7 @@
           "name": "today_date",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "quantity": {
@@ -411,6 +411,13 @@
         "completed_at": {
           "name": "completed_at",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "co2_saved": {
+          "name": "co2_saved",
+          "type": "real",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -798,6 +805,14 @@
         "current_streak": {
           "name": "current_streak",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "total_co2_saved": {
+          "name": "total_co2_saved",
+          "type": "real",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
