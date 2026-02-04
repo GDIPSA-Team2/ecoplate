@@ -42,13 +42,13 @@ export function SimilarProducts({ listingId }: SimilarProductsProps) {
       <h2 className="text-xl font-semibold">Similar Products</h2>
 
       {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-48 rounded-xl" />
+            <Skeleton key={i} className="aspect-square sm:aspect-[4/3] rounded-xl" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
           {listings.map((listing) => (
             <SimilarProductCard key={listing.id} listing={listing} />
           ))}
@@ -72,7 +72,7 @@ function SimilarProductCard({ listing }: { listing: MarketplaceListing }) {
   return (
     <Link to={`/marketplace/${listing.id}`}>
       <Card className="overflow-hidden card-hover press-effect h-full rounded-xl">
-        <div className="relative aspect-[4/3]">
+        <div className="relative aspect-square sm:aspect-[4/3]">
           {thumbnailUrl ? (
             <img
               src={thumbnailUrl}
@@ -81,26 +81,26 @@ function SimilarProductCard({ listing }: { listing: MarketplaceListing }) {
             />
           ) : (
             <div className="w-full h-full bg-muted flex items-center justify-center">
-              <span className="text-muted-foreground text-sm">No image</span>
+              <span className="text-muted-foreground text-xs sm:text-sm">No image</span>
             </div>
           )}
           {discount && discount > 0 && (
-            <Badge className="absolute top-2 right-2 bg-primary">
+            <Badge className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 bg-primary text-[10px] sm:text-xs px-1.5 sm:px-2">
               {discount}% off
             </Badge>
           )}
         </div>
-        <CardContent className="p-3">
-          <h3 className="font-medium line-clamp-1">{listing.title}</h3>
-          <div className="flex items-center justify-between mt-1">
-            <span className="text-primary font-semibold">
+        <CardContent className="p-2 sm:p-3">
+          <h3 className="font-medium line-clamp-1 text-xs sm:text-sm">{listing.title}</h3>
+          <div className="flex items-center justify-between mt-1 gap-1">
+            <span className="text-primary font-semibold text-xs sm:text-sm">
               {listing.price !== null && listing.price > 0
                 ? `$${listing.price.toFixed(2)}`
                 : "FREE"}
             </span>
             {daysUntilExpiry !== null && (
               <span
-                className={`text-xs ${
+                className={`text-[10px] sm:text-xs flex-shrink-0 ${
                   daysUntilExpiry <= 0
                     ? "text-destructive"
                     : daysUntilExpiry <= 2
@@ -108,7 +108,7 @@ function SimilarProductCard({ listing }: { listing: MarketplaceListing }) {
                     : "text-muted-foreground"
                 }`}
               >
-                {daysUntilExpiry <= 0 ? "Expired" : `${daysUntilExpiry}d left`}
+                {daysUntilExpiry <= 0 ? "Expired" : `${daysUntilExpiry}d`}
               </span>
             )}
           </div>

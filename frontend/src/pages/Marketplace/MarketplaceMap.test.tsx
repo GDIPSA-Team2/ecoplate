@@ -1,11 +1,41 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import MarketplaceMap from './MarketplaceMap';
 import type { MarketplaceListingWithDistance } from '../../types/marketplace';
 import * as useGeolocationHook from '../../hooks/useGeolocation';
 
-// Mock react-leaflet and related libraries
+// Mock leaflet BEFORE any imports that might use it
+vi.mock('leaflet', () => {
+  class MockIcon {
+    options: Record<string, unknown>;
+    constructor(options: Record<string, unknown>) {
+      this.options = options;
+    }
+    static Default = {
+      mergeOptions: vi.fn(),
+      imagePath: '',
+    };
+  }
+  return {
+    default: {
+      Icon: MockIcon,
+    },
+    Icon: MockIcon,
+    LatLngExpression: {},
+  };
+});
+
+// Mock CSS imports
+vi.mock('leaflet/dist/leaflet.css', () => ({}));
+vi.mock('leaflet.markercluster/dist/MarkerCluster.css', () => ({}));
+vi.mock('leaflet.markercluster/dist/MarkerCluster.Default.css', () => ({}));
+
+// Mock leaflet marker images
+vi.mock('leaflet/dist/images/marker-icon.png', () => ({ default: 'marker-icon.png' }));
+vi.mock('leaflet/dist/images/marker-shadow.png', () => ({ default: 'marker-shadow.png' }));
+vi.mock('leaflet/dist/images/marker-icon-2x.png', () => ({ default: 'marker-icon-2x.png' }));
+
+// Mock react-leaflet components
 vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="map-container">{children}</div>
@@ -24,18 +54,22 @@ vi.mock('react-leaflet', () => ({
   }),
 }));
 
+// Mock react-leaflet-cluster
 vi.mock('react-leaflet-cluster', () => ({
   default: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="marker-cluster">{children}</div>
   ),
 }));
 
-vi.mock('leaflet', () => ({
-  Icon: vi.fn(() => ({})),
-  LatLngExpression: vi.fn(),
-}));
-
 describe('MarketplaceMap', () => {
+  // Dynamically import the component after mocks are set up
+  let MarketplaceMap: typeof import('./MarketplaceMap').default;
+
+  beforeAll(async () => {
+    const module = await import('./MarketplaceMap');
+    MarketplaceMap = module.default;
+  });
+
   const mockListings: MarketplaceListingWithDistance[] = [
     {
       id: 1,
@@ -56,6 +90,7 @@ describe('MarketplaceMap', () => {
       createdAt: new Date().toISOString(),
       completedAt: null,
       images: null,
+      co2Saved: 2.25,
     },
     {
       id: 2,
@@ -76,6 +111,7 @@ describe('MarketplaceMap', () => {
       createdAt: new Date().toISOString(),
       completedAt: null,
       images: null,
+      co2Saved: 1.2,
     },
   ];
 
@@ -199,16 +235,18 @@ describe('MarketplaceMap', () => {
   it('should filter listings by radius', async () => {
     renderWithRouter(<MarketplaceMap listings={mockListings} />);
 
-    // With default 5km radius, should show both listings
-    expect(screen.getByText(/Showing 2 listings/)).toBeInTheDocument();
+    // User is at Singapore center (1.3521, 103.8198)
+    // Listing 1 (NUS) is at (1.2966, 103.7764) - ~7.8km away, outside 5km radius
+    // Listing 2 (City Center) is at same location as user - inside 5km radius
+    // With default 5km radius, only 1 listing should be within radius
+    expect(screen.getByText(/Showing 1 listing/)).toBeInTheDocument();
 
-    // Change radius to 1km - should filter out NUS listing
+    // Increase radius to 10km - should now include NUS listing
     const slider = screen.getByRole('slider');
-    fireEvent.change(slider, { target: { value: '1' } });
+    fireEvent.change(slider, { target: { value: '10' } });
 
     await waitFor(() => {
-      // Should show fewer listings
-      expect(screen.getByText(/Showing \d+ listing/)).toBeInTheDocument();
+      expect(screen.getByText(/Showing 2 listing/)).toBeInTheDocument();
     });
   });
 
@@ -249,9 +287,8 @@ describe('MarketplaceMap', () => {
 
     renderWithRouter(<MarketplaceMap listings={listingsWithoutCoords} />);
 
-    // Should not render listing markers (only user location marker if available)
-    const text = screen.getByText(/Showing 0 listing/);
-    expect(text).toBeInTheDocument();
+    // Should show 0 listings since the only listing has no coordinates
+    expect(screen.getByText(/Showing 0 listing/)).toBeInTheDocument();
   });
 
   it('should display listings within radius text when user location available', () => {
@@ -263,6 +300,7 @@ describe('MarketplaceMap', () => {
   it('should handle empty listings array', () => {
     renderWithRouter(<MarketplaceMap listings={[]} />);
 
-    expect(screen.getByText('Showing 0 listings')).toBeInTheDocument();
+    // With empty listings, should show "Showing 0 listings"
+    expect(screen.getByText(/Showing 0 listing/)).toBeInTheDocument();
   });
 });

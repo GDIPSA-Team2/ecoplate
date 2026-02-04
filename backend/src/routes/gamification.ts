@@ -203,6 +203,22 @@ export function registerGamificationRoutes(router: Router) {
   });
 
   // ================================
+  // POST /api/v1/gamification/sync-badges
+  // Check and award any badges the user has earned but not received
+  // ================================
+  router.post("/api/v1/gamification/sync-badges", async (req) => {
+    const user = getUser(req);
+
+    const { checkAndAwardBadges } = await import("../services/badge-service");
+    const newBadges = await checkAndAwardBadges(user.id);
+
+    return json({
+      message: newBadges.length > 0 ? `Awarded ${newBadges.length} new badges` : "No new badges earned",
+      newBadges,
+    });
+  });
+
+  // ================================
   // POST /api/v1/gamification/sync-sold-points
   // Backfill points for historical sold products
   // ================================

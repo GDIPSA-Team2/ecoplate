@@ -110,4 +110,40 @@ export const marketplaceService = {
       { buyerId }
     );
   },
+
+  /**
+   * Reserve a listing (as buyer)
+   */
+  async reserveListing(id: number): Promise<{ message: string }> {
+    return api.post<{ message: string }>(`/marketplace/listings/${id}/reserve`);
+  },
+
+  /**
+   * Buy a listing directly (as buyer)
+   */
+  async buyListing(id: number): Promise<{ message: string }> {
+    return api.post<{ message: string }>(`/marketplace/listings/${id}/buy`);
+  },
+
+  /**
+   * Get price recommendation based on original price, expiry date, and category
+   */
+  async getPriceRecommendation(params: {
+    originalPrice: number;
+    expiryDate?: string;
+    category?: string;
+  }): Promise<{
+    recommended_price: number;
+    min_price: number;
+    max_price: number;
+    original_price: number;
+    discount_percentage: number;
+    days_until_expiry: number;
+    category: string;
+    urgency_label: string;
+    reasoning: string;
+    fallback?: boolean;
+  }> {
+    return api.post("/marketplace/price-recommendation", params);
+  },
 };

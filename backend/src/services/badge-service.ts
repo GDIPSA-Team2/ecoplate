@@ -2,6 +2,7 @@ import { db } from "../index";
 import * as schema from "../db/schema";
 import { eq, and } from "drizzle-orm";
 import { getOrCreateUserPoints } from "./gamification-service";
+import { notifyBadgeUnlocked } from "./notification-service";
 
 // ==================== Types ====================
 
@@ -333,35 +334,44 @@ export async function checkAndAwardBadges(
     // Check condition
     if (!def.condition(metrics)) continue;
 
-    // Double-check for race condition: re-query to see if another request inserted it
-    const existing = await db.query.userBadges.findFirst({
-      where: and(
-        eq(schema.userBadges.userId, userId),
-        eq(schema.userBadges.badgeId, dbBadge.id)
-      ),
-    });
-    if (existing) continue;
+    // Try to award the badge - use try-catch to handle race conditions
+    // The unique constraint on (userId, badgeId) prevents duplicates
+    try {
+      await db.insert(schema.userBadges).values({
+        userId,
+        badgeId: dbBadge.id,
+      });
 
-    // Award the badge
-    await db.insert(schema.userBadges).values({
-      userId,
-      badgeId: dbBadge.id,
-    });
+      // Award bonus points only if insert succeeded
+      if (dbBadge.pointsAwarded > 0) {
+        const userPoints = await getOrCreateUserPoints(userId);
+        await db
+          .update(schema.userPoints)
+          .set({ totalPoints: userPoints.totalPoints + dbBadge.pointsAwarded })
+          .where(eq(schema.userPoints.userId, userId));
+      }
 
-    // Award bonus points
-    if (dbBadge.pointsAwarded > 0) {
-      const userPoints = await getOrCreateUserPoints(userId);
-      await db
-        .update(schema.userPoints)
-        .set({ totalPoints: userPoints.totalPoints + dbBadge.pointsAwarded })
-        .where(eq(schema.userPoints.userId, userId));
+      newlyAwarded.push({
+        code: def.code,
+        name: def.name,
+        pointsAwarded: dbBadge.pointsAwarded,
+      });
+
+      // Send notification for badge unlock
+      await notifyBadgeUnlocked(userId, {
+        code: def.code,
+        name: def.name,
+        pointsAwarded: dbBadge.pointsAwarded,
+      });
+    } catch (err) {
+      // Unique constraint violation - badge already awarded, skip silently
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (errorMessage.includes("UNIQUE constraint failed") || errorMessage.includes("SQLITE_CONSTRAINT")) {
+        continue;
+      }
+      // Re-throw unexpected errors
+      throw err;
     }
-
-    newlyAwarded.push({
-      code: def.code,
-      name: def.name,
-      pointsAwarded: dbBadge.pointsAwarded,
-    });
   }
 
   return newlyAwarded;

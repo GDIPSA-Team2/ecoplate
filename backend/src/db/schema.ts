@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 
 // ==================== Users ====================
@@ -45,6 +45,7 @@ export const userPoints = sqliteTable("user_points", {
     .references(() => users.id, { onDelete: "cascade" }),
   totalPoints: integer("total_points").notNull().default(0),
   currentStreak: integer("current_streak").notNull().default(0),
+  totalCo2Saved: real("total_co2_saved").notNull().default(0),
 });
 
 // ==================== Badges ====================
@@ -73,7 +74,10 @@ export const userBadges = sqliteTable("user_badges", {
   earnedAt: integer("earned_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
-});
+}, (table) => ({
+  // Unique constraint to prevent duplicate badge awards
+  userBadgeUnique: uniqueIndex("user_badge_unique_idx").on(table.userId, table.badgeId),
+}));
 
 // ==================== Listing Images ====================
 
@@ -141,6 +145,7 @@ export const marketplaceListings = sqliteTable("marketplace_listings", {
     .notNull()
     .$defaultFn(() => new Date()),
   completedAt: integer("completed_at", { mode: "timestamp" }),
+  co2Saved: real("co2_saved"), // Estimated kg CO2 saved by sharing this food
 });
 
 // ==================== Conversations ====================
@@ -197,6 +202,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   messages: many(messages),
   points: one(userPoints),
   badges: many(userBadges),
+  notifications: many(notifications),
+  notificationPreferences: one(notificationPreferences),
 }));
 
 export const productsRelations = relations(products, ({ one, many }) => ({
@@ -312,5 +319,55 @@ export const listingImagesRelations = relations(listingImages, ({ one }) => ({
   listing: one(marketplaceListings, {
     fields: [listingImages.listingId],
     references: [marketplaceListings.id],
+  }),
+}));
+
+// ==================== Notifications ====================
+
+export const notifications = sqliteTable("notifications", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // "expiring_soon" | "badge_unlocked" | "streak_milestone" | "product_stale"
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  relatedId: integer("related_id"), // productId, badgeId, etc.
+  isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  readAt: integer("read_at", { mode: "timestamp" }),
+});
+
+// ==================== Notification Preferences ====================
+
+export const notificationPreferences = sqliteTable("notification_preferences", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" })
+    .unique(),
+  expiringProducts: integer("expiring_products", { mode: "boolean" }).notNull().default(true),
+  badgeUnlocked: integer("badge_unlocked", { mode: "boolean" }).notNull().default(true),
+  streakMilestone: integer("streak_milestone", { mode: "boolean" }).notNull().default(true),
+  productStale: integer("product_stale", { mode: "boolean" }).notNull().default(true),
+  staleDaysThreshold: integer("stale_days_threshold").notNull().default(7),
+  expiryDaysThreshold: integer("expiry_days_threshold").notNull().default(3),
+});
+
+// ==================== Notification Relations ====================
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+}));
+
+export const notificationPreferencesRelations = relations(notificationPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [notificationPreferences.userId],
+    references: [users.id],
   }),
 }));

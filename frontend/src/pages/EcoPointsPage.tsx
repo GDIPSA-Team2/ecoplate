@@ -166,81 +166,79 @@ export default function EcoBoardPage() {
         {/* 2x2 Dashboard Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Panel 1: Points & Streak */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-warning" />
+          <Card className="overflow-hidden">
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
                 Eco Points
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4 sm:space-y-6 p-3 sm:p-6 pt-0 sm:pt-0">
               <div className="text-center">
-                <div className="text-5xl font-bold text-primary">
+                <div className="text-3xl sm:text-5xl font-bold text-primary">
                   {pointsData?.points.total || 0}
                 </div>
-                <p className="text-muted-foreground">Total Points</p>
+                <p className="text-muted-foreground text-sm">Total Points</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-center">
-                <div className="p-4 bg-muted/50 rounded-xl">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4 text-center">
+                <div className="p-2.5 sm:p-4 bg-muted/50 rounded-lg sm:rounded-xl">
                   <div className="flex items-center justify-center gap-1 text-warning">
-                    <Flame className="h-5 w-5" />
-                    <span className="text-2xl font-bold">
-                    {pointsData?.points.currentStreak || 0}
-                  </span>
+                    <Flame className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="text-xl sm:text-2xl font-bold">
+                      {pointsData?.points.currentStreak || 0}
+                    </span>
                   </div>
-                  <p className="text-sm text-muted-foreground">Day Streak</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Day Streak</p>
                 </div>
-                <div className="p-4 bg-muted/50 rounded-xl">
-                  <div className="text-2xl font-bold text-foreground">
+                <div className="p-2.5 sm:p-4 bg-muted/50 rounded-lg sm:rounded-xl">
+                  <div className="text-xl sm:text-2xl font-bold text-foreground">
                     {pointsData?.points.longestStreak || 0}
                   </div>
-                  <p className="text-sm text-muted-foreground">Best Streak</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Best Streak</p>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
+              <div className="space-y-1.5 sm:space-y-2">
+                <div className="flex justify-between text-xs sm:text-sm">
                   <span>Lifetime Points</span>
                   <span className="font-medium">
-                  {pointsData?.points.lifetime || 0}
-                </span>
+                    {pointsData?.points.lifetime || 0}
+                  </span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-xs sm:text-sm">
                   <span>Available Points</span>
                   <span className="font-medium">
-                  {pointsData?.points.available || 0}
-                </span>
+                    {pointsData?.points.available || 0}
+                  </span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Panel 2: Activity Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Leaf className="h-5 w-5 text-primary" />
+          <Card className="overflow-hidden">
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                <Leaf className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 Activity Summary
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
               {hasPieData ? (
-                  <div className="flex flex-col lg:flex-row items-center gap-6">
+                  <div className="flex flex-col lg:flex-row items-center gap-4 sm:gap-6">
                     {/* Pie Chart */}
-                    <div className="w-full lg:w-3/5 h-[200px] sm:h-[250px]">
+                    <div className="w-full lg:w-3/5 h-[160px] sm:h-[200px] lg:h-[250px] min-w-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
                               data={pieData}
-                              cx="45%"
+                              cx="50%"
                               cy="50%"
                               labelLine={false}
-                              outerRadius={80}
+                              outerRadius="70%"
                               dataKey="value"
-                              label={(props: { name?: string; percent?: number }) =>
-                                  `${props.name ?? ""} ${((props.percent ?? 0) * 100).toFixed(0)}%`
-                              }
+                              label={false}
                           >
                             {pieData.map((entry, index) => (
                                 <Cell key={index} fill={entry.color} />
@@ -256,6 +254,7 @@ export default function EcoBoardPage() {
                                 border: "1px solid hsl(var(--border))",
                                 background: "hsl(var(--card))",
                                 color: "hsl(var(--foreground))",
+                                fontSize: "12px",
                               }}
                           />
                         </PieChart>
@@ -263,7 +262,7 @@ export default function EcoBoardPage() {
                     </div>
 
                     {/* Breakdown List */}
-                    <div className="w-full lg:w-2/5 space-y-3">
+                    <div className="w-full lg:w-2/5 space-y-2 sm:space-y-3 min-w-0">
                       {pieData.map((entry) => {
                         const pct =
                             totalPoints > 0
@@ -273,24 +272,25 @@ export default function EcoBoardPage() {
                         const Icon = config?.icon || Check;
 
                         return (
-                            <div key={entry.name} className="flex items-center gap-3">
+                            <div key={entry.name} className="flex items-center gap-2 sm:gap-3">
                               <div
-                                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0"
                                   style={{ backgroundColor: `color-mix(in srgb, ${entry.color} 15%, transparent)` }}
                               >
-                                <Icon className="w-5 h-5" style={{ color: entry.color }} />
+                                <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: entry.color }} />
                               </div>
 
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium text-foreground text-sm">
-                              {entry.name}
-                            </span>
-                                  <span className={`font-bold text-sm ${entry.rawValue >= 0 ? "text-success" : "text-destructive"}`}>
-                              {entry.rawValue > 0 ? "+" : ""}{entry.rawValue} pts
-                            </span>
+                                <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-0.5 sm:mb-1 gap-2">
+                                <span className="font-medium text-foreground text-xs sm:text-sm truncate">
+                                  {entry.name}
+                                </span>
+                                    <span className={`font-bold text-xs sm:text-sm flex-shrink-0 ${entry.rawValue >= 0 ?
+                                        "text-success" : "text-destructive"}`}>
+                                  {entry.rawValue > 0 ? "+" : ""}{entry.rawValue} pts
+                                </span>
                                 </div>
-                                <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                                <div className="w-full bg-muted rounded-full h-1.5 sm:h-2 overflow-hidden">
                                   <div
                                       className="h-full rounded-full"
                                       style={{
@@ -299,8 +299,8 @@ export default function EcoBoardPage() {
                                       }}
                                   />
                                 </div>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {pct}% &middot; {entry.count} items
+                                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
+                                  {pct}% · {entry.count} items
                                 </p>
                               </div>
                             </div>
@@ -309,9 +309,9 @@ export default function EcoBoardPage() {
                     </div>
                   </div>
               ) : (
-                  <div className="text-center py-8">
-                    <Leaf className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-muted-foreground">
+                  <div className="text-center py-6 sm:py-8">
+                    <Leaf className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-muted-foreground text-sm">
                       No activity yet. Start earning points!
                     </p>
                   </div>
@@ -320,14 +320,14 @@ export default function EcoBoardPage() {
           </Card>
 
           {/* Panel 3: Points Breakdown (monthly bar chart) */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-primary" />
+          <Card className="overflow-hidden">
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 Points Breakdown
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
               {(() => {
                 const monthlyData = (pointsData?.pointsByMonth || []).map((m) => {
                   const [, mm] = m.month.split("-");
@@ -337,12 +337,12 @@ export default function EcoBoardPage() {
                 const hasData = monthlyData.some((d) => d.points > 0);
 
                 return hasData ? (
-                    <div className="h-[220px] sm:h-[260px]">
+                    <div className="h-[180px] sm:h-[220px] lg:h-[260px] -ml-2 sm:ml-0">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={monthlyData} margin={{ top: 10, right: 10, bottom: 10, left: -10 }}>
+                        <BarChart data={monthlyData} margin={{ top: 10, right: 5, bottom: 5, left: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                          <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                          <YAxis tick={{ fontSize: 12 }} />
+                          <XAxis dataKey="label" tick={{ fontSize: 10 }} tickMargin={4} />
+                          <YAxis tick={{ fontSize: 10 }} width={30} />
                           <Tooltip
                               formatter={(value: unknown) => [`${Number(value) || 0} pts`, "Points"]}
                               contentStyle={{
@@ -350,6 +350,7 @@ export default function EcoBoardPage() {
                                 border: "1px solid hsl(var(--border))",
                                 background: "hsl(var(--card))",
                                 color: "hsl(var(--foreground))",
+                                fontSize: "12px",
                               }}
                           />
                           <Bar dataKey="points" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
@@ -357,9 +358,9 @@ export default function EcoBoardPage() {
                       </ResponsiveContainer>
                     </div>
                 ) : (
-                    <div className="text-center py-8">
-                      <BarChart3 className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-muted-foreground">
+                    <div className="text-center py-6 sm:py-8">
+                      <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-muted-foreground text-sm">
                         No points earned yet. Start your journey!
                       </p>
                     </div>
@@ -369,27 +370,27 @@ export default function EcoBoardPage() {
           </Card>
 
           {/* Panel 4: Leaderboard */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-accent" />
+          <Card className="overflow-hidden">
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-accent" />
                 Leaderboard
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
               {leaderboard.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">
+                  <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
                     No leaderboard data yet
                   </p>
               ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {leaderboard.slice(0, 5).map((entry) => (
                         <div
                             key={entry.userId}
-                            className="flex items-center gap-3 p-2 rounded-xl hover:bg-muted/50"
+                            className="flex items-center gap-2 sm:gap-3 p-1.5 sm:p-2 rounded-lg sm:rounded-xl hover:bg-muted/50"
                         >
                           <div
-                              className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                              className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm flex-shrink-0 ${
                                   entry.rank === 1
                                       ? "bg-warning/20 text-warning"
                                       : entry.rank === 2
@@ -401,15 +402,15 @@ export default function EcoBoardPage() {
                           >
                             {entry.rank}
                           </div>
-                          <div className="flex-1">
-                            <p className="font-medium">{entry.name}</p>
-                            <p className="text-xs text-muted-foreground">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{entry.name}</p>
+                            <p className="text-[10px] sm:text-xs text-muted-foreground">
                               {entry.streak} day streak
                             </p>
                           </div>
-                          <div className="text-right">
-                            <p className="font-bold text-primary">{entry.points}</p>
-                            <p className="text-xs text-muted-foreground">points</p>
+                          <div className="text-right flex-shrink-0">
+                            <p className="font-bold text-primary text-sm">{entry.points}</p>
+                            <p className="text-[10px] sm:text-xs text-muted-foreground">points</p>
                           </div>
                         </div>
                     ))}
@@ -420,17 +421,17 @@ export default function EcoBoardPage() {
         </div>
 
         {/* Points History */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Points History</CardTitle>
+        <Card className="overflow-hidden">
+          <CardHeader className="p-3 sm:p-6">
+            <CardTitle className="text-sm sm:text-base">Points History</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
             {transactions.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
+                <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
                   No transactions yet
                 </p>
             ) : (
-                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                <div className="space-y-1.5 sm:space-y-2 max-h-[300px] sm:max-h-[400px] overflow-y-auto">
                   {visibleTx.map((tx) => {
                     const config = ACTION_CONFIG[tx.action];
                     const Icon = config?.icon || Check;
@@ -439,28 +440,28 @@ export default function EcoBoardPage() {
                     return (
                         <div
                             key={tx.id}
-                            className="flex items-center gap-3 p-3 rounded-xl bg-muted/50"
+                            className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg sm:rounded-xl bg-muted/50"
                         >
                           <div
-                              className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${bgColor}`}
+                              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${bgColor}`}
                           >
-                            <Icon className={`h-5 w-5 ${color}`} />
+                            <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${color}`} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm text-foreground truncate">
-                              {tx.productName}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {tx.quantity} {tx.unit} &middot;{" "}
-                              {new Date(tx.createdAt).toLocaleDateString()}
-                            </p>
+                              <p className="font-medium text-xs sm:text-sm text-foreground truncate">
+                                  {tx.productName}
+                              </p>
+                              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                                  {tx.quantity} {tx.unit} &middot;{" "}
+                                  {new Date(tx.createdAt).toLocaleDateString()}
+                              </p>
                           </div>
                           <Badge
                               variant={tx.amount > 0 ? "success" : "destructive"}
-                              className="text-sm"
+                              className="text-xs sm:text-sm"
                           >
                             {tx.amount > 0 ? "+" : ""}
-                            {tx.amount} pts
+                            {tx.amount}
                           </Badge>
                         </div>
                     );
@@ -468,7 +469,7 @@ export default function EcoBoardPage() {
                   {transactions.length > INITIAL_TX_COUNT && (
                       <Button
                           variant="ghost"
-                          className="w-full mt-2"
+                          className="w-full mt-2 text-sm"
                           onClick={() => setShowAllTx(!showAllTx)}
                       >
                         {showAllTx ? (
@@ -490,38 +491,38 @@ export default function EcoBoardPage() {
         </Card>
 
         {/* How to Earn More Points */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Lightbulb className="h-5 w-5 text-warning" />
+        <Card className="overflow-hidden">
+          <CardHeader className="p-3 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+              <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
               How to Earn More Points
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
               {Object.entries(ACTION_CONFIG).map(([key, config]) => {
                 const Icon = config.icon;
                 return (
                     <div
                         key={key}
-                        className={`p-3 sm:p-4 rounded-xl ${config.bgColor}`}
+                        className={`p-2.5 sm:p-4 rounded-lg sm:rounded-xl ${config.bgColor}`}
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-2 sm:gap-3">
                         <div
-                            className={`w-10 h-10 rounded-full ${config.bgColor} flex items-center justify-center flex-shrink-0`}
+                            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full ${config.bgColor} flex items-center justify-center flex-shrink-0`}
                         >
-                          <Icon className={`w-5 h-5 ${config.color}`} />
+                          <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${config.color}`} />
                         </div>
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-foreground text-sm">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-foreground text-xs sm:text-sm">
                             {config.label}
                           </h3>
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                          <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-2">
                             {config.description}
                           </p>
-                          <p className={`font-bold text-sm mt-2 ${config.color}`}>
+                          <p className={`font-bold text-xs sm:text-sm mt-1.5 sm:mt-2 ${config.color}`}>
                             {config.points > 0 ? "+" : ""}
-                            {config.points} pts per item
+                            {config.points} pts
                           </p>
                         </div>
                       </div>

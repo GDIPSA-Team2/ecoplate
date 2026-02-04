@@ -72,14 +72,14 @@ export async function getDashboardStats(userId: number, period: Period = "month"
   let totalCo2Reduced = 0;
   const productMap = new Map(products.map((p) => [p.id, p]));
   for (const m of positiveMetrics) {
-    if (m.productId == null) continue;
+    if (m.productId == null || m.quantity == null) continue;
     const product = productMap.get(m.productId);
     if (product?.co2Emission && product.quantity > 0) {
       totalCo2Reduced += product.co2Emission * (m.quantity / product.quantity);
     }
   }
 
-  const totalFoodSaved = positiveMetrics.reduce((sum, m) => sum + m.quantity, 0);
+  const totalFoodSaved = positiveMetrics.reduce((sum, m) => sum + (m.quantity ?? 0), 0);
   const totalMoneySaved = soldListings.reduce((sum, l) => sum + (l.price || 0), 0);
   // const ecoPointsEarned = positiveMetrics.length * 10 + soldListings.length * 25;
 
@@ -88,15 +88,16 @@ export async function getDashboardStats(userId: number, period: Period = "month"
   const foodMap = new Map<string, number>();
 
   for (const m of positiveMetrics) {
-    const dateObj = m.todayDate instanceof Date ? m.todayDate : new Date(m.todayDate);
+    const dateObj = new Date(m.todayDate);
     const dateKey = formatDate(dateObj, period);
     const product = m.productId != null ? productMap.get(m.productId) : undefined;
+    const mQuantity = m.quantity ?? 0;
     const co2 = (product?.co2Emission && product.quantity > 0)
-      ? product.co2Emission * (m.quantity / product.quantity)
+      ? product.co2Emission * (mQuantity / product.quantity)
       : 0;
 
     co2Map.set(dateKey, (co2Map.get(dateKey) || 0) + co2);
-    foodMap.set(dateKey, (foodMap.get(dateKey) || 0) + m.quantity);
+    foodMap.set(dateKey, (foodMap.get(dateKey) || 0) + mQuantity);
   }
 
   const co2ChartData = Array.from(co2Map.entries())

@@ -2,6 +2,7 @@ import { db } from "../index";
 import * as schema from "../db/schema";
 import { eq, and, inArray, desc } from "drizzle-orm";
 import { checkAndAwardBadges } from "./badge-service";
+import { notifyStreakMilestone } from "./notification-service";
 
 // Point values for different actions
 export const POINT_VALUES = {
@@ -33,15 +34,26 @@ export async function getOrCreateUserPoints(userId: number) {
 }
 
 /**
+ * Listing data for CO2 tracking on sale completion
+ */
+export interface ListingDataForCo2 {
+  co2Saved: number | null;
+  buyerId: number | null;
+}
+
+/**
  * Award points to a user for an action
  * Also records the sustainability metric for tracking
+ *
+ * For "sold" actions, pass listingData to award CO2 to both seller and buyer
  */
 export async function awardPoints(
   userId: number,
   action: PointAction,
   productId?: number | null,
   quantity?: number,
-  skipMetricRecording?: boolean
+  skipMetricRecording?: boolean,
+  listingData?: ListingDataForCo2
 ) {
   const rawAmount = POINT_VALUES[action] * (quantity ?? 1);
   const amount = Math.round(rawAmount) || POINT_VALUES[action];
@@ -77,10 +89,31 @@ export async function awardPoints(
       .where(eq(schema.userPoints.userId, userId));
   }
 
+  // Handle CO2 tracking for sold items
+  let co2Saved: number | null = null;
+  if (action === "sold" && listingData?.co2Saved) {
+    co2Saved = listingData.co2Saved;
+
+    // Award CO2 to seller
+    await db
+      .update(schema.userPoints)
+      .set({ totalCo2Saved: userPoints.totalCo2Saved + co2Saved })
+      .where(eq(schema.userPoints.userId, userId));
+
+    // Award CO2 to buyer if exists
+    if (listingData.buyerId) {
+      const buyerPoints = await getOrCreateUserPoints(listingData.buyerId);
+      await db
+        .update(schema.userPoints)
+        .set({ totalCo2Saved: buyerPoints.totalCo2Saved + co2Saved })
+        .where(eq(schema.userPoints.userId, listingData.buyerId));
+    }
+  }
+
   // Check and award any newly earned badges
   const newBadges = await checkAndAwardBadges(userId);
 
-  return { action, amount, newTotal, newBadges };
+  return { action, amount, newTotal, newBadges, co2Saved };
 }
 
 /**
@@ -138,6 +171,12 @@ export async function updateStreak(userId: number) {
     .update(schema.userPoints)
     .set({ currentStreak: newStreak })
     .where(eq(schema.userPoints.userId, userId));
+
+  // Check for streak milestones and send notification
+  const milestones = [3, 7, 14, 30, 60, 90, 100, 365];
+  if (milestones.includes(newStreak)) {
+    await notifyStreakMilestone(userId, newStreak);
+  }
 }
 
 /**

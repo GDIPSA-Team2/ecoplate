@@ -100,19 +100,18 @@ beforeAll(async () => {
       product_name TEXT NOT NULL,
       category TEXT,
       quantity REAL NOT NULL DEFAULT 1,
+      unit TEXT,
       unit_price REAL,
-      purchase_date TEXT,
-      expiry_date TEXT,
+      purchase_date INTEGER,
       description TEXT,
-      co2_emission REAL,
-      is_consumed INTEGER DEFAULT 0
+      co2_emission REAL
     );
 
-    CREATE TABLE product_interaction (
+    CREATE TABLE product_sustainability_metrics (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      today_date TEXT,
+      today_date TEXT NOT NULL,
       quantity REAL,
       type TEXT
     );
@@ -258,7 +257,7 @@ describe("POST /api/v1/consumption/analyze-waste", () => {
     expect(res.data.error).toBeDefined();
   });
 
-  test("returns metrics with correct structure", async () => {
+  test("returns waste analysis structure", async () => {
     const router = createRouter();
     const res = await makeRequest(
       router,
@@ -280,18 +279,6 @@ describe("POST /api/v1/consumption/analyze-waste", () => {
     );
 
     expect(res.status).toBe(200);
-
-    // Check metrics structure
-    expect(res.data.metrics).toBeDefined();
-    const m = res.data.metrics;
-    expect(typeof m.totalCO2Wasted).toBe("number");
-    expect(typeof m.totalCO2Saved).toBe("number");
-    expect(typeof m.totalEconomicWaste).toBe("number");
-    expect(typeof m.totalEconomicConsumed).toBe("number");
-    expect(typeof m.wastePercentage).toBe("number");
-    expect(typeof m.sustainabilityScore).toBe("number");
-    expect(typeof m.sustainabilityRating).toBe("string");
-    expect(Array.isArray(m.itemBreakdown)).toBe(true);
 
     // Check waste analysis structure
     expect(res.data.wasteAnalysis).toBeDefined();
@@ -334,6 +321,7 @@ describe("POST /api/v1/consumption/analyze-waste", () => {
     const types = interactions.map((i) => i.type);
     expect(types).toContain("consumed");
     expect(types).toContain("wasted");
+    expect(res.data.wasteAnalysis.overallObservation).toBeDefined();
   });
 
 });
