@@ -39,6 +39,7 @@ export interface MarketplaceListing {
   status: string;
   createdAt: string;
   completedAt: string | null;
+  co2Saved: number | null; // Estimated kg CO2 saved by sharing this food
   seller?: {
     id: number;
     name: string;

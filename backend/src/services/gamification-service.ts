@@ -1,6 +1,7 @@
 import { db } from "../index";
 import * as schema from "../db/schema";
 import { eq, and, inArray, desc } from "drizzle-orm";
+import { checkAndAwardBadges } from "./badge-service";
 
 // Point values for different actions
 export const POINT_VALUES = {
@@ -32,14 +33,25 @@ export async function getOrCreateUserPoints(userId: number) {
 }
 
 /**
+ * Listing data for CO2 tracking on sale completion
+ */
+export interface ListingDataForCo2 {
+  co2Saved: number | null;
+  buyerId: number | null;
+}
+
+/**
  * Award points to a user for an action
  * Also records the sustainability metric for tracking
+ *
+ * For "sold" actions, pass listingData to award CO2 to both seller and buyer
  */
 export async function awardPoints(
   userId: number,
   action: PointAction,
   productId?: number | null,
-  quantity?: number
+  quantity?: number,
+  listingData?: ListingDataForCo2
 ) {
   const amount = POINT_VALUES[action];
   const userPoints = await getOrCreateUserPoints(userId);
@@ -72,7 +84,31 @@ export async function awardPoints(
       .where(eq(schema.userPoints.userId, userId));
   }
 
-  return { action, amount, newTotal };
+  // Handle CO2 tracking for sold items
+  let co2Saved: number | null = null;
+  if (action === "sold" && listingData?.co2Saved) {
+    co2Saved = listingData.co2Saved;
+
+    // Award CO2 to seller
+    await db
+      .update(schema.userPoints)
+      .set({ totalCo2Saved: userPoints.totalCo2Saved + co2Saved })
+      .where(eq(schema.userPoints.userId, userId));
+
+    // Award CO2 to buyer if exists
+    if (listingData.buyerId) {
+      const buyerPoints = await getOrCreateUserPoints(listingData.buyerId);
+      await db
+        .update(schema.userPoints)
+        .set({ totalCo2Saved: buyerPoints.totalCo2Saved + co2Saved })
+        .where(eq(schema.userPoints.userId, listingData.buyerId));
+    }
+  }
+
+  // Check and award any newly earned badges
+  const newBadges = await checkAndAwardBadges(userId);
+
+  return { action, amount, newTotal, newBadges, co2Saved };
 }
 
 /**
@@ -153,9 +189,11 @@ export async function recordProductSustainabilityMetrics(
   quantity: number,
   type: "consumed" | "wasted" | "shared" | "sold"
 ) {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
   await db.insert(schema.productSustainabilityMetrics).values({
     productId,
     userId,
+    todayDate: today,
     quantity,
     type,
   });
@@ -198,6 +236,8 @@ export async function getDetailedPointsStats(userId: number) {
   const activeDateSet = new Set<string>();
   // Track points per day for bestDayPoints
   const pointsByDay = new Map<string, number>();
+  // Track points per month for monthly bar chart
+  const pointsByMonth = new Map<string, number>();
 
   let firstActivityDate: string | null = null;
   let lastActiveDate: string | null = null;
@@ -220,6 +260,10 @@ export async function getDetailedPointsStats(userId: number) {
 
     // Points by day
     pointsByDay.set(dateKey, (pointsByDay.get(dateKey) || 0) + points);
+
+    // Points by month
+    const monthKey = dateKey.substring(0, 7); // YYYY-MM
+    pointsByMonth.set(monthKey, (pointsByMonth.get(monthKey) || 0) + points);
 
     // Time-windowed points
     if (interactionDate >= todayStart) {
@@ -277,6 +321,14 @@ export async function getDetailedPointsStats(userId: number) {
     ? Math.max(...pointsByDay.values())
     : 0;
 
+  // Compute last 6 months of points for bar chart
+  const last6Months: Array<{ month: string; points: number }> = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    last6Months.push({ month: key, points: pointsByMonth.get(key) || 0 });
+  }
+
   return {
     longestStreak,
     totalActiveDays,
@@ -288,6 +340,7 @@ export async function getDetailedPointsStats(userId: number) {
     bestDayPoints,
     averagePointsPerActiveDay,
     breakdownByType,
+    pointsByMonth: last6Months,
   };
 }
 

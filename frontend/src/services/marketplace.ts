@@ -38,10 +38,17 @@ export const marketplaceService = {
   },
 
   /**
-   * Get user's own marketplace listings
+   * Get user's own marketplace listings (as seller)
    */
   async getMyListings(): Promise<MarketplaceListing[]> {
     return api.get<MarketplaceListing[]>("/marketplace/my-listings");
+  },
+
+  /**
+   * Get user's purchase history (as buyer)
+   */
+  async getMyPurchases(): Promise<MarketplaceListing[]> {
+    return api.get<MarketplaceListing[]>("/marketplace/my-purchases");
   },
 
   /**
@@ -97,10 +104,24 @@ export const marketplaceService = {
   async completeListing(
     id: number,
     buyerId?: number
-  ): Promise<{ message: string; points: { earned: number; action: string; newTotal: number } }> {
-    return api.post<{ message: string; points: { earned: number; action: string; newTotal: number } }>(
+  ): Promise<{ message: string; points: { earned: number; action: string; newTotal: number }; newBadges?: Array<{ code: string; name: string; pointsAwarded: number }> }> {
+    return api.post<{ message: string; points: { earned: number; action: string; newTotal: number }; newBadges?: Array<{ code: string; name: string; pointsAwarded: number }> }>(
       `/marketplace/listings/${id}/sold`,
       { buyerId }
     );
+  },
+
+  /**
+   * Reserve a listing (as buyer)
+   */
+  async reserveListing(id: number): Promise<{ message: string }> {
+    return api.post<{ message: string }>(`/marketplace/listings/${id}/reserve`);
+  },
+
+  /**
+   * Buy a listing directly (as buyer)
+   */
+  async buyListing(id: number): Promise<{ message: string }> {
+    return api.post<{ message: string }>(`/marketplace/listings/${id}/buy`);
   },
 };

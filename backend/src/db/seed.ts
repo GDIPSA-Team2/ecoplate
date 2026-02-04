@@ -3,6 +3,8 @@ import { drizzle } from "drizzle-orm/bun-sqlite";
 import { eq } from "drizzle-orm";
 import * as schema from "./schema";
 import { hashPassword } from "../middleware/auth";
+import { BADGE_DEFINITIONS } from "../services/badge-service";
+import { calculateCo2Saved } from "../utils/co2-calculator";
 
 const sqlite = new Database("ecoplate.db");
 const db = drizzle(sqlite, { schema });
@@ -46,44 +48,44 @@ const demoUsers = [
 // Sample products (MyFridge items) - many products across categories with CO2 data
 const sampleProducts = [
   // Alice's products
-  { productName: "Fresh Organic Apples", category: "produce", quantity: 5.0, unitPrice: 6.0, co2Emission: 1.2, description: "Sweet and crispy organic apples", daysAgo: 2, ownerIndex: 0 },
-  { productName: "Whole Wheat Bread", category: "bakery", quantity: 2.0, unitPrice: 2.25, co2Emission: 0.8, description: "Freshly baked whole wheat bread", daysAgo: 1, ownerIndex: 0 },
-  { productName: "Brown Rice 2kg", category: "pantry", quantity: 2.0, unitPrice: 5.5, co2Emission: 2.7, description: "Organic brown rice", daysAgo: 30, ownerIndex: 0 },
-  { productName: "Greek Yogurt", category: "dairy", quantity: 1.0, unitPrice: 4.5, co2Emission: 1.4, description: "Plain Greek yogurt 500g", daysAgo: 5, ownerIndex: 0 },
-  { productName: "Fresh Salmon Fillet", category: "meat", quantity: 0.5, unitPrice: 12.0, co2Emission: 3.2, description: "Norwegian salmon fillet", daysAgo: 3, ownerIndex: 0 },
-  { productName: "Avocados", category: "produce", quantity: 4.0, unitPrice: 8.0, co2Emission: 2.0, description: "Ripe Hass avocados", daysAgo: 60, ownerIndex: 0 },
-  { productName: "Oat Milk", category: "dairy", quantity: 1.0, unitPrice: 4.0, co2Emission: 0.3, description: "Oatly barista edition", daysAgo: 90, ownerIndex: 0 },
-  { productName: "Chicken Thighs", category: "meat", quantity: 1.0, unitPrice: 7.0, co2Emission: 3.5, description: "Free-range chicken thighs", daysAgo: 120, ownerIndex: 0 },
-  { productName: "Pasta 500g", category: "pantry", quantity: 0.5, unitPrice: 3.0, co2Emission: 0.9, description: "Barilla spaghetti", daysAgo: 150, ownerIndex: 0 },
-  { productName: "Fresh Spinach", category: "produce", quantity: 0.3, unitPrice: 3.5, co2Emission: 0.4, description: "Organic baby spinach", daysAgo: 180, ownerIndex: 0 },
-  { productName: "Cheddar Cheese", category: "dairy", quantity: 0.25, unitPrice: 7.0, co2Emission: 3.0, description: "Aged cheddar block", daysAgo: 210, ownerIndex: 0 },
-  { productName: "Bananas", category: "produce", quantity: 6.0, unitPrice: 2.5, co2Emission: 0.5, description: "Fresh Cavendish bananas", daysAgo: 240, ownerIndex: 0 },
-  { productName: "Tofu Pack", category: "produce", quantity: 0.4, unitPrice: 2.0, co2Emission: 0.2, description: "Firm silken tofu", daysAgo: 300, ownerIndex: 0 },
-  { productName: "Eggs 10-pack", category: "dairy", quantity: 10.0, unitPrice: 5.0, co2Emission: 2.5, description: "Free-range eggs", daysAgo: 365, ownerIndex: 0 },
-  { productName: "Orange Juice 1L", category: "beverages", quantity: 1.0, unitPrice: 4.5, co2Emission: 0.7, description: "Fresh squeezed OJ", daysAgo: 400, ownerIndex: 0 },
-  { productName: "Frozen Peas 500g", category: "frozen", quantity: 0.5, unitPrice: 3.0, co2Emission: 0.6, description: "Garden peas", daysAgo: 500, ownerIndex: 0 },
+  { productName: "Fresh Organic Apples", category: "produce", quantity: 5.0, unit: "kg", unitPrice: 6.0, co2Emission: 1.2, description: "Sweet and crispy organic apples", daysAgo: 2, ownerIndex: 0 },
+  { productName: "Whole Wheat Bread", category: "bakery", quantity: 2.0, unit: "pcs", unitPrice: 2.25, co2Emission: 0.8, description: "Freshly baked whole wheat bread", daysAgo: 1, ownerIndex: 0 },
+  { productName: "Brown Rice 2kg", category: "pantry", quantity: 2.0, unit: "kg", unitPrice: 5.5, co2Emission: 2.7, description: "Organic brown rice", daysAgo: 30, ownerIndex: 0 },
+  { productName: "Greek Yogurt", category: "dairy", quantity: 1.0, unit: "pcs", unitPrice: 4.5, co2Emission: 1.4, description: "Plain Greek yogurt 500g", daysAgo: 5, ownerIndex: 0 },
+  { productName: "Fresh Salmon Fillet", category: "meat", quantity: 0.5, unit: "kg", unitPrice: 12.0, co2Emission: 3.2, description: "Norwegian salmon fillet", daysAgo: 3, ownerIndex: 0 },
+  { productName: "Avocados", category: "produce", quantity: 4.0, unit: "pcs", unitPrice: 8.0, co2Emission: 2.0, description: "Ripe Hass avocados", daysAgo: 60, ownerIndex: 0 },
+  { productName: "Oat Milk", category: "dairy", quantity: 1.0, unit: "L", unitPrice: 4.0, co2Emission: 0.3, description: "Oatly barista edition", daysAgo: 90, ownerIndex: 0 },
+  { productName: "Chicken Thighs", category: "meat", quantity: 1.0, unit: "kg", unitPrice: 7.0, co2Emission: 3.5, description: "Free-range chicken thighs", daysAgo: 120, ownerIndex: 0 },
+  { productName: "Pasta 500g", category: "pantry", quantity: 0.5, unit: "kg", unitPrice: 3.0, co2Emission: 0.9, description: "Barilla spaghetti", daysAgo: 150, ownerIndex: 0 },
+  { productName: "Fresh Spinach", category: "produce", quantity: 0.3, unit: "kg", unitPrice: 3.5, co2Emission: 0.4, description: "Organic baby spinach", daysAgo: 180, ownerIndex: 0 },
+  { productName: "Cheddar Cheese", category: "dairy", quantity: 0.25, unit: "kg", unitPrice: 7.0, co2Emission: 3.0, description: "Aged cheddar block", daysAgo: 210, ownerIndex: 0 },
+  { productName: "Bananas", category: "produce", quantity: 6.0, unit: "pcs", unitPrice: 2.5, co2Emission: 0.5, description: "Fresh Cavendish bananas", daysAgo: 240, ownerIndex: 0 },
+  { productName: "Tofu Pack", category: "produce", quantity: 0.4, unit: "kg", unitPrice: 2.0, co2Emission: 0.2, description: "Firm silken tofu", daysAgo: 300, ownerIndex: 0 },
+  { productName: "Eggs 10-pack", category: "dairy", quantity: 10.0, unit: "pcs", unitPrice: 5.0, co2Emission: 2.5, description: "Free-range eggs", daysAgo: 365, ownerIndex: 0 },
+  { productName: "Orange Juice 1L", category: "beverages", quantity: 1.0, unit: "L", unitPrice: 4.5, co2Emission: 0.7, description: "Fresh squeezed OJ", daysAgo: 400, ownerIndex: 0 },
+  { productName: "Frozen Peas 500g", category: "frozen", quantity: 0.5, unit: "kg", unitPrice: 3.0, co2Emission: 0.6, description: "Garden peas", daysAgo: 500, ownerIndex: 0 },
   // Bob's products
-  { productName: "Organic Milk 2L", category: "dairy", quantity: 2.0, unitPrice: 6.0, co2Emission: 3.0, description: "Fresh organic milk", daysAgo: 3, ownerIndex: 1 },
-  { productName: "Sourdough Bread", category: "bakery", quantity: 1.0, unitPrice: 5.0, co2Emission: 0.9, description: "Artisan sourdough loaf", daysAgo: 7, ownerIndex: 1 },
-  { productName: "Broccoli", category: "produce", quantity: 0.5, unitPrice: 3.0, co2Emission: 0.4, description: "Fresh broccoli crowns", daysAgo: 45, ownerIndex: 1 },
-  { productName: "Minced Beef 500g", category: "meat", quantity: 0.5, unitPrice: 9.0, co2Emission: 13.0, description: "Grass-fed beef mince", daysAgo: 100, ownerIndex: 1 },
-  { productName: "Tomatoes 1kg", category: "produce", quantity: 1.0, unitPrice: 4.0, co2Emission: 0.7, description: "Vine-ripened tomatoes", daysAgo: 200, ownerIndex: 1 },
-  { productName: "Almond Butter", category: "pantry", quantity: 0.3, unitPrice: 8.0, co2Emission: 0.5, description: "Organic almond butter", daysAgo: 350, ownerIndex: 1 },
+  { productName: "Organic Milk 2L", category: "dairy", quantity: 2.0, unit: "L", unitPrice: 6.0, co2Emission: 3.0, description: "Fresh organic milk", daysAgo: 3, ownerIndex: 1 },
+  { productName: "Sourdough Bread", category: "bakery", quantity: 1.0, unit: "pcs", unitPrice: 5.0, co2Emission: 0.9, description: "Artisan sourdough loaf", daysAgo: 7, ownerIndex: 1 },
+  { productName: "Broccoli", category: "produce", quantity: 0.5, unit: "kg", unitPrice: 3.0, co2Emission: 0.4, description: "Fresh broccoli crowns", daysAgo: 45, ownerIndex: 1 },
+  { productName: "Minced Beef 500g", category: "meat", quantity: 0.5, unit: "kg", unitPrice: 9.0, co2Emission: 13.0, description: "Grass-fed beef mince", daysAgo: 100, ownerIndex: 1 },
+  { productName: "Tomatoes 1kg", category: "produce", quantity: 1.0, unit: "kg", unitPrice: 4.0, co2Emission: 0.7, description: "Vine-ripened tomatoes", daysAgo: 200, ownerIndex: 1 },
+  { productName: "Almond Butter", category: "pantry", quantity: 0.3, unit: "kg", unitPrice: 8.0, co2Emission: 0.5, description: "Organic almond butter", daysAgo: 350, ownerIndex: 1 },
   // Charlie's products
-  { productName: "Strawberries 500g", category: "produce", quantity: 0.5, unitPrice: 6.0, co2Emission: 0.3, description: "Korean strawberries", daysAgo: 4, ownerIndex: 2 },
-  { productName: "Pork Belly 1kg", category: "meat", quantity: 1.0, unitPrice: 14.0, co2Emission: 5.5, description: "Fresh pork belly", daysAgo: 50, ownerIndex: 2 },
-  { productName: "Kimchi 500g", category: "pantry", quantity: 0.5, unitPrice: 5.0, co2Emission: 0.3, description: "Homemade kimchi", daysAgo: 130, ownerIndex: 2 },
-  { productName: "Coconut Oil", category: "pantry", quantity: 0.5, unitPrice: 7.0, co2Emission: 1.2, description: "Cold-pressed coconut oil", daysAgo: 250, ownerIndex: 2 },
+  { productName: "Strawberries 500g", category: "produce", quantity: 0.5, unit: "kg", unitPrice: 6.0, co2Emission: 0.3, description: "Korean strawberries", daysAgo: 4, ownerIndex: 2 },
+  { productName: "Pork Belly 1kg", category: "meat", quantity: 1.0, unit: "kg", unitPrice: 14.0, co2Emission: 5.5, description: "Fresh pork belly", daysAgo: 50, ownerIndex: 2 },
+  { productName: "Kimchi 500g", category: "pantry", quantity: 0.5, unit: "kg", unitPrice: 5.0, co2Emission: 0.3, description: "Homemade kimchi", daysAgo: 130, ownerIndex: 2 },
+  { productName: "Coconut Oil", category: "pantry", quantity: 0.5, unit: "L", unitPrice: 7.0, co2Emission: 1.2, description: "Cold-pressed coconut oil", daysAgo: 250, ownerIndex: 2 },
   // Diana's products
-  { productName: "Sweet Potatoes", category: "produce", quantity: 1.5, unitPrice: 4.0, co2Emission: 0.3, description: "Japanese sweet potatoes", daysAgo: 10, ownerIndex: 3 },
-  { productName: "Mozzarella", category: "dairy", quantity: 0.25, unitPrice: 5.5, co2Emission: 2.8, description: "Fresh buffalo mozzarella", daysAgo: 75, ownerIndex: 3 },
-  { productName: "Frozen Dumplings", category: "frozen", quantity: 1.0, unitPrice: 8.0, co2Emission: 2.0, description: "Handmade pork dumplings 30pcs", daysAgo: 160, ownerIndex: 3 },
-  { productName: "Honey 500g", category: "pantry", quantity: 0.5, unitPrice: 12.0, co2Emission: 0.2, description: "Raw Manuka honey", daysAgo: 300, ownerIndex: 3 },
+  { productName: "Sweet Potatoes", category: "produce", quantity: 1.5, unit: "kg", unitPrice: 4.0, co2Emission: 0.3, description: "Japanese sweet potatoes", daysAgo: 10, ownerIndex: 3 },
+  { productName: "Mozzarella", category: "dairy", quantity: 0.25, unit: "kg", unitPrice: 5.5, co2Emission: 2.8, description: "Fresh buffalo mozzarella", daysAgo: 75, ownerIndex: 3 },
+  { productName: "Frozen Dumplings", category: "frozen", quantity: 1.0, unit: "packs", unitPrice: 8.0, co2Emission: 2.0, description: "Handmade pork dumplings 30pcs", daysAgo: 160, ownerIndex: 3 },
+  { productName: "Honey 500g", category: "pantry", quantity: 0.5, unit: "kg", unitPrice: 12.0, co2Emission: 0.2, description: "Raw Manuka honey", daysAgo: 300, ownerIndex: 3 },
   // Evan's products
-  { productName: "Blueberries 250g", category: "produce", quantity: 0.25, unitPrice: 5.0, co2Emission: 0.4, description: "Chilean blueberries", daysAgo: 6, ownerIndex: 4 },
-  { productName: "Lamb Chops", category: "meat", quantity: 0.6, unitPrice: 18.0, co2Emission: 15.0, description: "NZ lamb rack", daysAgo: 80, ownerIndex: 4 },
-  { productName: "Soy Sauce 500ml", category: "pantry", quantity: 0.5, unitPrice: 4.0, co2Emission: 0.3, description: "Kikkoman soy sauce", daysAgo: 200, ownerIndex: 4 },
-  { productName: "Ice Cream 1L", category: "frozen", quantity: 1.0, unitPrice: 9.0, co2Emission: 1.8, description: "Haagen-Dazs vanilla", daysAgo: 400, ownerIndex: 4 },
+  { productName: "Blueberries 250g", category: "produce", quantity: 0.25, unit: "kg", unitPrice: 5.0, co2Emission: 0.4, description: "Chilean blueberries", daysAgo: 6, ownerIndex: 4 },
+  { productName: "Lamb Chops", category: "meat", quantity: 0.6, unit: "kg", unitPrice: 18.0, co2Emission: 15.0, description: "NZ lamb rack", daysAgo: 80, ownerIndex: 4 },
+  { productName: "Soy Sauce 500ml", category: "pantry", quantity: 0.5, unit: "L", unitPrice: 4.0, co2Emission: 0.3, description: "Kikkoman soy sauce", daysAgo: 200, ownerIndex: 4 },
+  { productName: "Ice Cream 1L", category: "frozen", quantity: 1.0, unit: "L", unitPrice: 9.0, co2Emission: 1.8, description: "Haagen-Dazs vanilla", daysAgo: 400, ownerIndex: 4 },
 ];
 
 // Sample marketplace listings
@@ -371,72 +373,28 @@ const sampleConversationMessages = [
   { text: "That works for me. See you then!", fromBuyer: false },
 ];
 
-// Sample badges
+// Badge definitions (16 badges across 4 categories)
 const sampleBadges = [
-  {
-    code: "first_sale",
-    name: "First Sale",
-    description: "Sold your first item on the marketplace",
-    category: "marketplace",
-    pointsAwarded: 50,
-    sortOrder: 1,
-  },
-  {
-    code: "eco_warrior",
-    name: "Eco Warrior",
-    description: "Saved 10kg of food from going to waste",
-    category: "sustainability",
-    pointsAwarded: 100,
-    sortOrder: 2,
-  },
-  {
-    code: "streak_7",
-    name: "Week Warrior",
-    description: "Maintained a 7-day sustainability streak",
-    category: "streak",
-    pointsAwarded: 75,
-    sortOrder: 3,
-  },
-  {
-    code: "streak_30",
-    name: "Monthly Champion",
-    description: "Maintained a 30-day sustainability streak",
-    category: "streak",
-    pointsAwarded: 200,
-    sortOrder: 4,
-  },
-  {
-    code: "community_helper",
-    name: "Community Helper",
-    description: "Shared food with 5 different people",
-    category: "community",
-    pointsAwarded: 80,
-    sortOrder: 5,
-  },
-  {
-    code: "zero_waste",
-    name: "Zero Waste Hero",
-    description: "Achieved 100% waste reduction rate for a month",
-    category: "sustainability",
-    pointsAwarded: 150,
-    sortOrder: 6,
-  },
-  {
-    code: "marketplace_pro",
-    name: "Marketplace Pro",
-    description: "Successfully sold 10 items",
-    category: "marketplace",
-    pointsAwarded: 120,
-    sortOrder: 7,
-  },
-  {
-    code: "early_adopter",
-    name: "Early Adopter",
-    description: "Joined EcoPlate in its early days",
-    category: "special",
-    pointsAwarded: 50,
-    sortOrder: 8,
-  },
+  // --- Milestones ---
+  { code: "first_action", name: "First Steps", description: "Complete your first sustainability action", category: "milestones", pointsAwarded: 25, sortOrder: 1 },
+  { code: "eco_starter", name: "Eco Starter", description: "Complete 10 sustainability actions", category: "milestones", pointsAwarded: 50, sortOrder: 2 },
+  { code: "eco_enthusiast", name: "Eco Enthusiast", description: "Complete 50 sustainability actions", category: "milestones", pointsAwarded: 100, sortOrder: 3 },
+  { code: "eco_champion", name: "Eco Champion", description: "Earn 1000 total EcoPoints", category: "milestones", pointsAwarded: 150, sortOrder: 4 },
+  // --- Waste Reduction ---
+  { code: "first_consume", name: "Clean Plate", description: "Consume your first item", category: "waste-reduction", pointsAwarded: 25, sortOrder: 5 },
+  { code: "waste_watcher", name: "Waste Watcher", description: "Consume 25 items", category: "waste-reduction", pointsAwarded: 75, sortOrder: 6 },
+  { code: "waste_warrior", name: "Waste Warrior", description: "80%+ waste reduction rate (min 20 items)", category: "waste-reduction", pointsAwarded: 100, sortOrder: 7 },
+  { code: "zero_waste_hero", name: "Zero Waste Hero", description: "95%+ waste reduction rate (min 50 items)", category: "waste-reduction", pointsAwarded: 200, sortOrder: 8 },
+  // --- Sharing ---
+  { code: "first_sale", name: "First Sale", description: "Sell your first marketplace item", category: "sharing", pointsAwarded: 25, sortOrder: 9 },
+  { code: "marketplace_regular", name: "Market Regular", description: "Sell 5 items on the marketplace", category: "sharing", pointsAwarded: 75, sortOrder: 10 },
+  { code: "marketplace_pro", name: "Marketplace Pro", description: "Sell 15 items on the marketplace", category: "sharing", pointsAwarded: 150, sortOrder: 11 },
+  { code: "sharing_champion", name: "Sharing Champion", description: "Share or sell 25 items total", category: "sharing", pointsAwarded: 200, sortOrder: 12 },
+  // --- Streaks ---
+  { code: "streak_3", name: "Getting Started", description: "3-day sustainability streak", category: "streaks", pointsAwarded: 25, sortOrder: 13 },
+  { code: "streak_7", name: "Week Warrior", description: "7-day sustainability streak", category: "streaks", pointsAwarded: 75, sortOrder: 14 },
+  { code: "streak_14", name: "Two-Week Titan", description: "14-day sustainability streak", category: "streaks", pointsAwarded: 125, sortOrder: 15 },
+  { code: "streak_30", name: "Monthly Champion", description: "30-day sustainability streak", category: "streaks", pointsAwarded: 250, sortOrder: 16 },
 ];
 
 async function seed() {
@@ -513,6 +471,7 @@ async function seed() {
           productName: product.productName,
           category: product.category,
           quantity: product.quantity,
+          unit: product.unit,
           unitPrice: product.unitPrice,
           purchaseDate,
           description: product.description,
@@ -543,6 +502,9 @@ async function seed() {
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() + listing.expiryDays);
 
+      // Calculate CO2 saved for this listing
+      const co2Saved = calculateCo2Saved(listing.quantity, listing.unit, listing.category);
+
       const [created] = await db.insert(schema.marketplaceListings).values({
         sellerId: seller.id,
         title: listing.title,
@@ -555,10 +517,11 @@ async function seed() {
         expiryDate,
         pickupLocation: listing.location,
         status: "active",
+        co2Saved,
       }).returning();
 
       createdListings.push({ id: created.id, sellerId: seller.id, title: created.title });
-      console.log(`  ✓ "${listing.title}" by ${seller.name}`);
+      console.log(`  ✓ "${listing.title}" by ${seller.name} (${co2Saved}kg CO2)`);
     }
 
     // Create sample conversations and messages
@@ -699,6 +662,9 @@ async function seed() {
       const completedDate = new Date();
       completedDate.setDate(completedDate.getDate() - item.daysAgo);
 
+      // Calculate CO2 saved for sold items
+      const co2Saved = calculateCo2Saved(1, "pcs", "pantry");
+
       await db.insert(schema.marketplaceListings).values({
         sellerId: seller.id,
         title: item.title,
@@ -711,9 +677,10 @@ async function seed() {
         status: "sold",
         completedAt: completedDate,
         pickupLocation: "Singapore",
+        co2Saved,
       });
     }
-    console.log(`  ✓ Created ${soldItems.length} sold listings`);
+    console.log(`  ✓ Created ${soldItems.length} sold listings (with CO2 data)`);
 
     // ==================== User Points (Gamification) ====================
     console.log("\nCreating user points...");
@@ -734,6 +701,101 @@ async function seed() {
         currentStreak: up.currentStreak,
       });
       console.log(`  ✓ ${user.name}: ${up.totalPoints} points, ${up.currentStreak}-day streak`);
+    }
+
+    // ==================== Award Badges Based on Metrics ====================
+    console.log("\nAwarding badges based on user activity...");
+
+    // Get all badges from DB
+    const allBadges = await db.query.badges.findMany();
+    const badgeByCode = new Map(allBadges.map((b) => [b.code, b]));
+
+    for (const user of createdUsers) {
+      // Get user's metrics
+      const interactions = await db.query.productSustainabilityMetrics.findMany({
+        where: eq(schema.productSustainabilityMetrics.userId, user.id),
+      });
+
+      const userPoints = await db.query.userPoints.findFirst({
+        where: eq(schema.userPoints.userId, user.id),
+      });
+
+      let totalConsumed = 0;
+      let totalWasted = 0;
+      let totalShared = 0;
+      let totalSold = 0;
+
+      // Collect unique active dates for streak calculation
+      const activeDateSet = new Set<string>();
+      const streakActions = ["consumed", "consume", "shared", "sold"];
+
+      for (const interaction of interactions) {
+        const type = (interaction.type || "").toLowerCase();
+        if (type === "consumed" || type === "consume") totalConsumed++;
+        else if (type === "wasted" || type === "waste") totalWasted++;
+        else if (type === "shared") totalShared++;
+        else if (type === "sold") totalSold++;
+
+        if (streakActions.includes(type)) {
+          const d = new Date(interaction.todayDate);
+          d.setHours(0, 0, 0, 0);
+          activeDateSet.add(d.toISOString().split("T")[0]);
+        }
+      }
+
+      // Compute longest streak
+      const activeDates = Array.from(activeDateSet).sort().map((d) => new Date(d));
+      let longestStreak = 0;
+      let currentRun = 0;
+      for (let i = 0; i < activeDates.length; i++) {
+        if (i === 0) {
+          currentRun = 1;
+        } else {
+          const prev = activeDates[i - 1];
+          const curr = activeDates[i];
+          const diffMs = curr.getTime() - prev.getTime();
+          const diffDays = diffMs / (1000 * 60 * 60 * 24);
+          currentRun = diffDays === 1 ? currentRun + 1 : 1;
+        }
+        if (currentRun > longestStreak) longestStreak = currentRun;
+      }
+
+      const totalActions = totalConsumed + totalShared + totalSold;
+      const totalItems = totalActions + totalWasted;
+      const wasteReductionRate = totalItems > 0 ? (totalActions / totalItems) * 100 : 0;
+
+      const metrics = {
+        totalPoints: userPoints?.totalPoints || 0,
+        currentStreak: userPoints?.currentStreak || 0,
+        longestStreak,
+        totalConsumed,
+        totalWasted,
+        totalShared,
+        totalSold,
+        totalActions,
+        totalItems,
+        wasteReductionRate,
+      };
+
+      // Check each badge definition and award if condition met
+      let badgesAwarded = 0;
+      for (const def of BADGE_DEFINITIONS) {
+        const dbBadge = badgeByCode.get(def.code);
+        if (!dbBadge) continue;
+
+        if (def.condition(metrics)) {
+          try {
+            await db.insert(schema.userBadges).values({
+              userId: user.id,
+              badgeId: dbBadge.id,
+            });
+            badgesAwarded++;
+          } catch {
+            // Badge already exists, skip
+          }
+        }
+      }
+      console.log(`  ✓ ${user.name}: ${badgesAwarded} badges awarded`);
     }
 
     console.log("\n========================================");

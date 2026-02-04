@@ -1,9 +1,25 @@
 import * as jose from "jose";
 import { error } from "../utils/router";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "ecoplate-development-secret-change-in-production"
-);
+// Validate JWT_SECRET is set in production
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET;
+  const isProduction = process.env.NODE_ENV === "production";
+
+  if (!secret && isProduction) {
+    throw new Error("CRITICAL: JWT_SECRET environment variable must be set in production");
+  }
+
+  if (!secret) {
+    console.warn("WARNING: Using development JWT secret. Set JWT_SECRET in production.");
+  }
+
+  // Use a default only in development, and make it long enough
+  const secretValue = secret || "ecoplate-dev-secret-do-not-use-in-production-" + Date.now();
+  return new TextEncoder().encode(secretValue);
+}
+
+const JWT_SECRET = getJwtSecret();
 
 const TOKEN_EXPIRY = "7d"; // 7 days
 
@@ -85,4 +101,28 @@ export function getUser(req: Request): { id: number; email: string; name: string
     throw new Error("User not authenticated");
   }
   return user;
+}
+
+/**
+ * Extract Bearer token from Authorization header
+ * @returns token string or null if invalid/missing
+ */
+export function extractBearerToken(req: Request): string | null {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+  return authHeader.slice(7);
+}
+
+/**
+ * Verify request authorization and return user payload
+ * @returns JWTPayload or null if unauthorized
+ */
+export async function verifyRequestAuth(req: Request): Promise<JWTPayload | null> {
+  const token = extractBearerToken(req);
+  if (!token) {
+    return null;
+  }
+  return verifyToken(token);
 }

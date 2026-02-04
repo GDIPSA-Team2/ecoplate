@@ -1,10 +1,11 @@
 import { Router, json } from "../utils/router";
 import { db } from "../index";
 import * as schema from "../db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { getUser } from "../middleware/auth";
-import { getOrCreateUserPoints, getUserMetrics, getDetailedPointsStats } from "../services/gamification-service";
+import { getOrCreateUserPoints, getUserMetrics, getDetailedPointsStats, awardPoints } from "../services/gamification-service";
 import { POINT_VALUES } from "../services/gamification-service";
+import { getBadgeProgress } from "../services/badge-service";
 
 export function registerGamificationRoutes(router: Router) {
   // ================================
@@ -28,18 +29,20 @@ export function registerGamificationRoutes(router: Router) {
       },
     });
 
-    // Map interactions to transaction like format
-    const transactions = recentInteractions.map((i) => {
-      const amount = POINT_VALUES[i.type as keyof typeof POINT_VALUES] ?? 0;
+    // Map interactions to transaction like format, filtering out "Add" entries
+    const transactions = recentInteractions
+      .filter((i) => i.type !== "Add")
+      .map((i) => {
+        const amount = POINT_VALUES[i.type as keyof typeof POINT_VALUES] ?? 0;
 
-      return {
-        id: i.id,
-        amount,
-        type: amount < 0 ? "penalty" : "earned",
-        action: i.type,
-        createdAt: i.todayDate,
-      };
-    });
+        return {
+          id: i.id,
+          amount,
+          type: amount < 0 ? "penalty" : "earned",
+          action: i.type,
+          createdAt: i.todayDate,
+        };
+      });
 
     return json({
       points: {
@@ -60,6 +63,7 @@ export function registerGamificationRoutes(router: Router) {
         averagePointsPerActiveDay: detailedStats.averagePointsPerActiveDay,
       },
       breakdown: detailedStats.breakdownByType,
+      pointsByMonth: detailedStats.pointsByMonth,
       transactions,
     });
   });
@@ -122,7 +126,10 @@ export function registerGamificationRoutes(router: Router) {
 
     const earnedBadgeIds = new Set(earnedBadges.map((ub) => ub.badgeId));
 
-    // Combine all badges with earned status
+    // Get progress data for all badges
+    const progress = await getBadgeProgress(user.id);
+
+    // Combine all badges with earned status and progress
     const badgesWithStatus = allBadges.map((badge) => ({
       id: badge.id,
       code: badge.code,
@@ -133,6 +140,7 @@ export function registerGamificationRoutes(router: Router) {
       imageUrl: badge.badgeImageUrl,
       earned: earnedBadgeIds.has(badge.id),
       earnedAt: earnedBadges.find((ub) => ub.badgeId === badge.id)?.earnedAt || null,
+      progress: progress[badge.code] || null,
     }));
 
     return json({
@@ -178,6 +186,81 @@ export function registerGamificationRoutes(router: Router) {
         wasteReductionRate: metrics.wasteReductionRate,
         co2Saved: metrics.estimatedCo2Saved,
       },
+    });
+  });
+
+  // ================================
+  // POST /api/v1/gamification/sync-badges
+  // Check and award any badges the user has earned but not received
+  // ================================
+  router.post("/api/v1/gamification/sync-badges", async (req) => {
+    const user = getUser(req);
+
+    const { checkAndAwardBadges } = await import("../services/badge-service");
+    const newBadges = await checkAndAwardBadges(user.id);
+
+    return json({
+      message: newBadges.length > 0 ? `Awarded ${newBadges.length} new badges` : "No new badges earned",
+      newBadges,
+    });
+  });
+
+  // ================================
+  // POST /api/v1/gamification/sync-sold-points
+  // Backfill points for historical sold products
+  // ================================
+  router.post("/api/v1/gamification/sync-sold-points", async (req) => {
+    const user = getUser(req);
+
+    // Get all sold listings for this user
+    const soldListings = await db.query.marketplaceListings.findMany({
+      where: and(
+        eq(schema.marketplaceListings.sellerId, user.id),
+        eq(schema.marketplaceListings.status, "sold")
+      ),
+    });
+
+    // Get existing "sold" metrics count for this user
+    const existingMetrics = await db.query.productSustainabilityMetrics.findMany({
+      where: and(
+        eq(schema.productSustainabilityMetrics.userId, user.id),
+        eq(schema.productSustainabilityMetrics.type, "sold")
+      ),
+    });
+
+    const soldCount = soldListings.length;
+    const metricCount = existingMetrics.length;
+
+    // Calculate how many sales are missing points
+    const missingSales = soldCount - metricCount;
+
+    if (missingSales <= 0) {
+      const userPoints = await getOrCreateUserPoints(user.id);
+      return json({
+        message: "All sold listings already have points",
+        synced: 0,
+        alreadySynced: soldCount,
+        pointsAwarded: 0,
+        newTotal: userPoints.totalPoints,
+      });
+    }
+
+    // Award points for the missing sales
+    let totalPointsAwarded = 0;
+    for (let i = 0; i < missingSales; i++) {
+      const result = await awardPoints(user.id, "sold");
+      totalPointsAwarded += result.amount;
+    }
+
+    // Get updated total points
+    const userPoints = await getOrCreateUserPoints(user.id);
+
+    return json({
+      message: `Synced ${missingSales} sold listings`,
+      synced: missingSales,
+      alreadySynced: metricCount,
+      pointsAwarded: totalPointsAwarded,
+      newTotal: userPoints.totalPoints,
     });
   });
 }

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { api } from "../services/api";
 import { useToast } from "../contexts/ToastContext";
@@ -6,8 +6,10 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { ArrowLeft, ImagePlus, X } from "lucide-react";
+import { ArrowLeft, ImagePlus, X, Leaf } from "lucide-react";
 import { LocationAutocomplete } from "../components/common/LocationAutocomplete";
+import { calculateCo2Preview } from "../components/common/Co2Badge";
+import { PRODUCT_UNITS } from "../constants/units";
 
 interface Product {
   id: number;
@@ -28,7 +30,7 @@ export default function CreateListingPage() {
   const [description, setDescription] = useState(product?.description || "");
   const [category, setCategory] = useState(product?.category || "");
   const [quantity, setQuantity] = useState(product?.quantity || 1);
-  const [unit, setUnit] = useState("item");
+  const [unit, setUnit] = useState("pcs");
   const [price, setPrice] = useState<string>("");
   const [originalPrice, setOriginalPrice] = useState<string>(
     product?.unitPrice ? product.unitPrice.toString() : ""
@@ -288,15 +290,17 @@ export default function CreateListingPage() {
                   onChange={(e) => setUnit(e.target.value)}
                   className="w-full h-10 rounded-md border border-input bg-background px-3"
                 >
-                  <option value="item">Item</option>
-                  <option value="kg">Kg</option>
-                  <option value="g">G</option>
-                  <option value="l">L</option>
-                  <option value="ml">mL</option>
-                  <option value="pack">Pack</option>
+                  {PRODUCT_UNITS.map((u) => (
+                    <option key={u.value} value={u.value}>
+                      {u.label}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
+
+            {/* CO2 Preview */}
+            <Co2PreviewSection category={category} quantity={quantity} unit={unit} />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -365,6 +369,48 @@ export default function CreateListingPage() {
           </form>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+/**
+ * CO2 Preview section component for create listing form
+ */
+function Co2PreviewSection({
+  category,
+  quantity,
+  unit,
+}: {
+  category: string;
+  quantity: number;
+  unit: string;
+}) {
+  const co2Estimate = useMemo(() => {
+    if (!category || !quantity || quantity <= 0) {
+      return null;
+    }
+    return calculateCo2Preview(quantity, unit, category);
+  }, [category, quantity, unit]);
+
+  if (!co2Estimate) {
+    return null;
+  }
+
+  const formattedValue = co2Estimate >= 1 ? co2Estimate.toFixed(1) : co2Estimate.toFixed(2);
+
+  return (
+    <div className="flex items-center gap-3 p-4 rounded-xl bg-success/10 border border-success/20">
+      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-success/20 flex items-center justify-center">
+        <Leaf className="h-5 w-5 text-success" />
+      </div>
+      <div>
+        <p className="text-sm font-medium text-foreground">
+          Estimated CO2 Saved: <span className="text-success">{formattedValue} kg</span>
+        </p>
+        <p className="text-xs text-muted-foreground">
+          By sharing this food, you're helping reduce emissions from food waste
+        </p>
+      </div>
     </div>
   );
 }
