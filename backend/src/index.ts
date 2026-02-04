@@ -10,6 +10,8 @@ import { registerMessageRoutes } from "./routes/messages";
 import { registerDashboardRoutes } from "./routes/dashboard";
 import { registerGamificationRoutes } from "./routes/gamification";
 import { registerUploadRoutes } from "./routes/upload";
+import { registerEcoLockerRoutes } from "./routes/ecolocker";
+import { startLockerJobs } from "./jobs/locker-jobs";
 import * as schema from "./db/schema";
 import { existsSync } from "fs";
 import { join } from "path";
@@ -35,6 +37,7 @@ registerMessageRoutes(protectedRouter);
 registerDashboardRoutes(protectedRouter);
 registerGamificationRoutes(protectedRouter);
 registerUploadRoutes(protectedRouter);
+registerEcoLockerRoutes(protectedRouter);
 
 // Health check
 publicRouter.get("/api/v1/health", () => json({ status: "ok" }));
@@ -139,3 +142,6 @@ const server = Bun.serve({
 });
 
 console.log(`EcoPlate server running at http://localhost:${server.port}`);
+
+// Start EcoLocker background jobs
+startLockerJobs();

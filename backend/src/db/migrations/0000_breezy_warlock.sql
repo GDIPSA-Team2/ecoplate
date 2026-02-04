@@ -39,6 +39,57 @@ CREATE TABLE `listing_images` (
 	FOREIGN KEY (`listing_id`) REFERENCES `marketplace_listings`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE TABLE `locker_notifications` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`user_id` integer NOT NULL,
+	`order_id` integer NOT NULL,
+	`type` text NOT NULL,
+	`title` text NOT NULL,
+	`message` text NOT NULL,
+	`is_read` integer DEFAULT false NOT NULL,
+	`created_at` integer,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`order_id`) REFERENCES `locker_orders`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE TABLE `locker_orders` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`listing_id` integer NOT NULL,
+	`locker_id` integer NOT NULL,
+	`buyer_id` integer NOT NULL,
+	`seller_id` integer NOT NULL,
+	`item_price` real NOT NULL,
+	`delivery_fee` real DEFAULT 2 NOT NULL,
+	`total_price` real NOT NULL,
+	`status` text DEFAULT 'pending_payment' NOT NULL,
+	`reserved_at` integer,
+	`payment_deadline` integer,
+	`paid_at` integer,
+	`pickup_scheduled_at` integer,
+	`dropped_off_at` integer,
+	`delivered_at` integer,
+	`picked_up_at` integer,
+	`expires_at` integer,
+	`pickup_pin` text,
+	`compartment_number` integer,
+	`cancel_reason` text,
+	FOREIGN KEY (`listing_id`) REFERENCES `marketplace_listings`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`locker_id`) REFERENCES `lockers`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`buyer_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`seller_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE TABLE `lockers` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`name` text NOT NULL,
+	`address` text NOT NULL,
+	`coordinates` text NOT NULL,
+	`total_compartments` integer DEFAULT 12 NOT NULL,
+	`available_compartments` integer DEFAULT 12 NOT NULL,
+	`operating_hours` text,
+	`status` text DEFAULT 'active' NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `marketplace_listings` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`seller_id` integer NOT NULL,
@@ -129,5 +180,6 @@ CREATE TABLE `users` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `badges_code_unique` ON `badges` (`code`);--> statement-breakpoint
+CREATE UNIQUE INDEX `user_badge_unique_idx` ON `user_badges` (`user_id`,`badge_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `user_points_user_id_unique` ON `user_points` (`user_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `users_email_unique` ON `users` (`email`);

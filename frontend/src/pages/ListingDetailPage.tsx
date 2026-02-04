@@ -9,7 +9,7 @@ import { useToast } from "../contexts/ToastContext";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import { ArrowLeft, MapPin, Clock, Edit, Trash2, CheckCircle, ChevronLeft, ChevronRight, MessageCircle, BookmarkPlus, ShoppingCart } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Edit, Trash2, CheckCircle, ChevronLeft, ChevronRight, MessageCircle, BookmarkPlus, ShoppingCart, Package } from "lucide-react";
 import { formatDate, getDaysUntilExpiry } from "../lib/utils";
 import { SimilarProducts } from "../components/marketplace/SimilarProducts";
 import { showBadgeToasts } from "../utils/badgeNotification";
@@ -428,6 +428,19 @@ export default function ListingDetailPage() {
                       Buy
                     </Button>
                   </div>
+                  <Button
+                    onClick={() => {
+                      const token = localStorage.getItem("token");
+                      const ecoLockerUrl = import.meta.env.VITE_ECOLOCKER_URL || "http://localhost:5174";
+                      window.location.href = `${ecoLockerUrl}?token=${token}&listingId=${listing.id}`;
+                    }}
+                    disabled={actionLoading}
+                    variant="outline"
+                    className="w-full border-primary/50 hover:bg-primary/10"
+                  >
+                    <Package className="h-4 w-4 mr-2" />
+                    Use EcoLocker Delivery
+                  </Button>
                   <Button
                     onClick={handleMessageSeller}
                     disabled={actionLoading}
