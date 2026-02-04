@@ -106,10 +106,17 @@ export async function getDashboardStats(
   for (const m of positiveMetrics) {
     if (m.productId == null) continue;
     const product = productMap.get(m.productId);
-    if (product?.co2Emission && product.quantity > 0) {
-      totalCo2Reduced +=
-        product.co2Emission * ((m.quantity ?? 0) / product.quantity);
+    if (!product) continue;
+    const mQuantity = m.quantity ?? 0;
+    let co2: number;
+    if (product.co2Emission && product.quantity > 0) {
+      co2 = product.co2Emission * (mQuantity / product.quantity);
+    } else {
+      const cat = normalizeCategory(product.category);
+      const factor = CATEGORY_CO2_FACTORS[cat] ?? CATEGORY_CO2_FACTORS["other"];
+      co2 = factor * mQuantity;
     }
+    totalCo2Reduced += co2;
   }
 
   const totalFoodSaved = positiveMetrics.reduce(
@@ -130,10 +137,16 @@ export async function getDashboardStats(
     const product =
       m.productId != null ? productMap.get(m.productId) : undefined;
     const mQuantity = m.quantity ?? 0;
-    const co2 =
-      product?.co2Emission && product.quantity > 0
-        ? product.co2Emission * (mQuantity / product.quantity)
-        : 0;
+    let co2: number;
+    if (product?.co2Emission && product.quantity > 0) {
+      co2 = product.co2Emission * (mQuantity / product.quantity);
+    } else if (product) {
+      const cat = normalizeCategory(product.category);
+      const factor = CATEGORY_CO2_FACTORS[cat] ?? CATEGORY_CO2_FACTORS["other"];
+      co2 = factor * mQuantity;
+    } else {
+      co2 = CATEGORY_CO2_FACTORS["other"] * mQuantity;
+    }
 
     co2Map.set(dateKey, (co2Map.get(dateKey) || 0) + co2);
     foodMap.set(dateKey, (foodMap.get(dateKey) || 0) + mQuantity);
@@ -375,8 +388,10 @@ export async function getFinancialStats(
   };
   for (const l of soldListings) {
     if (!l.completedAt || !l.createdAt) continue;
-    const hoursToSell =
-      (l.completedAt.getTime() - l.createdAt.getTime()) / (1000 * 60 * 60);
+    const hoursToSell = Math.max(
+      0,
+      (l.completedAt.getTime() - l.createdAt.getTime()) / (1000 * 60 * 60)
+    );
     if (hoursToSell < 24) speedBuckets["< 1 day"]++;
     else if (hoursToSell < 72) speedBuckets["1-3 days"]++;
     else if (hoursToSell < 168) speedBuckets["3-7 days"]++;
@@ -391,7 +406,7 @@ export async function getFinancialStats(
 
   let avgTimeToSell = 0;
   const validSoldListings = soldListings.filter(
-    (l) => l.completedAt && l.createdAt
+    (l) => l.completedAt && l.createdAt && l.completedAt >= l.createdAt
   );
   if (validSoldListings.length > 0) {
     const totalHours = validSoldListings.reduce((sum, l) => {
