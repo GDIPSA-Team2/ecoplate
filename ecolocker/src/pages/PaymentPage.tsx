@@ -4,12 +4,13 @@ import {
   CreditCard,
   MapPin,
   Clock,
-  Box,
   Loader2,
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
 import { orderApi } from "../services/locker-api";
+import { useToast } from "../contexts/ToastContext";
+import { getErrorMessage } from "../utils/network";
 import type { LockerOrder } from "../types";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -18,11 +19,11 @@ import { formatPrice, formatCountdown } from "@/lib/utils";
 export function PaymentPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
+  const { addToast } = useToast();
 
   const [order, setOrder] = useState<LockerOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState("");
   const [countdown, setCountdown] = useState("");
 
   useEffect(() => {
@@ -39,13 +40,13 @@ export function PaymentPage() {
 
         if (new Date() > deadline) {
           clearInterval(interval);
-          setError("Payment deadline has expired. Order has been cancelled.");
+          addToast("Payment deadline has expired. Order has been cancelled.", "error");
         }
       }, 1000);
 
       return () => clearInterval(interval);
     }
-  }, [order?.paymentDeadline]);
+  }, [order?.paymentDeadline, addToast]);
 
   async function loadOrder(id: number) {
     try {
@@ -57,7 +58,7 @@ export function PaymentPage() {
         navigate(`/orders/${id}`);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load order");
+      addToast(getErrorMessage(err), "error");
     } finally {
       setLoading(false);
     }
@@ -67,13 +68,13 @@ export function PaymentPage() {
     if (!order) return;
 
     setProcessing(true);
-    setError("");
 
     try {
       await orderApi.pay(order.id);
+      addToast("Payment successful!", "success");
       navigate(`/orders/${order.id}?paid=true`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Payment failed");
+      addToast(getErrorMessage(err), "error");
     } finally {
       setProcessing(false);
     }
@@ -86,9 +87,10 @@ export function PaymentPage() {
 
     try {
       await orderApi.cancel(order.id, "Cancelled by buyer");
+      addToast("Order cancelled", "info");
       navigate("/orders");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to cancel order");
+      addToast(getErrorMessage(err), "error");
     }
   }
 
@@ -115,12 +117,6 @@ export function PaymentPage() {
   return (
     <div className="p-4 max-w-lg mx-auto">
       <h1 className="text-xl font-semibold mb-4">Complete Payment</h1>
-
-      {error && (
-        <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-sm mb-4">
-          {error}
-        </div>
-      )}
 
       {/* Countdown */}
       <Card className="mb-4 border-warning bg-warning/10">

@@ -8,6 +8,7 @@ import {
   User,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { OfflineBanner } from "./OfflineBanner";
 import { cn } from "@/lib/utils";
 
 interface LayoutProps {
@@ -26,8 +27,11 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* Offline Banner */}
+      <OfflineBanner />
+
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 safe-area-top">
+      <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 pt-[env(safe-area-inset-top,0px)]">
         <div className="flex h-14 items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
@@ -58,12 +62,14 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 pb-20">{children}</main>
+      {/* Main content - add padding for safe areas and keyboard */}
+      <main className="flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)]" style={{ paddingBottom: `calc(var(--keyboard-height, 0px) + env(safe-area-inset-bottom, 0px) + 5rem)` }}>
+        {children}
+      </main>
 
       {/* Bottom navigation */}
       {user && (
-        <nav className="fixed bottom-0 left-0 right-0 border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 safe-area-bottom z-50">
+        <nav className="fixed bottom-0 left-0 right-0 border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 pb-[env(safe-area-inset-bottom,0px)] z-50">
           <div className="flex justify-around items-center h-16">
             {navItems.map((item) => {
               const isActive = location.pathname === item.path;

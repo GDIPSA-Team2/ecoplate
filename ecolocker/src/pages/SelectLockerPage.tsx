@@ -9,8 +9,12 @@ import {
   Box,
   Loader2,
   ArrowLeft,
+  RefreshCw,
 } from "lucide-react";
 import { lockerApi, marketplaceApi, orderApi } from "../services/locker-api";
+import { getCurrentPosition } from "../services/capacitor";
+import { useToast } from "../contexts/ToastContext";
+import { getErrorMessage } from "../utils/network";
 import type { Locker, Listing } from "../types";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -49,36 +53,23 @@ export function SelectLockerPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const listingId = searchParams.get("listingId");
+  const { addToast } = useToast();
 
   const [lockers, setLockers] = useState<Locker[]>([]);
   const [listing, setListing] = useState<(Listing & { seller: { id: number; name: string } }) | null>(null);
   const [selectedLocker, setSelectedLocker] = useState<Locker | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [error, setError] = useState("");
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   // Singapore center coordinates
   const defaultCenter = { lat: 1.3521, lng: 103.8198 };
 
   useEffect(() => {
-    // Get user's location
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-        },
-        () => {
-          // Use Singapore center if location access denied
-          setUserLocation(defaultCenter);
-        }
-      );
-    } else {
-      setUserLocation(defaultCenter);
-    }
+    // Get user's location using Capacitor hybrid geolocation
+    getCurrentPosition().then((location) => {
+      setUserLocation(location);
+    });
 
     loadData();
   }, [listingId]);
@@ -94,7 +85,7 @@ export function SelectLockerPage() {
         setListing(listingData);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load data");
+      addToast(getErrorMessage(err), "error");
     } finally {
       setLoading(false);
     }
@@ -109,13 +100,12 @@ export function SelectLockerPage() {
     if (!selectedLocker || !listingId) return;
 
     setCreating(true);
-    setError("");
 
     try {
       const order = await orderApi.create(parseInt(listingId, 10), selectedLocker.id);
       navigate(`/payment/${order.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create order");
+      addToast(getErrorMessage(err), "error");
     } finally {
       setCreating(false);
     }
@@ -150,9 +140,16 @@ export function SelectLockerPage() {
         )}
       </div>
 
-      {error && (
-        <div className="mx-4 mt-4 p-3 rounded-xl bg-destructive/10 text-destructive text-sm">
-          {error}
+      {/* Retry button if no lockers loaded */}
+      {!loading && lockers.length === 0 && (
+        <div className="mx-4 mt-4 p-4 rounded-xl bg-muted text-center">
+          <p className="text-sm text-muted-foreground mb-3">
+            Unable to load lockers
+          </p>
+          <Button variant="outline" size="sm" onClick={loadData}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
         </div>
       )}
 

@@ -8,14 +8,16 @@ import {
   Loader2,
   ShoppingBag,
   Store,
+  RefreshCw,
 } from "lucide-react";
 import { orderApi } from "../services/locker-api";
+import { useToast } from "../contexts/ToastContext";
+import { getErrorMessage } from "../utils/network";
 import type { LockerOrder } from "../types";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { formatPrice, formatDateTime } from "@/lib/utils";
-import { cn } from "@/lib/utils";
 
 const statusConfig: Record<
   string,
@@ -36,7 +38,7 @@ export function OrdersPage() {
   const [buyerOrders, setBuyerOrders] = useState<LockerOrder[]>([]);
   const [sellerOrders, setSellerOrders] = useState<LockerOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { addToast } = useToast();
 
   useEffect(() => {
     loadOrders();
@@ -52,7 +54,7 @@ export function OrdersPage() {
       setBuyerOrders(buyer);
       setSellerOrders(seller);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load orders");
+      addToast(getErrorMessage(err), "error");
     } finally {
       setLoading(false);
     }
@@ -94,9 +96,13 @@ export function OrdersPage() {
         </Button>
       </div>
 
-      {error && (
-        <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-sm mb-4">
-          {error}
+      {/* Retry button if failed to load */}
+      {!loading && buyerOrders.length === 0 && sellerOrders.length === 0 && (
+        <div className="mb-4">
+          <Button variant="outline" size="sm" onClick={loadOrders} className="w-full">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh Orders
+          </Button>
         </div>
       )}
 

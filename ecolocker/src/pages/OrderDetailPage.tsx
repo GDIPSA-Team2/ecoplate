@@ -12,9 +12,12 @@ import {
   Key,
   Calendar,
   Truck,
+  ExternalLink,
 } from "lucide-react";
 import { orderApi } from "../services/locker-api";
 import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../contexts/ToastContext";
+import { getErrorMessage } from "../utils/network";
 import type { LockerOrder } from "../types";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -41,10 +44,10 @@ export function OrderDetailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { addToast } = useToast();
 
   const [order, setOrder] = useState<LockerOrder | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
   // For seller scheduling
@@ -68,7 +71,7 @@ export function OrderDetailPage() {
       const data = await orderApi.getById(id);
       setOrder(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load order");
+      addToast(getErrorMessage(err), "error");
     } finally {
       setLoading(false);
     }
@@ -81,13 +84,13 @@ export function OrderDetailPage() {
     if (!order || !pickupTime) return;
 
     setActionLoading(true);
-    setError("");
 
     try {
       const updatedOrder = await orderApi.schedule(order.id, new Date(pickupTime).toISOString());
       setOrder(updatedOrder);
+      addToast("Pickup scheduled successfully", "success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to schedule pickup");
+      addToast(getErrorMessage(err), "error");
     } finally {
       setActionLoading(false);
     }
@@ -97,13 +100,13 @@ export function OrderDetailPage() {
     if (!order) return;
 
     setActionLoading(true);
-    setError("");
 
     try {
       const updatedOrder = await orderApi.confirmDropoff(order.id);
       setOrder(updatedOrder);
+      addToast("Dropoff confirmed! Buyer has been notified.", "success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to confirm dropoff");
+      addToast(getErrorMessage(err), "error");
     } finally {
       setActionLoading(false);
     }
@@ -130,14 +133,14 @@ export function OrderDetailPage() {
     if (!confirm("Are you sure you want to cancel this order?")) return;
 
     setActionLoading(true);
-    setError("");
 
     try {
       const reason = isBuyer ? "Cancelled by buyer" : "Cancelled by seller";
       const updatedOrder = await orderApi.cancel(order.id, reason);
       setOrder(updatedOrder);
+      addToast("Order cancelled", "info");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to cancel order");
+      addToast(getErrorMessage(err), "error");
     } finally {
       setActionLoading(false);
     }
@@ -190,12 +193,6 @@ export function OrderDetailPage() {
               The seller has been notified and will schedule a dropoff time.
             </p>
           </div>
-        </div>
-      )}
-
-      {error && (
-        <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-sm mb-4">
-          {error}
         </div>
       )}
 
@@ -422,10 +419,25 @@ export function OrderDetailPage() {
 
       {/* Completed message */}
       {order.status === "collected" && (
-        <div className="p-4 rounded-xl bg-success/10 text-success text-center">
-          <CheckCircle2 className="h-8 w-8 mx-auto mb-2" />
-          <p className="font-medium">Order Complete!</p>
-          <p className="text-sm">Thank you for using EcoLocker.</p>
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-success/10 text-success text-center">
+            <CheckCircle2 className="h-8 w-8 mx-auto mb-2" />
+            <p className="font-medium">Order Complete!</p>
+            <p className="text-sm">Thank you for using EcoLocker.</p>
+          </div>
+
+          {/* Return to EcoPlate button */}
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              const ecoPlateUrl = import.meta.env.VITE_ECOPLATE_URL || "http://localhost:5173";
+              window.location.href = `${ecoPlateUrl}/marketplace`;
+            }}
+          >
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Return to EcoPlate
+          </Button>
         </div>
       )}
     </div>

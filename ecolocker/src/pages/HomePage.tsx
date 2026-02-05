@@ -8,12 +8,15 @@ import {
   Box,
   Loader2,
   ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import { lockerApi } from "../services/locker-api";
+import { getCurrentPosition } from "../services/capacitor";
 import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../contexts/ToastContext";
+import { getErrorMessage } from "../utils/network";
 import type { Locker } from "../types";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
+import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 
 // Fix Leaflet default icon issue
@@ -37,9 +40,9 @@ function RecenterMap({ lat, lng }: { lat: number; lng: number }) {
 export function HomePage() {
   const navigate = useNavigate();
   const { listingId } = useAuth();
+  const { addToast } = useToast();
   const [lockers, setLockers] = useState<Locker[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   // Singapore center coordinates
@@ -53,22 +56,10 @@ export function HomePage() {
       return;
     }
 
-    // Get user's location
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-        },
-        () => {
-          setUserLocation(defaultCenter);
-        }
-      );
-    } else {
-      setUserLocation(defaultCenter);
-    }
+    // Get user's location using Capacitor hybrid geolocation
+    getCurrentPosition().then((location) => {
+      setUserLocation(location);
+    });
 
     loadLockers();
   }, [listingId, navigate]);
@@ -79,7 +70,7 @@ export function HomePage() {
       const data = await lockerApi.getAll();
       setLockers(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load lockers");
+      addToast(getErrorMessage(err), "error");
     } finally {
       setLoading(false);
     }
@@ -110,9 +101,16 @@ export function HomePage() {
         </p>
       </div>
 
-      {error && (
-        <div className="mx-4 mt-4 p-3 rounded-xl bg-destructive/10 text-destructive text-sm">
-          {error}
+      {/* Retry button if no lockers loaded */}
+      {!loading && lockers.length === 0 && (
+        <div className="mx-4 mt-4 p-4 rounded-xl bg-muted text-center">
+          <p className="text-sm text-muted-foreground mb-3">
+            Unable to load lockers
+          </p>
+          <Button variant="outline" size="sm" onClick={loadLockers}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
         </div>
       )}
 
