@@ -48,11 +48,13 @@ interface IdentifiedIngredient {
   name: string;
   matchedProductName: string;
   estimatedQuantity: number;
+  unit: string | null;
   category: string;
   unitPrice: number;
   co2Emission: number;
   confidence: "high" | "medium" | "low";
   interactionId?: number; // Added after confirm-ingredients
+  quantityError?: string;
 }
 
 
@@ -396,7 +398,7 @@ function ProductCard({
               )}
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
-              <span>Qty: {product.quantity}{product.unit ? ` ${product.unit}` : ''}</span>
+              <span>Qty: {parseFloat(product.quantity.toFixed(2))}{product.unit ? ` ${product.unit}` : ''}</span>
               {product.unitPrice != null && (
                 <span>${product.unitPrice.toFixed(2)}</span>
               )}
@@ -456,10 +458,34 @@ function AddProductModal({
   const [purchaseDate, setPurchaseDate] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
+  const [quantityError, setQuantityError] = useState<string>("");
   const { addToast } = useToast();
+
+  const validateQuantity = (value: number): boolean => {
+    const MAX_QUANTITY = 99999; // Reasonable maximum
+
+    if (isNaN(value) || value <= 0) {
+      setQuantityError("Quantity must be greater than 0");
+      return false;
+    }
+
+    if (value > MAX_QUANTITY) {
+      setQuantityError(`Quantity cannot exceed ${MAX_QUANTITY.toLocaleString()}`);
+      return false;
+    }
+
+    setQuantityError("");
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate quantity before submission
+    if (!validateQuantity(quantity)) {
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -533,12 +559,20 @@ function AddProductModal({
                   id="quantity"
                   type="number"
                   min="0.1"
+                  max="99999"
                   step="0.1"
                   value={quantity}
-                  onChange={(e) => setQuantity(parseFloat(e.target.value))}
-                  className="h-11"
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    setQuantity(value);
+                    validateQuantity(value);
+                  }}
+                  className={`h-11 ${quantityError ? 'border-red-500' : ''}`}
                   required
                 />
+                {quantityError && (
+                  <p className="text-sm text-red-500 mt-1">{quantityError}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -619,6 +653,7 @@ interface ScannedItem {
   unitPrice: number;
   category: string;
   co2Emission: number;
+  quantityError?: string;
 }
 
 function ScanReceiptModal({
@@ -717,7 +752,37 @@ function ScanReceiptModal({
     setScannedItems((prev) => prev.filter((item) => item.id !== id));
   };
 
+  const validateItemQuantity = (id: string, value: number): boolean => {
+    const MAX_QUANTITY = 99999;
+    let error = "";
+
+    if (isNaN(value) || value <= 0) {
+      error = "Must be > 0";
+    } else if (value > MAX_QUANTITY) {
+      error = `Max ${MAX_QUANTITY.toLocaleString()}`;
+    }
+
+    setScannedItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, quantityError: error } : item))
+    );
+
+    return error === "";
+  };
+
   const handleAddAll = async () => {
+    // Validate all items first
+    let hasErrors = false;
+    scannedItems.forEach(item => {
+      if (!validateItemQuantity(item.id, item.quantity)) {
+        hasErrors = true;
+      }
+    });
+
+    if (hasErrors) {
+      addToast("Please fix quantity errors before adding items", "error");
+      return;
+    }
+
     setScanning(true);
     let addedCount = 0;
     try {
@@ -980,13 +1045,19 @@ function ScanReceiptModal({
                         <Input
                           type="number"
                           min="0.1"
+                          max="99999"
                           step="0.1"
                           value={item.quantity}
-                          onChange={(e) =>
-                            updateItem(item.id, "quantity", parseFloat(e.target.value) || 1)
-                          }
-                          className="h-11"
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 1;
+                            updateItem(item.id, "quantity", value);
+                            validateItemQuantity(item.id, value);
+                          }}
+                          className={`h-11 ${item.quantityError ? 'border-red-500' : ''}`}
                         />
+                        {item.quantityError && (
+                          <p className="text-xs text-red-500 mt-0.5">{item.quantityError}</p>
+                        )}
                       </div>
                       <div>
                         <label className="text-xs text-muted-foreground">Unit</label>
@@ -1118,8 +1189,10 @@ function TrackConsumptionModal({
     productId?: number;
     productName: string;
     quantity: number;
+    unit: string | null;
     category: string;
     co2Emission: number;
+    quantityError?: string;
   }>>([]);
 
   const SUPPORTED_FORMATS = ["image/png", "image/jpeg", "image/gif", "image/webp"];
@@ -1176,6 +1249,7 @@ function TrackConsumptionModal({
             name: string;
             matchedProductName: string;
             estimatedQuantity: number;
+            unit: string | null;
             category: string;
             unitPrice: number;
             co2Emission: number;
@@ -1233,6 +1307,7 @@ function TrackConsumptionModal({
               productName: string;
               quantityWasted: number;
               productId: number;
+              unit?: string | null;
             }>;
             overallObservation: string;
           };
@@ -1242,6 +1317,7 @@ function TrackConsumptionModal({
             productId: ing.productId,
             productName: ing.name,
             quantityUsed: ing.estimatedQuantity,
+            unit: ing.unit,
             category: ing.category,
             unitPrice: ing.unitPrice,
             co2Emission: ing.co2Emission,
@@ -1256,6 +1332,7 @@ function TrackConsumptionModal({
           productId: item.productId,
           productName: item.productName,
           quantity: item.quantityWasted,
+          unit: item.unit || ingredients.find((i) => i.productId === item.productId)?.unit || null,
           category: ingredients.find((i) => i.productId === item.productId)?.category || "other",
           co2Emission: ingredients.find((i) => i.productId === item.productId)?.co2Emission || 0,
         }));
@@ -1303,6 +1380,40 @@ function TrackConsumptionModal({
     setIngredients((prev) => prev.filter((ing) => ing.id !== id));
   };
 
+  const validateIngredientQuantity = (id: string, value: number): boolean => {
+    const MAX_QUANTITY = 99999;
+    let error = "";
+
+    if (isNaN(value) || value <= 0) {
+      error = "Must be > 0";
+    } else if (value > MAX_QUANTITY) {
+      error = `Max ${MAX_QUANTITY.toLocaleString()}`;
+    }
+
+    setIngredients((prev) =>
+      prev.map((ing) => (ing.id === id ? { ...ing, quantityError: error } : ing))
+    );
+
+    return error === "";
+  };
+
+  const validateWasteQuantity = (id: string, value: number): boolean => {
+    const MAX_QUANTITY = 99999;
+    let error = "";
+
+    if (isNaN(value) || value <= 0) {
+      error = "Must be > 0";
+    } else if (value > MAX_QUANTITY) {
+      error = `Max ${MAX_QUANTITY.toLocaleString()}`;
+    }
+
+    setEditableWasteItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, quantityError: error } : item))
+    );
+
+    return error === "";
+  };
+
   const addIngredient = () => {
     setIngredients((prev) => [
       ...prev,
@@ -1312,6 +1423,7 @@ function TrackConsumptionModal({
         name: "",
         matchedProductName: "",
         estimatedQuantity: 1,
+        unit: null,
         category: "other",
         unitPrice: 0,
         co2Emission: 0,
@@ -1337,8 +1449,10 @@ function TrackConsumptionModal({
         id: Math.random().toString(36).slice(2),
         productName: "",
         quantity: 1,
+        unit: null,
         category: "other",
         co2Emission: 0,
+        quantityError: undefined,
       },
     ]);
   };
@@ -1631,6 +1745,19 @@ function TrackConsumptionModal({
 
   // Handle confirming ingredients (step 2 -> step 3)
   const handleConfirmIngredients = async () => {
+    // Validate all ingredients first
+    let hasErrors = false;
+    ingredients.forEach(ing => {
+      if (!validateIngredientQuantity(ing.id, ing.estimatedQuantity)) {
+        hasErrors = true;
+      }
+    });
+
+    if (hasErrors) {
+      addToast("Please fix quantity errors", "error");
+      return;
+    }
+
     setConfirmingIngredients(true);
     try {
       // Create pending record first (if not exists)
@@ -1651,6 +1778,7 @@ function TrackConsumptionModal({
           productId: ing.productId,
           productName: ing.name,
           quantityUsed: ing.estimatedQuantity,
+          unit: ing.unit,
           category: ing.category,
           unitPrice: ing.unitPrice,
           co2Emission: ing.co2Emission,
@@ -1727,19 +1855,45 @@ function TrackConsumptionModal({
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <div>
                         <label className="text-xs text-muted-foreground">Qty</label>
                         <Input
                           type="number"
                           min="0.1"
+                          max="99999"
                           step="0.1"
                           value={ing.estimatedQuantity}
-                          onChange={(e) =>
-                            updateIngredient(ing.id, "estimatedQuantity", parseFloat(e.target.value) || 0)
-                          }
-                          className="h-11"
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            updateIngredient(ing.id, "estimatedQuantity", value);
+                            validateIngredientQuantity(ing.id, value);
+                          }}
+                          className={`h-11 ${ing.quantityError ? 'border-red-500' : ''}`}
                         />
+                        {ing.quantityError && (
+                          <p className="text-xs text-red-500 mt-0.5">{ing.quantityError}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Unit</label>
+                        <select
+                          value={ing.unit || ""}
+                          onChange={(e) => updateIngredient(ing.id, "unit", e.target.value || "")}
+                          className="w-full h-11 rounded-md border border-input bg-background px-3"
+                        >
+                          <option value="">Select...</option>
+                          <option value="pcs">pcs</option>
+                          <option value="kg">kg</option>
+                          <option value="g">g</option>
+                          <option value="L">L</option>
+                          <option value="ml">ml</option>
+                          <option value="pack">pack</option>
+                          <option value="bottle">bottle</option>
+                          <option value="can">can</option>
+                          <option value="loaf">loaf</option>
+                          <option value="dozen">dozen</option>
+                        </select>
                       </div>
                       <div>
                         <label className="text-xs text-muted-foreground">Category</label>
@@ -1952,6 +2106,19 @@ function TrackConsumptionModal({
 
   // Handle confirming waste (step 4 -> step 5)
   const handleConfirmWaste = async () => {
+    // Validate all waste quantities
+    let hasErrors = false;
+    editableWasteItems.forEach(item => {
+      if (!validateWasteQuantity(item.id, item.quantity)) {
+        hasErrors = true;
+      }
+    });
+
+    if (hasErrors) {
+      addToast("Please fix quantity errors before confirming", "error");
+      return;
+    }
+
     setConfirmingWaste(true);
     try {
       const response = await api.post<{
@@ -1969,6 +2136,7 @@ function TrackConsumptionModal({
           productId: ing.productId,
           productName: ing.name,
           quantityUsed: ing.estimatedQuantity,
+          unit: ing.unit,
           interactionId: ing.interactionId,
           category: ing.category,
           unitPrice: ing.unitPrice,
@@ -1978,6 +2146,7 @@ function TrackConsumptionModal({
           productId: item.productId || 0,
           productName: item.productName,
           quantityWasted: item.quantity,
+          unit: item.unit,
         })),
         pendingRecordId,
       });
@@ -2046,19 +2215,45 @@ function TrackConsumptionModal({
                         <Trash2 className="h-4 w-4 text-muted hover:text-red-500" />
                       </Button>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <div>
                         <label className="text-xs text-muted-foreground">Qty Wasted</label>
                         <Input
                           type="number"
-                          min="0"
+                          min="0.1"
+                          max="99999"
                           step="0.1"
                           value={item.quantity}
-                          onChange={(e) =>
-                            updateWasteItem(item.id, "quantity", parseFloat(e.target.value) || 0)
-                          }
-                          className="h-11"
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            updateWasteItem(item.id, "quantity", value);
+                            validateWasteQuantity(item.id, value);
+                          }}
+                          className={`h-11 ${item.quantityError ? 'border-red-500' : ''}`}
                         />
+                        {item.quantityError && (
+                          <p className="text-xs text-red-500 mt-0.5">{item.quantityError}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Unit</label>
+                        <select
+                          value={item.unit || ""}
+                          onChange={(e) => updateWasteItem(item.id, "unit", e.target.value || "")}
+                          className="w-full h-11 rounded-md border border-input bg-background px-3"
+                        >
+                          <option value="">Select...</option>
+                          <option value="pcs">pcs</option>
+                          <option value="kg">kg</option>
+                          <option value="g">g</option>
+                          <option value="L">L</option>
+                          <option value="ml">ml</option>
+                          <option value="pack">pack</option>
+                          <option value="bottle">bottle</option>
+                          <option value="can">can</option>
+                          <option value="loaf">loaf</option>
+                          <option value="dozen">dozen</option>
+                        </select>
                       </div>
                       <div>
                         <label className="text-xs text-muted-foreground">Category</label>

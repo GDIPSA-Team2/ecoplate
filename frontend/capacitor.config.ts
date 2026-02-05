@@ -5,10 +5,16 @@ const config: CapacitorConfig = {
   appName: 'EcoPlate',
   webDir: 'dist',
   server: {
-    // For development, connect to local backend
-    // Comment out for production builds
-    url: 'http://10.0.2.2:5173',  // 10.0.2.2 是 Android 模拟器访问宿主机的地址
+    // DEVELOPMENT MODE: Connect to local dev server
+    // Comment out this entire server block for production builds
+
+    // Using local IP address - works for both iOS and Android
+    url: 'http://10.249.156.58:5173',
     cleartext: true,
+
+    // NOTE: Android emulators can also use 10.0.2.2 as an alternative
+    // iOS simulators require your actual local IP address
+    // Find your IP: ipconfig getifaddr en0 (macOS) or ipconfig (Windows)
   },
   plugins: {
     SplashScreen: {

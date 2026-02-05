@@ -445,11 +445,10 @@ async function seed() {
     console.log("Clearing existing data...");
     sqlite.exec("DELETE FROM messages");
     sqlite.exec("DELETE FROM conversations");
+    sqlite.exec("DELETE FROM listing_images");
     sqlite.exec("DELETE FROM product_sustainability_metrics");
     sqlite.exec("DELETE FROM user_points");
     sqlite.exec("DELETE FROM marketplace_listings");
-    sqlite.exec("DELETE FROM listing_images");
-    sqlite.exec("DELETE FROM product_sustainability_metrics");
     sqlite.exec("DELETE FROM products");
     sqlite.exec("DELETE FROM user_badges");
     sqlite.exec("DELETE FROM user_points");

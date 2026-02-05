@@ -23,6 +23,7 @@ const ingredientSchema = z.object({
   productId: z.number(),
   productName: z.string(),
   quantityUsed: z.number().positive(),
+  unit: z.string().nullable().optional(),
   category: z.string(),
   unitPrice: z.number(),
   co2Emission: z.number().optional(),
@@ -38,6 +39,7 @@ const confirmIngredientsSchema = z.object({
     productId: z.number(),
     productName: z.string(),
     quantityUsed: z.number().positive(),
+    unit: z.string().nullable().optional(),
     category: z.string(),
     unitPrice: z.number(),
     co2Emission: z.number().optional(),
@@ -50,6 +52,7 @@ const confirmWasteSchema = z.object({
     productId: z.number(),
     productName: z.string(),
     quantityUsed: z.number().positive(),
+    unit: z.string().nullable().optional(),
     interactionId: z.number().optional(),
     category: z.string(),
     unitPrice: z.number(),
@@ -254,6 +257,7 @@ Return an empty ingredients array if no food ingredients are visible.`,
           name: ing.name,
           matchedProductName: ing.matchedProductName,
           estimatedQuantity: Math.round(estimatedQuantity * 100) / 100,
+          unit: fridgeProduct?.unit || null,
           category: fridgeProduct?.category || classifyCategory(ing.name),
           unitPrice: fridgeProduct?.unitPrice || 0,
           co2Emission: fridgeProduct?.co2Emission || getCO2Emission(ing.name, fridgeProduct?.category || undefined),
@@ -472,6 +476,7 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
           userId: user.id,
           todayDate,
           quantity: ing.quantityUsed,
+          unit: ing.unit || null,
           type: "Consume",
         }).returning();
 
@@ -545,6 +550,7 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
             userId: user.id,
             todayDate,
             quantity: wastedQty,
+            unit: ing.unit || null,
             type: "Waste",
           });
         }

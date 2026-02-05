@@ -9,8 +9,24 @@ echo "🔧 Checking Capacitor ProGuard configurations..."
 
 FIXED_COUNT=0
 
-# Fix all Capacitor plugin build.gradle files
+# Fix all Capacitor plugin build.gradle files in root node_modules
 for file in node_modules/@capacitor/*/android/build.gradle; do
+  if [ -f "$file" ] && grep -q "proguard-android\.txt" "$file" 2>/dev/null; then
+    # Detect OS for sed compatibility
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      # macOS
+      sed -i '' "s/proguard-android\.txt/proguard-android-optimize.txt/g" "$file"
+    else
+      # Linux and Windows Git Bash
+      sed -i "s/proguard-android\.txt/proguard-android-optimize.txt/g" "$file"
+    fi
+    echo "  ✓ Fixed: $file"
+    ((FIXED_COUNT++))
+  fi
+done
+
+# Fix all Capacitor plugin build.gradle files in frontend node_modules
+for file in frontend/node_modules/@capacitor/*/android/build.gradle; do
   if [ -f "$file" ] && grep -q "proguard-android\.txt" "$file" 2>/dev/null; then
     # Detect OS for sed compatibility
     if [[ "$OSTYPE" == "darwin"* ]]; then

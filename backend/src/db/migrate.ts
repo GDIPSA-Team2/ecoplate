@@ -22,9 +22,9 @@ try {
     const migrationPath = join(migrationsDir, file);
     const migration = readFileSync(migrationPath, "utf-8");
 
-    // Split by statement breakpoint (for drizzle-generated migrations) or semicolon
+    // Split by statement breakpoint (for drizzle-generated migrations)
     const statements = migration
-      .split(/--> statement-breakpoint|;/)
+      .split(/--> statement-breakpoint/)
       .map((s) => s.trim())
       .filter((s) => s.length > 0 && !s.startsWith("--"));
 
