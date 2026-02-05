@@ -127,20 +127,25 @@ describe("MyFridgePage", () => {
   });
 
   it("should display product cards when products exist", async () => {
-    vi.mocked(api.get).mockResolvedValue([
-      {
-        id: 1,
-        productName: "Milk",
-        category: "dairy",
-        quantity: 1,
-        unitPrice: null,
-        purchaseDate: null,
-        expiryDate: "2026-02-10",
-        description: null,
-        co2Emission: 3.2,
-        isConsumed: false,
-      },
-    ]);
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === "/myfridge/products") {
+        return Promise.resolve([
+          {
+            id: 1,
+            productName: "Milk",
+            category: "dairy",
+            quantity: 1,
+            unitPrice: null,
+            purchaseDate: null,
+            expiryDate: "2026-02-10",
+            description: null,
+            co2Emission: 3.2,
+            isConsumed: false,
+          },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
 
     renderWithProviders(<MyFridgePage />);
 
@@ -394,7 +399,8 @@ describe("ScanReceiptModal", () => {
     fireEvent.change(fileInput, { target: { files: [file] } });
 
     await waitFor(() => {
-      expect(screen.getByText("Scanning receipt...")).toBeInTheDocument();
+      // During scanning, "Take Photo" should no longer be visible (replaced by skeleton loaders)
+      expect(screen.queryByText("Take Photo")).not.toBeInTheDocument();
     });
   });
 
@@ -443,6 +449,7 @@ describe("ScanReceiptModal", () => {
       expect(api.post).toHaveBeenCalledWith("/myfridge/products", {
         productName: "Eggs",
         quantity: 12,
+        unit: "pcs",
         category: "dairy",
         unitPrice: undefined,
         co2Emission: 4.7,
@@ -594,6 +601,7 @@ describe("ScanReceiptModal", () => {
       expect(api.post).toHaveBeenCalledWith("/myfridge/products", {
         productName: "Apples",
         quantity: 3,
+        unit: "pcs",
         category: "produce",
         unitPrice: 2.5,
         co2Emission: 0.4,
@@ -754,20 +762,25 @@ describe("ProductCard actions", () => {
   });
 
   it("should send correct consume request with type field", async () => {
-    vi.mocked(api.get).mockResolvedValue([
-      {
-        id: 1,
-        productName: "Yogurt",
-        category: "dairy",
-        quantity: 2,
-        unitPrice: null,
-        purchaseDate: null,
-        expiryDate: "2026-02-10",
-        description: null,
-        co2Emission: 3.2,
-        isConsumed: false,
-      },
-    ]);
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === "/myfridge/products") {
+        return Promise.resolve([
+          {
+            id: 1,
+            productName: "Yogurt",
+            category: "dairy",
+            quantity: 2,
+            unitPrice: null,
+            purchaseDate: null,
+            expiryDate: "2026-02-10",
+            description: null,
+            co2Emission: 3.2,
+            isConsumed: false,
+          },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
 
     vi.mocked(api.post).mockResolvedValue({
       message: "Product interaction logged",
