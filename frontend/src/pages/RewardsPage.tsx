@@ -227,9 +227,15 @@ export default function RewardsPage() {
                 reward.stock === 0 ? "opacity-60" : ""
               }`}
             >
-              {/* Image placeholder */}
-              <div className="h-32 bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
-                {reward.category === "physical" ? (
+              {/* Image */}
+              <div className="aspect-square bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center overflow-hidden">
+                {reward.imageUrl ? (
+                  <img
+                    src={reward.imageUrl}
+                    alt={reward.name}
+                    className="w-full h-full object-contain bg-white"
+                  />
+                ) : reward.category === "physical" ? (
                   <Package className="h-12 w-12 text-muted-foreground" />
                 ) : (
                   <Ticket className="h-12 w-12 text-muted-foreground" />
