@@ -30,10 +30,11 @@ async function migrate() {
           .filter((s) => {
             // Filter out empty strings
             if (s.length === 0) return false;
-            // Filter out comment-only blocks
-            if (s.startsWith("--")) return false;
             // Filter out any TypeScript/JavaScript code (just in case)
             if (s.startsWith("import ") || s.startsWith("export ")) return false;
+            // Check if block contains any SQL (not just comments)
+            const nonCommentLines = s.split('\n').filter(line => !line.trim().startsWith('--'));
+            if (nonCommentLines.every(line => line.trim().length === 0)) return false;
             return true;
           });
 

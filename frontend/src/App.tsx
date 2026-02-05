@@ -17,6 +17,10 @@ import EcoPointsPage from "./pages/EcoPointsPage.tsx";
 import BadgesPage from "./pages/BadgesPage";
 import AccountPage from "./pages/AccountPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import RewardsPage from "./pages/RewardsPage";
+import MyRedemptionsPage from "./pages/MyRedemptionsPage";
+import AdminRewardsPage from "./pages/admin/AdminRewardsPage";
+import AdminRedemptionsPage from "./pages/admin/AdminRedemptionsPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -63,6 +67,10 @@ function App() {
         <Route path="ecoboard" element={<Navigate to="/ecopoints" replace />} />
         <Route path="badges" element={<BadgesPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="rewards" element={<RewardsPage />} />
+        <Route path="rewards/my-redemptions" element={<MyRedemptionsPage />} />
+        <Route path="admin/rewards" element={<AdminRewardsPage />} />
+        <Route path="admin/redemptions" element={<AdminRedemptionsPage />} />
         <Route path="account" element={<AccountPage />} />
       </Route>
     </Routes>

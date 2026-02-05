@@ -9,6 +9,7 @@ import {
   MessageCircle,
   Trophy,
   Award,
+  Gift,
   LogOut,
   User,
 } from "lucide-react";
@@ -22,6 +23,7 @@ const sidebarItems = [
   { to: "/marketplace", icon: Store, label: "Marketplace" },
   { to: "/messages", icon: MessageCircle, label: "Messages" },
   { to: "/ecopoints", icon: Trophy, label: "EcoPoints" },
+  { to: "/rewards", icon: Gift, label: "Rewards" },
   { to: "/badges", icon: Award, label: "Badges" },
 ];
 
@@ -42,6 +44,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith("/messages")) return "Messages";
   if (pathname.startsWith("/ecopoints")) return "EcoPoints";
   if (pathname.startsWith("/ecoboard")) return "EcoPoints";
+  if (pathname.startsWith("/rewards")) return "Rewards";
   if (pathname.startsWith("/badges")) return "Badges";
   if (pathname.startsWith("/account")) return "Account";
   return "EcoPlate";

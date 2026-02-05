@@ -813,6 +813,87 @@ async function seed() {
       console.log(`  ✓ ${user.name}: ${badgesAwarded} badges awarded`);
     }
 
+    // ==================== Seed Rewards ====================
+    console.log("\n--- Seeding Rewards ---");
+
+    const sampleRewards = [
+      {
+        name: "公交卡充值 $10",
+        description: "新加坡公交卡充值10新币，可用于地铁和巴士",
+        imageUrl: "/rewards/transit-card.png",
+        category: "physical",
+        pointsCost: 500,
+        stock: 50,
+      },
+      {
+        name: "环保购物袋",
+        description: "可重复使用的环保购物袋，减少塑料袋使用",
+        imageUrl: "/rewards/eco-bag.png",
+        category: "physical",
+        pointsCost: 200,
+        stock: 100,
+      },
+      {
+        name: "不锈钢吸管套装",
+        description: "包含2支不锈钢吸管和清洁刷，附带便携袋",
+        imageUrl: "/rewards/straw-set.png",
+        category: "physical",
+        pointsCost: 300,
+        stock: 80,
+      },
+      {
+        name: "咖啡店优惠券 $5",
+        description: "可在合作咖啡店使用的5新币优惠券",
+        imageUrl: "/rewards/coffee-voucher.png",
+        category: "voucher",
+        pointsCost: 250,
+        stock: 200,
+      },
+      {
+        name: "超市折扣券 10%",
+        description: "合作超市单次购物享受10%折扣",
+        imageUrl: "/rewards/supermarket-voucher.png",
+        category: "voucher",
+        pointsCost: 400,
+        stock: 150,
+      },
+      {
+        name: "可重复使用水瓶",
+        description: "500ml不锈钢保温水瓶，保冷保热",
+        imageUrl: "/rewards/water-bottle.png",
+        category: "physical",
+        pointsCost: 600,
+        stock: 30,
+      },
+      {
+        name: "有机蔬菜礼盒",
+        description: "本地农场新鲜有机蔬菜礼盒一份",
+        imageUrl: "/rewards/veggie-box.png",
+        category: "physical",
+        pointsCost: 800,
+        stock: 20,
+      },
+      {
+        name: "环保餐具套装",
+        description: "竹制餐具套装，包含筷子、勺子、叉子和便携盒",
+        imageUrl: "/rewards/cutlery-set.png",
+        category: "physical",
+        pointsCost: 350,
+        stock: 60,
+      },
+    ];
+
+    const now = new Date();
+    for (const reward of sampleRewards) {
+      await db.insert(schema.rewards).values({
+        ...reward,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    console.log(`  ✓ Created ${sampleRewards.length} rewards`);
+
     console.log("\n========================================");
     console.log("Done! Demo accounts (password: demo123):");
     console.log("  - alice@demo.com (seller)");
@@ -821,6 +902,7 @@ async function seed() {
     console.log("  - diana@demo.com (seller)");
     console.log("  - evan@demo.com (seller)");
     console.log(`\nCreated ${createdListings.length} marketplace listings`);
+    console.log(`Created ${sampleRewards.length} rewards`);
     console.log("========================================\n");
 
   } catch (error) {
