@@ -16,6 +16,7 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
+
 import {
   Trophy,
   Leaf,
@@ -109,10 +110,10 @@ export default function EcoBoardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <SkeletonCard />
             <SkeletonCard />
+            <div className="md:col-span-2"><SkeletonCard /></div>
             <SkeletonCard />
             <SkeletonCard />
           </div>
-          <SkeletonCard />
           <SkeletonCard />
         </div>
     );
@@ -135,6 +136,7 @@ export default function EcoBoardPage() {
 
   const totalPoints = pieData.reduce((sum, d) => sum + d.value, 0);
   const hasPieData = pieData.length > 0;
+
 
   return (
       <div className="space-y-6">
@@ -216,8 +218,58 @@ export default function EcoBoardPage() {
             </CardContent>
           </Card>
 
-          {/* Panel 2: Activity Summary */}
+          {/* Panel 2: Points Breakdown (monthly bar chart) */}
           <Card className="overflow-hidden">
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                Points Breakdown
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+              {(() => {
+                const monthlyData = (pointsData?.pointsByMonth || []).map((m) => {
+                  const [, mm] = m.month.split("-");
+                  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                  return { label: monthNames[parseInt(mm, 10) - 1], points: Math.max(0, m.points) };
+                });
+                const hasData = monthlyData.some((d) => d.points > 0);
+
+                return hasData ? (
+                    <div className="h-[180px] sm:h-[220px] lg:h-[260px] -ml-2 sm:ml-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={monthlyData} margin={{ top: 10, right: 5, bottom: 5, left: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis dataKey="label" tick={{ fontSize: 10 }} tickMargin={4} />
+                          <YAxis tick={{ fontSize: 10 }} width={30} />
+                          <Tooltip
+                              formatter={(value: unknown) => [`${Number(value) || 0} pts`, "Points"]}
+                              contentStyle={{
+                                borderRadius: "12px",
+                                border: "1px solid hsl(var(--border))",
+                                background: "hsl(var(--card))",
+                                color: "hsl(var(--foreground))",
+                                fontSize: "12px",
+                              }}
+                          />
+                          <Bar dataKey="points" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                ) : (
+                    <div className="text-center py-6 sm:py-8">
+                      <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-muted-foreground text-sm">
+                        No points earned yet. Start your journey!
+                      </p>
+                    </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+
+          {/* Panel 3: Activity Summary */}
+          <Card className="overflow-hidden md:col-span-2">
             <CardHeader className="p-3 sm:p-6">
               <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                 <Leaf className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
@@ -228,7 +280,7 @@ export default function EcoBoardPage() {
               {hasPieData ? (
                   <div className="flex flex-col lg:flex-row items-center gap-4 sm:gap-6">
                     {/* Pie Chart */}
-                    <div className="w-full lg:w-3/5 h-[160px] sm:h-[200px] lg:h-[250px] min-w-0">
+                    <div className="w-full lg:w-1/2 h-48 sm:h-64 lg:h-[280px] min-w-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
@@ -236,11 +288,12 @@ export default function EcoBoardPage() {
                               cx="50%"
                               cy="50%"
                               labelLine={false}
-                              outerRadius="70%"
+                              outerRadius="60%"
                               dataKey="value"
-                              label={({ name, percent }: { name?: string; percent?: number }) =>
-                                  `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`
+                              label={({ name, percent }) =>
+                                `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
                               }
+                              fontSize={13}
                           >
                             {pieData.map((entry, index) => (
                                 <Cell key={index} fill={entry.color} />
@@ -264,7 +317,7 @@ export default function EcoBoardPage() {
                     </div>
 
                     {/* Breakdown List */}
-                    <div className="w-full lg:w-2/5 space-y-2 sm:space-y-3 min-w-0">
+                    <div className="w-full lg:w-1/2 space-y-2 sm:space-y-3 min-w-0">
                       {pieData.map((entry) => {
                         const pct =
                             totalPoints > 0
@@ -321,56 +374,6 @@ export default function EcoBoardPage() {
             </CardContent>
           </Card>
 
-          {/* Panel 3: Points Breakdown (monthly bar chart) */}
-          <Card className="overflow-hidden">
-            <CardHeader className="p-3 sm:p-6">
-              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-                <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                Points Breakdown
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-              {(() => {
-                const monthlyData = (pointsData?.pointsByMonth || []).map((m) => {
-                  const [, mm] = m.month.split("-");
-                  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                  return { label: monthNames[parseInt(mm, 10) - 1], points: Math.max(0, m.points) };
-                });
-                const hasData = monthlyData.some((d) => d.points > 0);
-
-                return hasData ? (
-                    <div className="h-[180px] sm:h-[220px] lg:h-[260px] -ml-2 sm:ml-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={monthlyData} margin={{ top: 10, right: 5, bottom: 5, left: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                          <XAxis dataKey="label" tick={{ fontSize: 10 }} tickMargin={4} />
-                          <YAxis tick={{ fontSize: 10 }} width={30} />
-                          <Tooltip
-                              formatter={(value: unknown) => [`${Number(value) || 0} pts`, "Points"]}
-                              contentStyle={{
-                                borderRadius: "12px",
-                                border: "1px solid hsl(var(--border))",
-                                background: "hsl(var(--card))",
-                                color: "hsl(var(--foreground))",
-                                fontSize: "12px",
-                              }}
-                          />
-                          <Bar dataKey="points" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                ) : (
-                    <div className="text-center py-6 sm:py-8">
-                      <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-muted-foreground text-sm">
-                        No points earned yet. Start your journey!
-                      </p>
-                    </div>
-                );
-              })()}
-            </CardContent>
-          </Card>
-
           {/* Panel 4: Leaderboard */}
           <Card className="overflow-hidden">
             <CardHeader className="p-3 sm:p-6">
@@ -420,77 +423,77 @@ export default function EcoBoardPage() {
               )}
             </CardContent>
           </Card>
-        </div>
 
-        {/* Points History */}
-        <Card className="overflow-hidden">
-          <CardHeader className="p-3 sm:p-6">
-            <CardTitle className="text-sm sm:text-base">Points History</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-            {transactions.length === 0 ? (
-                <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
-                  No transactions yet
-                </p>
-            ) : (
-                <div className="space-y-1.5 sm:space-y-2 max-h-[300px] sm:max-h-[400px] overflow-y-auto">
-                  {visibleTx.map((tx) => {
-                    const config = ACTION_CONFIG[tx.action];
-                    const Icon = config?.icon || Check;
-                    const color = config?.color || "text-muted-foreground";
-                    const bgColor = config?.bgColor || "bg-muted";
-                    return (
-                        <div
-                            key={tx.id}
-                            className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg sm:rounded-xl bg-muted/50"
-                        >
+          {/* Panel 5: Points History */}
+          <Card className="overflow-hidden">
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-sm sm:text-base">Points History</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+              {transactions.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
+                    No transactions yet
+                  </p>
+              ) : (
+                  <div className="space-y-1.5 sm:space-y-2 max-h-[230px] sm:max-h-[270px] overflow-y-auto">
+                    {visibleTx.map((tx) => {
+                      const config = ACTION_CONFIG[tx.action];
+                      const Icon = config?.icon || Check;
+                      const color = config?.color || "text-muted-foreground";
+                      const bgColor = config?.bgColor || "bg-muted";
+                      return (
                           <div
-                              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${bgColor}`}
+                              key={tx.id}
+                              className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg sm:rounded-xl bg-muted/50"
                           >
-                            <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${color}`} />
+                            <div
+                                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${bgColor}`}
+                            >
+                              <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${color}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-medium text-xs sm:text-sm text-foreground truncate">
+                                    {config?.label || tx.action}
+                                </p>
+                                <p className="text-[10px] sm:text-xs text-muted-foreground">
+                                    {tx.quantity} {tx.unit} &middot;{" "}
+                                    {new Date(tx.createdAt).toLocaleDateString()}
+                                </p>
+                            </div>
+                            <Badge
+                                variant={tx.amount > 0 ? "success" : "destructive"}
+                                className="text-xs sm:text-sm"
+                            >
+                              {tx.amount > 0 ? "+" : ""}
+                              {tx.amount}
+                            </Badge>
                           </div>
-                          <div className="flex-1 min-w-0">
-                              <p className="font-medium text-xs sm:text-sm text-foreground truncate">
-                                  {config?.label || tx.action}
-                              </p>
-                              <p className="text-[10px] sm:text-xs text-muted-foreground">
-                                  {tx.quantity} {tx.unit} &middot;{" "}
-                                  {new Date(tx.createdAt).toLocaleDateString()}
-                              </p>
-                          </div>
-                          <Badge
-                              variant={tx.amount > 0 ? "success" : "destructive"}
-                              className="text-xs sm:text-sm"
-                          >
-                            {tx.amount > 0 ? "+" : ""}
-                            {tx.amount}
-                          </Badge>
-                        </div>
-                    );
-                  })}
-                  {transactions.length > INITIAL_TX_COUNT && (
-                      <Button
-                          variant="ghost"
-                          className="w-full mt-2 text-sm"
-                          onClick={() => setShowAllTx(!showAllTx)}
-                      >
-                        {showAllTx ? (
-                            <>
-                              <ChevronUp className="h-4 w-4 mr-1" />
-                              Show Less
-                            </>
-                        ) : (
-                            <>
-                              <ChevronDown className="h-4 w-4 mr-1" />
-                              Show All ({transactions.length})
-                            </>
-                        )}
-                      </Button>
-                  )}
-                </div>
-            )}
-          </CardContent>
-        </Card>
+                      );
+                    })}
+                    {transactions.length > INITIAL_TX_COUNT && (
+                        <Button
+                            variant="ghost"
+                            className="w-full mt-2 text-sm"
+                            onClick={() => setShowAllTx(!showAllTx)}
+                        >
+                          {showAllTx ? (
+                              <>
+                                <ChevronUp className="h-4 w-4 mr-1" />
+                                Show Less
+                              </>
+                          ) : (
+                              <>
+                                <ChevronDown className="h-4 w-4 mr-1" />
+                                Show All ({transactions.length})
+                              </>
+                          )}
+                        </Button>
+                    )}
+                  </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {/* How to Earn More Points */}
         <Card className="overflow-hidden">
