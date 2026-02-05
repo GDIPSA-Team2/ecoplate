@@ -55,8 +55,10 @@ export async function awardPoints(
   skipMetricRecording?: boolean,
   listingData?: ListingDataForCo2
 ) {
-  const rawAmount = POINT_VALUES[action] * (quantity ?? 1);
-  const amount = Math.round(rawAmount) || POINT_VALUES[action];
+  const baseValue = POINT_VALUES[action];
+  const scaled = Math.round(baseValue * (quantity ?? 1));
+  // Enforce minimum of the base value (absolute comparison)
+  const amount = Math.abs(scaled) >= Math.abs(baseValue) ? scaled : baseValue;
   const userPoints = await getOrCreateUserPoints(userId);
 
   const newTotal = Math.max(0, userPoints.totalPoints + amount);
@@ -247,7 +249,8 @@ export async function getDetailedPointsStats(userId: number) {
   for (const interaction of allInteractions) {
     const type = (interaction.type || "").toLowerCase() as keyof typeof POINT_VALUES;
     const basePoints = POINT_VALUES[type] ?? 0;
-    const points = Math.round(basePoints * Math.abs(interaction.quantity ?? 1)) || basePoints;
+    const scaled = Math.round(basePoints * Math.abs(interaction.quantity ?? 1));
+    const points = Math.abs(scaled) >= Math.abs(basePoints) ? scaled : basePoints;
     // Use todayDate directly as dateKey — it's already stored as "YYYY-MM-DD"
     const dateKey = interaction.todayDate;
 

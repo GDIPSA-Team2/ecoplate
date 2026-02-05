@@ -233,6 +233,45 @@ describe("awardPoints", () => {
     const pointsAfter = await getOrCreateUserPoints(userId);
     expect(pointsAfter.currentStreak).toBe(0);
   });
+
+  test("consume with fractional qty (0.2) awards minimum base of 5", async () => {
+    const result = await awardPoints(userId, "consumed", productId, 0.2);
+    // 5 * 0.2 = 1, but minimum is base value 5
+    expect(result.amount).toBe(5);
+  });
+
+  test("wasted with fractional qty (0.3) awards minimum base of -3", async () => {
+    await getOrCreateUserPoints(userId);
+    await testDb.update(schema.userPoints)
+      .set({ totalPoints: 10 })
+      .where(eq(schema.userPoints.userId, userId));
+
+    const result = await awardPoints(userId, "wasted", productId, 0.3);
+    // -3 * 0.3 = -0.9 → rounds to -1, but minimum is base value -3
+    expect(result.amount).toBe(-3);
+  });
+
+  test("sold with qty=1 awards 8 points", async () => {
+    const result = await awardPoints(userId, "sold", productId, 1);
+    expect(result.amount).toBe(8);
+  });
+
+  test("sold with qty=3 awards 24 points", async () => {
+    const result = await awardPoints(userId, "sold", productId, 3);
+    expect(result.amount).toBe(24); // 8 * 3
+  });
+
+  test("consume and sold increment streak only once per day", async () => {
+    // First consume action should set streak to 1
+    await awardPoints(userId, "consumed", productId);
+    const after1 = await getOrCreateUserPoints(userId);
+    expect(after1.currentStreak).toBe(1);
+
+    // Second action on the same day should NOT increment streak
+    await awardPoints(userId, "sold", productId);
+    const after2 = await getOrCreateUserPoints(userId);
+    expect(after2.currentStreak).toBe(1);
+  });
 });
 
 // ── updateStreak ─────────────────────────────────────────────────────
@@ -411,6 +450,24 @@ describe("getDetailedPointsStats", () => {
     const stats = await getDetailedPointsStats(userId);
     // Only today's consumed (5) should be in this month
     expect(stats.pointsThisMonth).toBe(5);
+  });
+
+  test("points history shows correct amounts for fractional qty", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    await testDb.insert(schema.productSustainabilityMetrics).values([
+      { userId, productId, todayDate: today, quantity: 0.2, type: "consumed" },
+      { userId, productId, todayDate: today, quantity: 0.3, type: "wasted" },
+      { userId, productId, todayDate: today, quantity: 3, type: "sold" },
+    ]);
+
+    const stats = await getDetailedPointsStats(userId);
+
+    // consumed: 5 * 0.2 = 1 → min base = 5
+    expect(stats.breakdownByType.consumed.totalPoints).toBe(5);
+    // wasted: -3 * 0.3 = -0.9 → rounds to -1 → min base = -3
+    expect(stats.breakdownByType.wasted.totalPoints).toBe(-3);
+    // sold: 8 * 3 = 24 (scaled, above base)
+    expect(stats.breakdownByType.sold.totalPoints).toBe(24);
   });
 });
 
