@@ -9,6 +9,7 @@ import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Skeleton } from "../components/ui/skeleton";
+import { Progress } from "../components/ui/progress";
 import {
   Plus,
   Camera,
@@ -25,6 +26,8 @@ import {
   Check,
   DollarSign,
   TrendingUp,
+  Calendar,
+  Receipt,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { formatCO2, getCO2ColorClass, calculateTotalCO2 } from "../utils/co2Utils";
@@ -667,6 +670,11 @@ function ScanReceiptModal({
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [capturedPreview, setCapturedPreview] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [purchaseDate, setPurchaseDate] = useState<string>(
+    new Date().toISOString().split("T")[0] // Today in YYYY-MM-DD format
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useToast();
 
@@ -691,8 +699,9 @@ function ScanReceiptModal({
           }))
         );
 
+        // Don't show toast - let the empty state UI handle it
         if (response.items.length === 0) {
-          addToast("No food items found in receipt", "info");
+          console.log("[ScanReceipt] No items found in receipt");
         }
       } catch {
         addToast("Failed to scan receipt", "error");
@@ -721,13 +730,16 @@ function ScanReceiptModal({
       reader.readAsDataURL(file);
     });
 
-    processBase64(base64);
+    // Show preview instead of processing immediately
+    setCapturedPreview(base64);
+    setShowPreview(true);
   };
 
-  // When user confirms captured photo, process it
+  // When user confirms captured photo, show preview
   const handleConfirmPhoto = () => {
     if (camera.capturedImage) {
-      processBase64(camera.capturedImage);
+      setCapturedPreview(camera.capturedImage);
+      setShowPreview(true);
       camera.stopCamera();
     }
   };
@@ -794,6 +806,7 @@ function ScanReceiptModal({
           category: item.category,
           unitPrice: item.unitPrice || undefined,
           co2Emission: item.co2Emission,
+          purchaseDate: purchaseDate,
         });
         addedCount++;
       }
@@ -924,6 +937,84 @@ function ScanReceiptModal({
     );
   }
 
+  // --- Preview Screen ---
+  if (showPreview && capturedPreview) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <Card className="w-full max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[85vh] flex flex-col">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between">
+              Review Photo
+              <Button variant="ghost" size="icon" onClick={() => {
+                setShowPreview(false);
+                setCapturedPreview(null);
+              }}>
+                <X className="h-4 w-4" />
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 flex flex-col overflow-hidden">
+            {/* Image Preview */}
+            <div className="flex-1 overflow-auto bg-muted rounded-lg mb-4 flex items-center justify-center">
+              <img
+                src={capturedPreview}
+                alt="Receipt preview"
+                className="max-w-full max-h-full object-contain rounded-lg"
+              />
+            </div>
+
+            {/* Quality Hints */}
+            <div className="space-y-2 mb-4">
+              <p className="text-sm font-medium">Photo Quality Tips:</p>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div className="flex items-start gap-2">
+                  <Check className="h-3 w-3 mt-0.5 text-green-500 flex-shrink-0" />
+                  <span>Receipt is clear and readable</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-3 w-3 mt-0.5 text-green-500 flex-shrink-0" />
+                  <span>All items are visible</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-3 w-3 mt-0.5 text-green-500 flex-shrink-0" />
+                  <span>Good lighting, no shadows</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowPreview(false);
+                  setCapturedPreview(null);
+                  setShowCamera(true);
+                  camera.startCamera();
+                }}
+                className="flex-1"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Retake
+              </Button>
+              <Button
+                onClick={() => {
+                  processBase64(capturedPreview);
+                  setShowPreview(false);
+                  setCapturedPreview(null);
+                }}
+                className="flex-1"
+              >
+                <Check className="h-4 w-4 mr-2" />
+                Process Receipt
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // --- Main Modal ---
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -1000,21 +1091,61 @@ function ScanReceiptModal({
               />
             </div>
           ) : scanning && scannedItems.length === 0 ? (
-            <div className="py-8 space-y-4">
-              <Skeleton className="h-20 w-full rounded-lg" />
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="space-y-2">
-                  <Skeleton className="h-6 w-32" />
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <Skeleton className="h-11 w-full" />
-                    <Skeleton className="h-11 w-full" />
-                    <Skeleton className="h-11 w-full" />
+            <div className="py-12 space-y-6">
+              {/* Icon and message */}
+              <div className="text-center space-y-3">
+                <div className="flex justify-center">
+                  <div className="relative">
+                    <Receipt className="h-16 w-16 text-primary/30" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+                    </div>
                   </div>
                 </div>
-              ))}
+                <div>
+                  <p className="font-medium text-lg">Analyzing Receipt...</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Using AI to extract items and prices
+                  </p>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div className="space-y-2">
+                <Progress value={45} className="h-2" />
+                <p className="text-xs text-center text-muted-foreground">
+                  This usually takes 5-10 seconds
+                </p>
+              </div>
+
+              {/* Quality reminder */}
+              <div className="bg-muted/50 rounded-lg p-4">
+                <p className="text-xs text-muted-foreground text-center">
+                  💡 For best results, ensure the receipt is clear and well-lit
+                </p>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Purchase Date Field */}
+              <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  <label className="text-sm font-medium">Purchase Date</label>
+                </div>
+                <Input
+                  type="date"
+                  value={purchaseDate}
+                  onChange={(e) => setPurchaseDate(e.target.value)}
+                  max={new Date().toISOString().split("T")[0]}
+                  className="h-11"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Used to calculate expiry dates
+                </p>
+              </div>
+
+              {/* Item Count */}
               <p className="text-sm text-muted-foreground">
                 Found {scannedItems.length} items. Review and edit before adding:
               </p>
@@ -1039,7 +1170,8 @@ function ScanReceiptModal({
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Row 1: Qty + Unit (always 2 columns) */}
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs text-muted-foreground">Qty</label>
                         <Input
@@ -1078,22 +1210,10 @@ function ScanReceiptModal({
                           <option value="dozen">dozen</option>
                         </select>
                       </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Price ($)</label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.unitPrice}
-                          onChange={(e) =>
-                            updateItem(item.id, "unitPrice", parseFloat(e.target.value) || 0)
-                          }
-                          className="h-11"
-                          placeholder="0.00"
-                        />
-                      </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                    {/* Row 2: Category + CO2 (always 2 columns) */}
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs text-muted-foreground">Category</label>
                         <select
@@ -1122,18 +1242,69 @@ function ScanReceiptModal({
                         />
                       </div>
                     </div>
+
+                    {/* Row 3: Price (full width, optional styling) */}
+                    <div>
+                      <label className="text-xs text-muted-foreground">Price (optional)</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.unitPrice}
+                        onChange={(e) =>
+                          updateItem(item.id, "unitPrice", parseFloat(e.target.value) || 0)
+                        }
+                        className="h-11"
+                        placeholder="0.00"
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
-              {scannedItems.length === 0 && (
-                <p className="text-center text-sm text-muted py-4">
-                  All items removed. Scan another receipt or close.
-                </p>
+              {scannedItems.length === 0 && !scanning && (
+                <div className="text-center py-8 space-y-4">
+                  <div className="flex justify-center">
+                    <div className="bg-muted rounded-full p-4">
+                      <Receipt className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="font-medium">No Items Found</p>
+                    <p className="text-sm text-muted-foreground max-w-[280px] mx-auto">
+                      The receipt might be unclear or contain no food items
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 max-w-[200px] mx-auto">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setScannedItems([]);
+                        setPurchaseDate(new Date().toISOString().split("T")[0]);
+                      }}
+                      className="w-full"
+                    >
+                      <Camera className="h-4 w-4 mr-2" />
+                      Try Again
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        onClose();
+                      }}
+                      className="w-full"
+                    >
+                      Add Manually
+                    </Button>
+                  </div>
+                </div>
               )}
               <div className="flex gap-2 pt-4">
                 <Button
                   variant="outline"
-                  onClick={() => setScannedItems([])}
+                  onClick={() => {
+                    setScannedItems([]);
+                    setPurchaseDate(new Date().toISOString().split("T")[0]);
+                  }}
                   className="flex-1"
                 >
                   Scan Again
