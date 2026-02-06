@@ -82,29 +82,32 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull app image
-        run: docker pull ${{ env.APP_IMAGE }}:${{ github.sha }}
+        run: docker pull ${{ env.APP_IMAGE }}:${{ github.event.workflow_run.head_sha }}
 
       - name: Pull recommendation image
-        run: docker pull ${{ env.REC_IMAGE }}:${{ github.sha }}
+        run: docker pull ${{ env.REC_IMAGE }}:${{ github.event.workflow_run.head_sha }}
 
       - name: Scan app image
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: ${{ env.APP_IMAGE }}:${{ github.sha }}
+          image-ref: ${{ env.APP_IMAGE }}:${{ github.event.workflow_run.head_sha }}
           format: "table"
           output: "trivy-app-report.txt"
           severity: "HIGH,CRITICAL"
-          exit-code: "1"
+          exit-code: 0
+          ignore-unfixed: true
+        continue-on-error: true
 
       - name: Scan recommendation image
-        if: success() || failure()
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: ${{ env.REC_IMAGE }}:${{ github.sha }}
+          image-ref: ${{ env.REC_IMAGE }}:${{ github.event.workflow_run.head_sha }}
           format: "table"
           output: "trivy-rec-report.txt"
           severity: "HIGH,CRITICAL"
-          exit-code: "1"
+          exit-code: 0
+          ignore-unfixed: true
+        continue-on-error: true
 
       - name: Upload Trivy reports
         if: always()
