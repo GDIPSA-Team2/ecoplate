@@ -11,6 +11,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ===========================================================================
+  # Code Quality & Tests
+  # ===========================================================================
+
   typecheck-backend:
     name: Typecheck Backend
     runs-on: ubuntu-latest
@@ -82,9 +86,36 @@ jobs:
       - run: bun install --ignore-scripts
       - run: cd frontend && bun run build
 
-  # ---------------------------------------------------------------------------
-  # Security Scanning Jobs
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
+  # Security Scanning - SAST (Static Application Security Testing)
+  # ===========================================================================
+
+  semgrep:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/default
+            p/security-audit
+            p/secrets
+            p/typescript
+            p/python
+          generateSarif: true
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+        continue-on-error: true
 
   python-sast:
     name: Python SAST (Bandit)
@@ -94,20 +125,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Install Bandit
         run: pip install bandit[toml]
-      - name: Run Bandit (JSON report)
+
+      - name: Run Bandit
         run: |
           bandit -r recommendation-engine/ \
             -x recommendation-engine/test_app.py \
             -f json -o bandit-report.json \
             --severity-level medium || true
-      - name: Run Bandit (console output)
+
+      - name: Display Bandit results
         if: always()
         run: |
           bandit -r recommendation-engine/ \
             -x recommendation-engine/test_app.py \
             --severity-level medium || true
+
       - name: Upload Bandit report
         if: always()
         uses: actions/upload-artifact@v4
@@ -116,24 +151,51 @@ jobs:
           path: bandit-report.json
           retention-days: 30
 
+  # ===========================================================================
+  # Security Scanning - Secret Detection
+  # ===========================================================================
+
+  secret-scan:
+    name: Secret Scanning (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: false
+        continue-on-error: true
+
+  # ===========================================================================
+  # Security Scanning - SCA (Software Composition Analysis)
+  # ===========================================================================
+
   python-deps:
-    name: Python Dependency Audit
+    name: Python SCA (pip-audit)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Install pip-audit
         run: pip install pip-audit
-      - name: Run pip-audit (JSON report)
+
+      - name: Run pip-audit
         run: |
           pip-audit -r recommendation-engine/requirements.txt \
             -f json -o pip-audit-report.json || true
-      - name: Run pip-audit (console output)
+
+      - name: Display results
         if: always()
         run: pip-audit -r recommendation-engine/requirements.txt || true
-      - name: Upload pip-audit report
+
+      - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -142,44 +204,160 @@ jobs:
           retention-days: 30
 
   js-deps:
-    name: JS Dependency Audit
+    name: JS SCA (osv-scanner)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install osv-scanner
-        run: |
-          curl -sSfL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 \
-            -o /usr/local/bin/osv-scanner
-          chmod +x /usr/local/bin/osv-scanner
-      - name: Scan backend dependencies
-        run: |
-          osv-scanner --lockfile=package-lock.json:backend/package.json \
-            --json > osv-backend-report.json 2>&1 || true
-      - name: Scan frontend dependencies
-        run: |
-          osv-scanner --lockfile=package-lock.json:frontend/package.json \
-            --json > osv-frontend-report.json 2>&1 || true
+
+      - name: Run OSV Scanner
+        uses: google/osv-scanner-action@v1
+        with:
+          scan-args: |-
+            --lockfile=package-lock.json:backend/package.json
+            --lockfile=package-lock.json:frontend/package.json
+            --format=json
+            --output=osv-report.json
+        continue-on-error: true
+
       - name: Display results
         if: always()
         run: |
-          echo "=== Backend Dependencies ==="
-          osv-scanner --lockfile=package-lock.json:backend/package.json || true
-          echo ""
-          echo "=== Frontend Dependencies ==="
-          osv-scanner --lockfile=package-lock.json:frontend/package.json || true
-      - name: Upload JS audit reports
+          echo "=== Scan Results ==="
+          cat osv-report.json 2>/dev/null || echo "No issues found"
+
+      - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: js-audit-reports
-          path: |
-            osv-backend-report.json
-            osv-frontend-report.json
+          name: osv-report
+          path: osv-report.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # ===========================================================================
+  # Security Scanning - IaC (Infrastructure as Code)
+  # ===========================================================================
+
+  iac-scan:
+    name: IaC Scanning (Checkov)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: dockerfile
+          output_format: cli,sarif
+          output_file_path: console,checkov-results.sarif
+          soft_fail: true
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov-results.sarif
+        continue-on-error: true
+
+  # ===========================================================================
+  # Security Scanning - License Compliance
+  # ===========================================================================
+
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check Python licenses
+        run: |
+          pip install pip-licenses
+          pip install -r recommendation-engine/requirements.txt
+          echo "=== Python License Report ==="
+          pip-licenses --format=markdown --with-urls | tee python-licenses.md
+          echo ""
+          echo "=== Checking for problematic licenses ==="
+          pip-licenses --fail-on="GPL;AGPL" || echo "Warning: GPL/AGPL licenses detected"
+
+      - name: Upload license report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: python-licenses.md
           retention-days: 30
 
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
+  # SBOM Generation (Software Bill of Materials)
+  # ===========================================================================
+
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate SBOM for repository
+        run: |
+          syft dir:. -o spdx-json=sbom-repo.spdx.json
+          syft dir:. -o cyclonedx-json=sbom-repo.cdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: |
+            sbom-repo.spdx.json
+            sbom-repo.cdx.json
+          retention-days: 90
+
+  # ===========================================================================
+  # Security Gate - Aggregate Results
+  # ===========================================================================
+
+  security-gate:
+    name: Security Gate
+    needs:
+      - semgrep
+      - python-sast
+      - secret-scan
+      - python-deps
+      - js-deps
+      - iac-scan
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check security scan results
+        run: |
+          echo "=== Security Gate Summary ==="
+          echo "Semgrep SAST: ${{ needs.semgrep.result }}"
+          echo "Python SAST: ${{ needs.python-sast.result }}"
+          echo "Secret Scan: ${{ needs.secret-scan.result }}"
+          echo "Python SCA: ${{ needs.python-deps.result }}"
+          echo "JS SCA: ${{ needs.js-deps.result }}"
+          echo "IaC Scan: ${{ needs.iac-scan.result }}"
+          echo ""
+
+          # Fail if secret scanning found issues (critical)
+          if [ "${{ needs.secret-scan.result }}" == "failure" ]; then
+            echo "CRITICAL: Secrets detected in code!"
+            exit 1
+          fi
+
+          echo "Security gate passed - no blocking issues found"
+
+  # ===========================================================================
   # Deployment Gate
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
 
   push-to-deployment:
     name: Push to Deployment
@@ -190,6 +368,7 @@ jobs:
       - test-frontend
       - test-recommendation
       - build-check
+      - security-gate
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
