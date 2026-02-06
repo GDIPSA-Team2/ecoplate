@@ -31,7 +31,9 @@ import {
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { formatCO2, getCO2ColorClass, calculateTotalCO2 } from "../utils/co2Utils";
+import { calculateCO2Emission } from "../utils/co2Calculator";
 import { PRODUCT_UNITS } from "../constants/units";
+import Compressor from "compressorjs";
 
 interface Product {
   id: number;
@@ -492,6 +494,10 @@ function AddProductModal({
     setLoading(true);
 
     try {
+      // Calculate CO2 before submitting
+      const calculatedCO2 = calculateCO2Emission(name, category || "other");
+      console.log(`[AddProduct] Calculated CO2 for "${name}" (${category || "other"}): ${calculatedCO2} kg`);
+
       await api.post("/myfridge/products", {
         productName: name,
         category: category || undefined,
@@ -500,6 +506,7 @@ function AddProductModal({
         unitPrice: unitPrice ? parseFloat(unitPrice) : undefined,
         purchaseDate: purchaseDate || undefined,
         description: description || undefined,
+        co2Emission: calculatedCO2,
       });
       addToast("Product added! +2 points", "success");
       onAdded();
@@ -675,6 +682,15 @@ function ScanReceiptModal({
   const [purchaseDate, setPurchaseDate] = useState<string>(
     new Date().toISOString().split("T")[0] // Today in YYYY-MM-DD format
   );
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [manualItem, setManualItem] = useState({
+    name: "",
+    quantity: 1,
+    unit: "pcs",
+    category: "other",
+    unitPrice: 0,
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useToast();
 
@@ -684,13 +700,35 @@ function ScanReceiptModal({
 
   const processBase64 = useCallback(
     async (base64: string) => {
+      console.log("[ProcessReceipt] processBase64 called with base64 length:", base64?.length || 0);
+
+      // Validate input
+      if (!base64 || base64.trim() === "") {
+        console.error("[ProcessReceipt] Invalid base64 input");
+        addToast("Invalid image data. Please try again.", "error");
+        setScanError("Invalid image data");
+        return;
+      }
+
+      // Check if base64 is a valid data URI
+      if (!base64.startsWith("data:image/")) {
+        console.error("[ProcessReceipt] base64 is not a valid data URI:", base64.substring(0, 50));
+        addToast("Invalid image format. Please try again.", "error");
+        setScanError("Invalid image format");
+        return;
+      }
+
       setScanning(true);
       setShowCamera(false);
+      const startTime = Date.now();
+      console.log("[ProcessReceipt] Starting API call to /myfridge/receipt/scan");
 
       try {
         const response = await api.post<{
           items: Array<{ name: string; quantity: number; category: string; unit: string; unitPrice: number; co2Emission: number }>;
         }>("/myfridge/receipt/scan", { imageBase64: base64 });
+
+        console.log("[ProcessReceipt] API response received, items count:", response.items?.length || 0);
 
         setScannedItems(
           response.items.map((item) => ({
@@ -702,17 +740,66 @@ function ScanReceiptModal({
         // Don't show toast - let the empty state UI handle it
         if (response.items.length === 0) {
           console.log("[ScanReceipt] No items found in receipt");
+        } else {
+          console.log("[ProcessReceipt] Successfully processed items:", response.items.length);
         }
-      } catch {
-        addToast("Failed to scan receipt", "error");
+      } catch (error) {
+        console.error("[ProcessReceipt] Error during scan:", error);
+        const message = error instanceof Error
+          ? error.message
+          : "Failed to analyze receipt. Please check image clarity.";
+        addToast(message, "error");
+        setScanError(message);
+        // Keep preview visible - don't clear capturedPreview
       } finally {
+        // Ensure loading screen shows for at least 800ms
+        const elapsedTime = Date.now() - startTime;
+        const minLoadingTime = 800;
+        const remainingTime = Math.max(0, minLoadingTime - elapsedTime);
+
+        if (remainingTime > 0) {
+          console.log(`[ProcessReceipt] Waiting ${remainingTime}ms to show loading feedback`);
+          await new Promise(resolve => setTimeout(resolve, remainingTime));
+        }
+
         setScanning(false);
+        console.log("[ProcessReceipt] Scan completed, scanning state set to false");
       }
     },
     [addToast]
   );
 
   const SUPPORTED_FORMATS = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+
+  const compressImage = async (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      new Compressor(file, {
+        quality: 0.7,           // 70% quality
+        maxWidth: 1920,         // Max width in pixels
+        maxHeight: 1920,        // Max height in pixels
+        mimeType: "image/jpeg", // Convert to JPEG for better compression
+        success: (result) => {
+          const compressedFile = new File(
+            [result],
+            file.name.replace(/\.\w+$/, ".jpg"),
+            { type: "image/jpeg" }
+          );
+
+          // Show compression stats
+          const originalSize = (file.size / 1024 / 1024).toFixed(2);
+          const compressedSize = (compressedFile.size / 1024 / 1024).toFixed(2);
+          console.log(`[Compression] ${originalSize}MB → ${compressedSize}MB`);
+
+          resolve(compressedFile);
+        },
+        error: (err) => {
+          console.error("[Compression] Failed:", err);
+          // If compression fails, use original
+          resolve(file);
+        },
+      });
+    });
+  };
 
   const processFile = async (file: File) => {
     if (!SUPPORTED_FORMATS.includes(file.type)) {
@@ -724,10 +811,13 @@ function ScanReceiptModal({
       return;
     }
 
+    // Compress image before converting to base64
+    const compressedFile = await compressImage(file);
+
     const base64 = await new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(compressedFile); // Use compressed file
     });
 
     // Show preview instead of processing immediately
@@ -758,6 +848,40 @@ function ScanReceiptModal({
     setScannedItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
     );
+  };
+
+  const addManualItem = () => {
+    if (!manualItem.name.trim()) {
+      addToast("Please enter item name", "error");
+      return;
+    }
+
+    const calculatedCO2 = calculateCO2Emission(manualItem.name, manualItem.category);
+    console.log(`[ManualItem] Calculated CO2 for "${manualItem.name}" (${manualItem.category}): ${calculatedCO2} kg`);
+
+    const newItem: ScannedItem = {
+      id: Math.random().toString(36).slice(2),
+      name: manualItem.name,
+      quantity: manualItem.quantity,
+      unit: manualItem.unit,
+      category: manualItem.category,
+      unitPrice: manualItem.unitPrice,
+      co2Emission: calculatedCO2,
+    };
+
+    setScannedItems((prev) => [...prev, newItem]);
+
+    // Reset form
+    setManualItem({
+      name: "",
+      quantity: 1,
+      unit: "pcs",
+      category: "other",
+      unitPrice: 0,
+    });
+    setShowManualEntry(false);
+
+    addToast("Item added manually", "success");
   };
 
   const removeItem = (id: string) => {
@@ -948,6 +1072,7 @@ function ScanReceiptModal({
               <Button variant="ghost" size="icon" onClick={() => {
                 setShowPreview(false);
                 setCapturedPreview(null);
+                setScanError(null);
               }}>
                 <X className="h-4 w-4" />
               </Button>
@@ -982,31 +1107,55 @@ function ScanReceiptModal({
               </div>
             </div>
 
+            {/* Error Message */}
+            {scanError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-red-700">
+                    <p className="font-medium">Scan Failed</p>
+                    <p className="text-xs mt-0.5">{scanError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 onClick={() => {
+                  console.log("[ProcessReceipt] Retake button clicked");
                   setShowPreview(false);
                   setCapturedPreview(null);
+                  setScanError(null);
                   setShowCamera(true);
                   camera.startCamera();
                 }}
                 className="flex-1"
               >
                 <RotateCcw className="h-4 w-4 mr-2" />
-                Retake
+                {scanError ? "Retake Photo" : "Retake"}
               </Button>
               <Button
                 onClick={() => {
+                  console.log("[ProcessReceipt] Button clicked, capturedPreview:", capturedPreview ? "valid" : "null");
+
+                  if (!capturedPreview) {
+                    console.error("[ProcessReceipt] capturedPreview is null, cannot process");
+                    addToast("No image to process. Please retake photo.", "error");
+                    return;
+                  }
+
+                  setScanError(null);
+                  setShowPreview(false); // Close preview immediately to show loading screen
                   processBase64(capturedPreview);
-                  setShowPreview(false);
-                  setCapturedPreview(null);
                 }}
+                disabled={scanning}
                 className="flex-1"
               >
                 <Check className="h-4 w-4 mr-2" />
-                Process Receipt
+                {scanError ? "Retry" : "Process Receipt"}
               </Button>
             </div>
           </CardContent>
@@ -1140,10 +1289,113 @@ function ScanReceiptModal({
                   max={new Date().toISOString().split("T")[0]}
                   className="h-11"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Used to calculate expiry dates
-                </p>
               </div>
+
+              {/* Manual Entry Toggle Button */}
+              <div>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowManualEntry(!showManualEntry)}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {showManualEntry ? "Cancel Add Item" : "Add Item Manually"}
+                </Button>
+              </div>
+
+              {/* Manual Entry Form */}
+              {showManualEntry && (
+                <div className="bg-blue-50/50 border border-blue-200 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Plus className="h-4 w-4 text-blue-600" />
+                    <p className="text-sm font-medium text-blue-900">Add Item Manually</p>
+                  </div>
+
+                  {/* Item Name */}
+                  <div>
+                    <label className="text-xs text-muted-foreground">Item Name</label>
+                    <Input
+                      value={manualItem.name}
+                      onChange={(e) => setManualItem({ ...manualItem, name: e.target.value })}
+                      placeholder="e.g., Tomatoes, Milk, Bread"
+                      className="h-11"
+                    />
+                  </div>
+
+                  {/* Qty + Unit */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Quantity</label>
+                      <Input
+                        type="number"
+                        min="0.1"
+                        step="0.1"
+                        value={manualItem.quantity}
+                        onChange={(e) => setManualItem({ ...manualItem, quantity: parseFloat(e.target.value) || 1 })}
+                        className="h-11"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Unit</label>
+                      <select
+                        value={manualItem.unit}
+                        onChange={(e) => setManualItem({ ...manualItem, unit: e.target.value })}
+                        className="w-full h-11 rounded-md border border-input bg-background px-3"
+                      >
+                        <option value="pcs">pcs</option>
+                        <option value="kg">kg</option>
+                        <option value="g">g</option>
+                        <option value="L">L</option>
+                        <option value="ml">ml</option>
+                        <option value="pack">pack</option>
+                        <option value="bottle">bottle</option>
+                        <option value="can">can</option>
+                        <option value="loaf">loaf</option>
+                        <option value="dozen">dozen</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Category + Price */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Category</label>
+                      <select
+                        value={manualItem.category}
+                        onChange={(e) => setManualItem({ ...manualItem, category: e.target.value })}
+                        className="w-full h-11 rounded-md border border-input bg-background px-3"
+                      >
+                        <option value="produce">Produce</option>
+                        <option value="dairy">Dairy</option>
+                        <option value="meat">Meat</option>
+                        <option value="bakery">Bakery</option>
+                        <option value="frozen">Frozen</option>
+                        <option value="beverages">Beverages</option>
+                        <option value="pantry">Pantry</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Price ($)</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={manualItem.unitPrice}
+                        onChange={(e) => setManualItem({ ...manualItem, unitPrice: parseFloat(e.target.value) || 0 })}
+                        placeholder="0.00"
+                        className="h-11"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Add Button */}
+                  <Button onClick={addManualItem} className="w-full">
+                    <Check className="h-4 w-4 mr-2" />
+                    Add This Item
+                  </Button>
+                </div>
+              )}
 
               {/* Item Count */}
               <p className="text-sm text-muted-foreground">
