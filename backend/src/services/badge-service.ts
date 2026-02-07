@@ -1,7 +1,11 @@
 import { db } from "../index";
 import * as schema from "../db/schema";
 import { eq, and } from "drizzle-orm";
-import { getOrCreateUserPoints } from "./gamification-service";
+// Dynamic import to break circular dependency (gamification-service imports badge-service)
+async function getOrCreateUserPoints(userId: number) {
+  const { getOrCreateUserPoints: fn } = await import("./gamification-service");
+  return fn(userId);
+}
 import { notifyBadgeUnlocked } from "./notification-service";
 
 // ==================== Types ====================
