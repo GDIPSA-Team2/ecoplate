@@ -153,7 +153,7 @@ export async function updateStreak(userId: number) {
     return;
   }
 
-  // Find the most recent interaction BEFORE today using string comparison
+  // Find the most recent interaction BEFORE today using string comparison.
   const previousInteraction = allInteractions.find((i) => i.todayDate < todayStr);
 
   let newStreak: number;
