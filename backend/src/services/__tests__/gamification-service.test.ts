@@ -234,21 +234,21 @@ describe("awardPoints", () => {
     expect(pointsAfter.currentStreak).toBe(0);
   });
 
-  test("consume with fractional qty (0.2) awards minimum base of 5", async () => {
+  test("consume with fractional qty (0.2) awards scaled points", async () => {
     const result = await awardPoints(userId, "consumed", productId, 0.2);
-    // 5 * 0.2 = 1, but minimum is base value 5
-    expect(result.amount).toBe(5);
+    // 5 * 0.2 = 1
+    expect(result.amount).toBe(1);
   });
 
-  test("wasted with fractional qty (0.3) awards minimum base of -3", async () => {
+  test("wasted with fractional qty (0.3) awards scaled points", async () => {
     await getOrCreateUserPoints(userId);
     await testDb.update(schema.userPoints)
       .set({ totalPoints: 10 })
       .where(eq(schema.userPoints.userId, userId));
 
     const result = await awardPoints(userId, "wasted", productId, 0.3);
-    // -3 * 0.3 = -0.9 → rounds to -1, but minimum is base value -3
-    expect(result.amount).toBe(-3);
+    // -3 * 0.3 = -0.9 → rounds to -1
+    expect(result.amount).toBe(-1);
   });
 
   test("sold with qty=1 awards 8 points", async () => {
@@ -268,10 +268,10 @@ describe("awardPoints", () => {
     expect(result.amount).toBe(13); // Math.round(5 * 2.5) = 13
   });
 
-  test("consumed 0.5 kg awards 5 pts (minimum base)", async () => {
+  test("consumed 0.5 kg awards 3 pts (scaled)", async () => {
     const result = await awardPoints(userId, "consumed", productId, 0.5);
-    // 5 * 0.5 = 2.5 → rounds to 3, but |3| < |5| so minimum base = 5
-    expect(result.amount).toBe(5);
+    // 5 * 0.5 = 2.5 → rounds to 3
+    expect(result.amount).toBe(3);
   });
 
   test("consumed 1.0 kg awards exactly base (5 pts)", async () => {
@@ -295,16 +295,16 @@ describe("awardPoints", () => {
     expect(result.newTotal).toBe(94); // 100 - 6
   });
 
-  test("wasted 0.5 kg penalizes minimum base (-3 pts)", async () => {
+  test("wasted 0.5 kg penalizes scaled (-2 pts)", async () => {
     await getOrCreateUserPoints(userId);
     await testDb.update(schema.userPoints)
       .set({ totalPoints: 50 })
       .where(eq(schema.userPoints.userId, userId));
 
     const result = await awardPoints(userId, "wasted", productId, 0.5);
-    // -3 * 0.5 = -1.5 → rounds to -2, but |-2| < |-3| so minimum base = -3
-    expect(result.amount).toBe(-3);
-    expect(result.newTotal).toBe(47);
+    // -3 * 0.5 = -1.5 → Math.round(-1.5) = -1
+    expect(result.amount).toBe(-1);
+    expect(result.newTotal).toBe(49);
   });
 
   test("wasted 5.0 kg penalizes 15 pts (-3 * 5)", async () => {
@@ -323,10 +323,10 @@ describe("awardPoints", () => {
     expect(result.amount).toBe(20);
   });
 
-  test("shared 0.3 L awards minimum base (10 pts)", async () => {
+  test("shared 0.3 L awards scaled (3 pts)", async () => {
     const result = await awardPoints(userId, "shared", productId, 0.3);
-    // 10 * 0.3 = 3, but |3| < |10| so minimum base = 10
-    expect(result.amount).toBe(10);
+    // 10 * 0.3 = 3
+    expect(result.amount).toBe(3);
   });
 
   test("sold 1.5 kg awards 12 pts (8 * 1.5)", async () => {
@@ -340,10 +340,10 @@ describe("awardPoints", () => {
     expect(r1.amount).toBe(10); // 5 * 2
     expect(r1.newTotal).toBe(10);
 
-    // Then waste 0.5kg (below base threshold, so uses base -3)
+    // Then waste 0.5kg: -3 * 0.5 = -1.5 → Math.round(-1.5) = -1
     const r2 = await awardPoints(userId, "wasted", productId, 0.5);
-    expect(r2.amount).toBe(-3);
-    expect(r2.newTotal).toBe(7); // 10 - 3
+    expect(r2.amount).toBe(-1);
+    expect(r2.newTotal).toBe(9); // 10 - 1
   });
 
   test("cumulative points: multiple kg-based actions accumulate correctly", async () => {
@@ -563,10 +563,10 @@ describe("getDetailedPointsStats", () => {
 
     const stats = await getDetailedPointsStats(userId);
 
-    // consumed: 5 * 0.2 = 1 → min base = 5
-    expect(stats.breakdownByType.consumed.totalPoints).toBe(5);
-    // wasted: -3 * 0.3 = -0.9 → rounds to -1 → min base = -3
-    expect(stats.breakdownByType.wasted.totalPoints).toBe(-3);
+    // consumed: 5 * 0.2 = 1
+    expect(stats.breakdownByType.consumed.totalPoints).toBe(1);
+    // wasted: -3 * 0.3 = -0.9 → rounds to -1
+    expect(stats.breakdownByType.wasted.totalPoints).toBe(-1);
     // sold: 8 * 3 = 24 (scaled, above base)
     expect(stats.breakdownByType.sold.totalPoints).toBe(24);
   });
@@ -585,11 +585,11 @@ describe("getDetailedPointsStats", () => {
     expect(stats.breakdownByType.consumed.totalPoints).toBe(13);
     // sold: 8 * 1.5 = 12, |12| >= |8| so 12
     expect(stats.breakdownByType.sold.totalPoints).toBe(12);
-    // wasted: -3 * 0.8 = -2.4 → rounds to -2, |-2| < |-3| so min base = -3
-    expect(stats.breakdownByType.wasted.totalPoints).toBe(-3);
+    // wasted: -3 * 0.8 = -2.4 → rounds to -2
+    expect(stats.breakdownByType.wasted.totalPoints).toBe(-2);
 
-    // pointsToday = 13 + 12 + (-3) = 22
-    expect(stats.pointsToday).toBe(22);
+    // pointsToday = 13 + 12 + (-2) = 23
+    expect(stats.pointsToday).toBe(23);
   });
 
   test("stats scale with large kg quantities across multiple entries", async () => {
@@ -626,15 +626,15 @@ describe("getDetailedPointsStats", () => {
     const stats = await getDetailedPointsStats(userId);
 
     // consumed 10 pcs: 5 * 10 = 50
-    // consumed 0.5 kg: 5 * 0.5 = 2.5 → round to 3, |3| < |5| → min 5
-    // total consumed: 55
-    expect(stats.breakdownByType.consumed.totalPoints).toBe(55);
+    // consumed 0.5 kg: 5 * 0.5 = 2.5 → round to 3
+    // total consumed: 53
+    expect(stats.breakdownByType.consumed.totalPoints).toBe(53);
 
     // shared 2.0 L: 10 * 2.0 = 20
     expect(stats.breakdownByType.shared.totalPoints).toBe(20);
 
-    // pointsToday = 55 + 20 = 75
-    expect(stats.pointsToday).toBe(75);
+    // pointsToday = 53 + 20 = 73
+    expect(stats.pointsToday).toBe(73);
   });
 });
 

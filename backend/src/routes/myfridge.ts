@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getUser } from "../middleware/auth";
 import OpenAI from "openai";
 import { awardPoints, type PointAction } from "../services/gamification-service";
+import { convertToKg } from "../utils/co2-calculator";
 
 const productSchema = z.object({
   productName: z.string().min(1).max(200),
@@ -194,11 +195,12 @@ export function registerMyFridgeRoutes(router: Router) {
         .where(eq(products.id, productId));
 
       // Award/deduct points (also records the sustainability metric)
+      const quantityInKg = convertToKg(data.quantity, product.unit);
       const pointsResult = await awardPoints(
         user.id,
         data.type as PointAction,
         productId,
-        data.quantity
+        quantityInKg
       );
 
       return json({

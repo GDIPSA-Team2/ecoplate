@@ -531,10 +531,6 @@ export default function EcoBoardPage() {
                           <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-2">
                             {config.description}
                           </p>
-                          <p className={`font-bold text-xs sm:text-sm mt-1.5 sm:mt-2 ${config.color}`}>
-                            {config.points > 0 ? "+" : ""}
-                            {config.points} pts
-                          </p>
                         </div>
                       </div>
                     </div>

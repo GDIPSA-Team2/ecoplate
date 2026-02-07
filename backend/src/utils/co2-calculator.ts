@@ -25,7 +25,7 @@ const DISPOSAL_EMISSION_FACTOR = 0.5;
 /**
  * Convert quantity to kilograms based on unit
  */
-function convertToKg(quantity: number, unit: string | null | undefined): number {
+export function convertToKg(quantity: number, unit: string | null | undefined): number {
   const normalizedUnit = (unit || "item").toLowerCase().trim();
 
   switch (normalizedUnit) {
