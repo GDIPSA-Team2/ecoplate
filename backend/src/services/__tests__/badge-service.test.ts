@@ -69,14 +69,38 @@ sqlite.exec(`
     earned_at INTEGER NOT NULL DEFAULT (unixepoch()),
     UNIQUE(user_id, badge_id)
   );
+
+  CREATE TABLE notification_preferences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    expiring_products INTEGER NOT NULL DEFAULT 1,
+    badge_unlocked INTEGER NOT NULL DEFAULT 1,
+    streak_milestone INTEGER NOT NULL DEFAULT 1,
+    product_stale INTEGER NOT NULL DEFAULT 1,
+    stale_days_threshold INTEGER NOT NULL DEFAULT 7,
+    expiry_days_threshold INTEGER NOT NULL DEFAULT 3
+  );
+
+  CREATE TABLE notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    related_id INTEGER,
+    is_read INTEGER NOT NULL DEFAULT 0,
+    read_at INTEGER,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
 `);
 
 const testDb = drizzle(sqlite, { schema });
 
 // Mock the db export used by badge-service and gamification-service
 mock.module("../../index", () => ({ db: testDb }));
+mock.module("../../index.ts", () => ({ db: testDb }));
 
-// Mock notification service to avoid DB calls to notifications table
+// Mock notification service to avoid loading index → auth.ts (which needs JWT_SECRET)
 mock.module("../notification-service", () => ({
   notifyStreakMilestone: async () => {},
   notifyBadgeUnlocked: async () => {},
