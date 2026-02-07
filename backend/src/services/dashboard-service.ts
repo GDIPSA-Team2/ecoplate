@@ -1,4 +1,4 @@
-import { db } from "../index";
+import { db } from "../db/connection";
 import { eq, and, gte } from "drizzle-orm";
 import * as schema from "../db/schema";
 

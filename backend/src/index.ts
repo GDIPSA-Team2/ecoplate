@@ -1,5 +1,3 @@
-import { Database } from "bun:sqlite";
-import { drizzle } from "drizzle-orm/bun-sqlite";
 import { Router, json, error } from "./utils/router";
 import { authMiddleware } from "./middleware/auth";
 import { registerAuthRoutes } from "./routes/auth";
@@ -11,15 +9,12 @@ import { registerDashboardRoutes } from "./routes/dashboard";
 import { registerGamificationRoutes } from "./routes/gamification";
 import { registerUploadRoutes } from "./routes/upload";
 import { registerNotificationRoutes } from "./routes/notifications";
-import * as schema from "./db/schema";
 import { existsSync } from "fs";
 import { join } from "path";
+import { db } from "./db/connection";
 
-// Initialize database
-const dbPath = process.env.DATABASE_PATH || "ecoplate.db";
-const sqlite = new Database(dbPath);
-sqlite.exec("PRAGMA journal_mode = WAL;");
-export const db = drizzle(sqlite, { schema });
+// Re-export db for backwards compatibility
+export { db };
 
 // Create routers
 const publicRouter = new Router();

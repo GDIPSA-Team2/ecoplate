@@ -1,4 +1,4 @@
-import { db } from "../index";
+import { db } from "../db/connection";
 import * as schema from "../db/schema";
 import { eq, and, inArray, desc } from "drizzle-orm";
 import { checkAndAwardBadges } from "./badge-service";

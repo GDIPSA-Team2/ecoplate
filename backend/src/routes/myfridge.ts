@@ -1,5 +1,5 @@
 import { Router, json, error, parseBody } from "../utils/router";
-import { db } from "../index";
+import { db } from "../db/connection";
 import { products, productSustainabilityMetrics, pendingConsumptionRecords } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { z } from "zod";

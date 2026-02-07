@@ -1,4 +1,4 @@
-import { db } from "../index";
+import { db } from "../db/connection";
 import * as schema from "../db/schema";
 import { eq, and, desc, lt, sql } from "drizzle-orm";
 

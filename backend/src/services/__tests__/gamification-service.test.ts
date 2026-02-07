@@ -73,8 +73,8 @@ sqlite.exec(`
 
 const testDb = drizzle(sqlite, { schema });
 
-// Mock the db export used by gamification-service and badge-service
-mock.module("../../index", () => ({ db: testDb }));
+// Mock the db connection module (NOT index.ts which has server side effects)
+mock.module("../../db/connection", () => ({ db: testDb }));
 
 // Mock notification service to avoid DB calls to notifications table
 mock.module("../notification-service", () => ({

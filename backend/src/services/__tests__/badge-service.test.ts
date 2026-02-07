@@ -96,9 +96,9 @@ sqlite.exec(`
 
 const testDb = drizzle(sqlite, { schema });
 
-// Mock the db export and notification service BEFORE importing services.
-// Using mock.module to intercept the db used by badge-service and gamification-service.
-mock.module("../../index", () => ({ db: testDb }));
+// Mock the db connection module (NOT index.ts which has server side effects).
+// This small module has no side effects, so mock.module works reliably on all platforms.
+mock.module("../../db/connection", () => ({ db: testDb }));
 
 mock.module("../notification-service", () => ({
   notifyStreakMilestone: async () => {},
@@ -106,7 +106,6 @@ mock.module("../notification-service", () => ({
 }));
 
 // Use dynamic imports to guarantee mocks are applied before module resolution.
-// Static imports can be hoisted before mock.module on some platforms (Linux CI).
 const { BADGE_DEFINITIONS, checkAndAwardBadges, getBadgeProgress, getUserBadgeMetrics } =
   await import("../badge-service");
 const { getOrCreateUserPoints } = await import("../gamification-service");

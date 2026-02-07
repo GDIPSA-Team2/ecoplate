@@ -1,4 +1,4 @@
-import { db } from "../index";
+import { db } from "../db/connection";
 import * as schema from "../db/schema";
 import { eq, and } from "drizzle-orm";
 // Dynamic import to break circular dependency (gamification-service imports badge-service)

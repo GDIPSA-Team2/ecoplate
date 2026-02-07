@@ -1,4 +1,4 @@
-import { db } from "../index";
+import { db } from "../db/connection";
 import { conversations, messages, marketplaceListings } from "../db/schema";
 import { eq, and, or, sql } from "drizzle-orm";
 

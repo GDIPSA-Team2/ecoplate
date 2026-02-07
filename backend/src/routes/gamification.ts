@@ -1,5 +1,5 @@
 import { Router, json } from "../utils/router";
-import { db } from "../index";
+import { db } from "../db/connection";
 import * as schema from "../db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { getUser } from "../middleware/auth";
