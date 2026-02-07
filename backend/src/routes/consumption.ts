@@ -9,6 +9,7 @@ import {
   type IngredientInput,
 } from "../services/consumption-service";
 import { awardPoints } from "../services/gamification-service";
+import { convertToKg } from "../utils/co2-calculator";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import type * as schema from "../db/schema";
 
@@ -365,24 +366,27 @@ Return JSON:
       const todayDate = new Date().toISOString().split("T")[0];
 
       for (const ing of ingredients) {
-        // 1. Record consumed interaction with full quantity
+        // Fetch product first to get unit for normalization
+        const product = await db.query.products.findFirst({
+          where: eq(products.id, ing.productId)
+        });
+        const quantityInKg = convertToKg(ing.quantityUsed, product?.unit);
+
+        // 1. Record consumed interaction with normalized quantity
         const [interaction] = await db.insert(productSustainabilityMetrics).values({
           productId: ing.productId,
           userId: user.id,
           todayDate,
-          quantity: ing.quantityUsed,
+          quantity: quantityInKg,
           type: "consumed",
         }).returning();
 
         interactionIds.push(interaction.id);
 
-        // 2. Award points (skip metric recording since we already recorded above)
-        await awardPoints(user.id, "consumed", ing.productId, ing.quantityUsed, true);
+        // 2. Award points with normalized quantity (skip metric recording since we already recorded above)
+        await awardPoints(user.id, "consumed", ing.productId, quantityInKg, true);
 
-        // 3. Deduct from product quantity
-        const product = await db.query.products.findFirst({
-          where: eq(products.id, ing.productId)
-        });
+        // 3. Deduct from product quantity (keep raw unit — this is inventory, not points)
         if (product) {
           await db.update(products)
             .set({ quantity: Math.max(0, product.quantity - ing.quantityUsed) })
@@ -434,16 +438,21 @@ Return JSON:
 
         // 1. Create wasted interaction if any waste
         if (wastedQty > 0) {
+          const product = await db.query.products.findFirst({
+            where: eq(products.id, ing.productId)
+          });
+          const wastedInKg = convertToKg(wastedQty, product?.unit);
+
           await db.insert(productSustainabilityMetrics).values({
             productId: ing.productId,
             userId: user.id,
             todayDate,
-            quantity: wastedQty,
+            quantity: wastedInKg,
             type: "wasted",
           });
 
           // Penalize points for waste (skip metric recording since we already recorded above)
-          await awardPoints(user.id, "wasted", ing.productId, wastedQty, true);
+          await awardPoints(user.id, "wasted", ing.productId, wastedInKg, true);
         }
       }
 

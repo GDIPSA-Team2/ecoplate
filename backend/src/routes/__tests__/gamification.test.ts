@@ -58,8 +58,8 @@ function registerTestGamificationRoutes(
       .filter((i) => i.type !== "Add")
       .map((i) => {
         const baseAmount = POINT_VALUES[i.type as keyof typeof POINT_VALUES] ?? 0;
-        const scaled = Math.round(baseAmount * Math.abs(i.quantity ?? 1));
-        const amount = Math.abs(scaled) >= Math.abs(baseAmount) ? scaled : baseAmount;
+        const scaled = Math.round(baseAmount * (i.quantity ?? 1));
+        const amount = scaled === 0 ? Math.sign(baseAmount) : scaled;
         return {
           id: i.id,
           amount,
@@ -528,7 +528,7 @@ describe("GET /api/v1/gamification/points", () => {
     expect(data.transactions[0].action).toBe("consumed");
   });
 
-  test("transactions with fractional qty show min base values", async () => {
+  test("transactions with fractional qty show scaled values", async () => {
     await testDb.insert(schema.userPoints).values({
       userId: testUserId,
       totalPoints: 50,
@@ -544,10 +544,10 @@ describe("GET /api/v1/gamification/points", () => {
 
     const data = res.data as { transactions: Array<{ action: string; amount: number }> };
     const consumedTx = data.transactions.find((t) => t.action === "consumed");
-    expect(consumedTx?.amount).toBe(5); // min base, not 1
+    expect(consumedTx?.amount).toBe(1); // 5 × 0.2 = 1
 
     const wastedTx = data.transactions.find((t) => t.action === "wasted");
-    expect(wastedTx?.amount).toBe(-3); // min base, not -1
+    expect(wastedTx?.amount).toBe(-1); // Math.round(-3 × 0.3) = -1
   });
 
   test("transactions for consume, wasted, sold show correct amounts", async () => {

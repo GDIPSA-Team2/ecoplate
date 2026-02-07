@@ -42,8 +42,8 @@ export function registerGamificationRoutes(router: Router) {
         .map((i) => {
           const normalizedType = (i.type || "").toLowerCase() as keyof typeof POINT_VALUES;
           const baseAmount = POINT_VALUES[normalizedType] ?? 0;
-          const scaled = Math.round(baseAmount * Math.abs(i.quantity ?? 1));
-          const amount = Math.abs(scaled) >= Math.abs(baseAmount) ? scaled : baseAmount;
+          const scaled = Math.round(baseAmount * (i.quantity ?? 1));
+          const amount = scaled === 0 ? Math.sign(baseAmount) : scaled;
 
           return {
             id: i.id,

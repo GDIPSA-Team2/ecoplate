@@ -57,8 +57,8 @@ export async function awardPoints(
 ) {
   const baseValue = POINT_VALUES[action];
   const scaled = Math.round(baseValue * (quantity ?? 1));
-  // Enforce minimum of the base value (absolute comparison)
-  const amount = Math.abs(scaled) >= Math.abs(baseValue) ? scaled : baseValue;
+  // Ensure at least ±1 point (so tiny quantities don't round to zero)
+  const amount = scaled === 0 ? Math.sign(baseValue) : scaled;
   const userPoints = await getOrCreateUserPoints(userId);
 
   const newTotal = Math.max(0, userPoints.totalPoints + amount);
@@ -249,8 +249,8 @@ export async function getDetailedPointsStats(userId: number) {
   for (const interaction of allInteractions) {
     const type = (interaction.type || "").toLowerCase() as keyof typeof POINT_VALUES;
     const basePoints = POINT_VALUES[type] ?? 0;
-    const scaled = Math.round(basePoints * Math.abs(interaction.quantity ?? 1));
-    const points = Math.abs(scaled) >= Math.abs(basePoints) ? scaled : basePoints;
+    const scaled = Math.round(basePoints * (interaction.quantity ?? 1));
+    const points = scaled === 0 ? Math.sign(basePoints) : scaled;
     // Use todayDate directly as dateKey — it's already stored as "YYYY-MM-DD"
     const dateKey = interaction.todayDate;
 

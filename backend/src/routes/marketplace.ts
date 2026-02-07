@@ -9,7 +9,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { awardPoints, POINT_VALUES } from "../services/gamification-service";
-import { calculateCo2Saved } from "../utils/co2-calculator";
+import { calculateCo2Saved, convertToKg } from "../utils/co2-calculator";
 import { generateSecureFilename, validateImageFile } from "../utils/file-utils";
 
 // Fallback price calculation when recommendation engine is unavailable
@@ -657,7 +657,8 @@ export function registerMarketplaceRoutes(router: Router) {
       .where(eq(marketplaceListings.id, listingId));
 
     // Award points for selling (reduces food waste)
-    const pointsResult = await awardPoints(user.id, "sold", listing.productId, listing.quantity, undefined, {
+    const quantityInKg = convertToKg(listing.quantity, listing.unit);
+    const pointsResult = await awardPoints(user.id, "sold", listing.productId, quantityInKg, undefined, {
       co2Saved: listing.co2Saved,
       buyerId: finalBuyerId,
     });
