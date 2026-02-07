@@ -174,7 +174,7 @@ export function HomePage() {
               variant="outline"
               size="sm"
               onClick={() => {
-                const ecoPlateUrl = import.meta.env.VITE_ECOPLATE_URL || "http://localhost:5173";
+                const ecoPlateUrl = import.meta.env.VITE_ECOPLATE_URL || "/";
                 window.location.href = ecoPlateUrl;
               }}
             >

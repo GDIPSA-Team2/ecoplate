@@ -100,7 +100,7 @@ function AppRoutes() {
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "")}>
       <AuthProvider>
         <ToastProvider>
           <AppRoutes />

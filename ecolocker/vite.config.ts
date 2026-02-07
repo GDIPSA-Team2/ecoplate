@@ -6,6 +6,7 @@ export default defineConfig(({ mode }) => {
   const isMobile = mode === "mobile";
 
   return {
+    base: mode === "production" ? "/ecolocker/" : "/",
     plugins: [react()],
     define: {
       __IS_MOBILE__: isMobile,

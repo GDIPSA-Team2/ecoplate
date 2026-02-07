@@ -417,7 +417,7 @@ export function OrderDetailPage() {
             variant="outline"
             className="w-full"
             onClick={() => {
-              const ecoPlateUrl = import.meta.env.VITE_ECOPLATE_URL || "http://localhost:5173";
+              const ecoPlateUrl = import.meta.env.VITE_ECOPLATE_URL || "";
               window.location.href = `${ecoPlateUrl}/marketplace`;
             }}
           >

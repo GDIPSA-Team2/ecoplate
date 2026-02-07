@@ -584,7 +584,7 @@ export default function ListingDetailPage() {
                   <Button
                     onClick={() => {
                       const token = localStorage.getItem("token");
-                      const ecoLockerUrl = import.meta.env.VITE_ECOLOCKER_URL || "http://localhost:5174";
+                      const ecoLockerUrl = import.meta.env.VITE_ECOLOCKER_URL || "/ecolocker";
                       window.location.href = `${ecoLockerUrl}?token=${token}&listingId=${listing.id}`;
                     }}
                     disabled={actionLoading}
@@ -624,7 +624,7 @@ export default function ListingDetailPage() {
                   <Button
                     onClick={() => {
                       const token = localStorage.getItem("token");
-                      const ecoLockerUrl = import.meta.env.VITE_ECOLOCKER_URL || "http://localhost:5174";
+                      const ecoLockerUrl = import.meta.env.VITE_ECOLOCKER_URL || "/ecolocker";
                       window.location.href = `${ecoLockerUrl}?token=${token}&listingId=${listing.id}`;
                     }}
                     disabled={actionLoading}
