@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -364,28 +364,3 @@ jobs:
           echo ""
           echo "Security gate passed - review artifacts for details"
 
-  # ===========================================================================
-  # Deployment Gate
-  # ===========================================================================
-
-  push-to-deployment:
-    name: Push to Deployment
-    needs:
-      - typecheck-backend
-      - typecheck-frontend
-      - test-backend
-      - test-frontend
-      - test-recommendation
-      - build-check
-      - security-gate
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Push main to deployment branch
-        run: |
-          git push origin HEAD:refs/heads/deployment --force
