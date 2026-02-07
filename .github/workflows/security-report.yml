@@ -1,0 +1,202 @@
+name: Security Report
+
+on:
+  workflow_run:
+    workflows: ["CD"]
+    types: [completed]
+    branches: [main, dev]
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  generate-report:
+    name: Generate Consolidated Security Report
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion != 'cancelled'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # ---- Download CI Artifacts ----
+      - name: Download Semgrep report
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: ci.yml
+          branch: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          name: semgrep-report
+          path: reports/semgrep
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      - name: Download Bandit report
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: ci.yml
+          branch: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          name: bandit-report
+          path: reports/bandit
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      - name: Download Trufflehog report
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: ci.yml
+          branch: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          name: trufflehog-report
+          path: reports/trufflehog
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      - name: Download pip-audit report
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: ci.yml
+          branch: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          name: pip-audit-report
+          path: reports/pip-audit
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      - name: Download JS audit reports
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: ci.yml
+          branch: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          name: js-audit-reports
+          path: reports/js-audit
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      - name: Download Checkov report
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: ci.yml
+          branch: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          name: checkov-report
+          path: reports/checkov
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      - name: Download License report
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: ci.yml
+          branch: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          name: license-report
+          path: reports/license
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      - name: Download SBOM
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: ci.yml
+          branch: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          name: sbom
+          path: reports/sbom
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      # ---- Download CD Artifacts ----
+      - name: Download Trivy app report
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: cd.yml
+          run_id: ${{ github.event.workflow_run.id }}
+          name: trivy-app-report
+          path: reports/trivy-app
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      - name: Download Trivy rec report
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: cd.yml
+          run_id: ${{ github.event.workflow_run.id }}
+          name: trivy-rec-report
+          path: reports/trivy-rec
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      - name: Download Container SBOM
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: cd.yml
+          run_id: ${{ github.event.workflow_run.id }}
+          name: container-sbom
+          path: reports/container-sbom
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      - name: Download ZAP Baseline report
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: cd.yml
+          run_id: ${{ github.event.workflow_run.id }}
+          name: zap-baseline-report
+          path: reports/zap-baseline
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      - name: Download ZAP API report
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: cd.yml
+          run_id: ${{ github.event.workflow_run.id }}
+          name: zap-api-report
+          path: reports/zap-api
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      # ---- Generate Report ----
+      - name: List downloaded reports
+        run: find reports/ -type f 2>/dev/null || echo "No reports found"
+
+      - name: Generate consolidated security report
+        run: |
+          python .github/scripts/generate-security-report.py \
+            --reports-dir reports \
+            --output-html security-report.html \
+            --output-md security-summary.md \
+            --branch "${{ github.event.workflow_run.head_branch || github.ref_name }}" \
+            --commit "${{ github.event.workflow_run.head_sha || github.sha }}" \
+            --repo "${{ github.repository }}"
+
+      - name: Post summary to GitHub
+        if: always()
+        run: cat security-summary.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload security report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: consolidated-security-report
+          path: |
+            security-report.html
+            security-summary.md
+          retention-days: 90

@@ -1,4 +1,4 @@
-import { db } from "../index";
+import { db } from "../db/connection";
 import * as schema from "../db/schema";
 import { eq, and, desc, lt, sql } from "drizzle-orm";
 
@@ -31,20 +31,22 @@ export async function getOrCreatePreferences(userId: number): Promise<Notificati
   });
 
   if (!prefs) {
-    const [created] = await db
+    await db
       .insert(schema.notificationPreferences)
       .values({ userId })
-      .returning();
-    prefs = created;
+      .onConflictDoNothing();
+    prefs = await db.query.notificationPreferences.findFirst({
+      where: eq(schema.notificationPreferences.userId, userId),
+    });
   }
 
   return {
-    expiringProducts: prefs.expiringProducts,
-    badgeUnlocked: prefs.badgeUnlocked,
-    streakMilestone: prefs.streakMilestone,
-    productStale: prefs.productStale,
-    staleDaysThreshold: prefs.staleDaysThreshold,
-    expiryDaysThreshold: prefs.expiryDaysThreshold,
+    expiringProducts: prefs!.expiringProducts,
+    badgeUnlocked: prefs!.badgeUnlocked,
+    streakMilestone: prefs!.streakMilestone,
+    productStale: prefs!.productStale,
+    staleDaysThreshold: prefs!.staleDaysThreshold,
+    expiryDaysThreshold: prefs!.expiryDaysThreshold,
   };
 }
 

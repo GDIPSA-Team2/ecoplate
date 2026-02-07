@@ -1,10 +1,12 @@
 import { Router, json, error, parseBody } from "../utils/router";
-import { db } from "../index";
+import { db } from "../db/connection";
 import { products, productSustainabilityMetrics, pendingConsumptionRecords } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { z } from "zod";
 import { getUser } from "../middleware/auth";
 import OpenAI from "openai";
+import { awardPoints, type PointAction } from "../services/gamification-service";
+import { convertToKg } from "../utils/co2-calculator";
 
 const productSchema = z.object({
   productName: z.string().min(1).max(200),
@@ -18,7 +20,7 @@ const productSchema = z.object({
 });
 
 const interactionSchema = z.object({
-  type: z.enum(["Add", "Consume", "Waste"]),
+  type: z.enum(["add", "consumed", "wasted"]),
   quantity: z.number().positive(),
   todayDate: z.string().optional(),
 });
@@ -38,13 +40,6 @@ const pendingConsumptionSchema = z.object({
   })).default([]),
   status: z.enum(["PENDING_WASTE_PHOTO", "COMPLETED"]).default("PENDING_WASTE_PHOTO"),
 });
-
-// Points awarded for different actions
-const POINTS: Record<string, number> = {
-  Add: 2,
-  Consume: 5,
-  Waste: -2,
-};
 
 export function registerMyFridgeRoutes(router: Router) {
   // Get all products for the authenticated user
@@ -81,18 +76,15 @@ export function registerMyFridgeRoutes(router: Router) {
         })
         .returning();
 
-      // Log "Add" interaction for sustainability tracking
+      // Log "add" interaction for sustainability tracking (no points awarded)
       const todayDate = new Date().toISOString().split("T")[0];
       await db.insert(productSustainabilityMetrics).values({
         productId: product.id,
         userId: user.id,
         todayDate,
         quantity: data.quantity,
-        type: "Add",
+        type: "add",
       });
-
-      // Award points for adding a product
-      await awardPoints(user.id, POINTS.Add);
 
       return json(product);
     } catch (e) {
@@ -195,15 +187,6 @@ export function registerMyFridgeRoutes(router: Router) {
         return error("Product not found", 404);
       }
 
-      // Log the interaction
-      await db.insert(productSustainabilityMetrics).values({
-        productId,
-        userId: user.id,
-        todayDate: data.todayDate || new Date().toISOString().split("T")[0],
-        quantity: data.quantity,
-        type: data.type,
-      });
-
       // Deduct quantity from product
       const newQuantity = Math.max(0, (product.quantity || 0) - data.quantity);
       await db
@@ -211,13 +194,18 @@ export function registerMyFridgeRoutes(router: Router) {
         .set({ quantity: newQuantity })
         .where(eq(products.id, productId));
 
-      // Award/deduct points based on action
-      const pointsChange = POINTS[data.type];
-      await awardPoints(user.id, pointsChange);
+      // Award/deduct points (also records the sustainability metric)
+      const quantityInKg = convertToKg(data.quantity, product.unit);
+      const pointsResult = await awardPoints(
+        user.id,
+        data.type as PointAction,
+        productId,
+        quantityInKg
+      );
 
       return json({
         message: "Product interaction logged",
-        pointsChange,
+        pointsChange: pointsResult.amount,
         newQuantity,
       });
     } catch (e) {
@@ -354,13 +342,21 @@ For each item, determine its eco-focused sub-category (Ruminant meat, Non-rumina
       });
 
       // Parse ingredients JSON for each record
-      const formattedRecords = records.map((record) => ({
-        id: record.id,
-        rawPhoto: record.rawPhoto,
-        ingredients: JSON.parse(record.ingredients),
-        status: record.status,
-        createdAt: record.createdAt?.toISOString() || new Date().toISOString(),
-      }));
+      const formattedRecords = records.map((record) => {
+        let ingredients: unknown[] = [];
+        try {
+          ingredients = JSON.parse(record.ingredients);
+        } catch {
+          ingredients = [];
+        }
+        return {
+          id: record.id,
+          rawPhoto: record.rawPhoto,
+          ingredients,
+          status: record.status,
+          createdAt: record.createdAt?.toISOString() || new Date().toISOString(),
+        };
+      });
 
       return json(formattedRecords);
     } catch (e) {
@@ -407,10 +403,17 @@ For each item, determine its eco-focused sub-category (Ruminant meat, Non-rumina
         })
         .returning();
 
+      let parsedIngredients: unknown[] = [];
+      try {
+        parsedIngredients = JSON.parse(record.ingredients);
+      } catch {
+        parsedIngredients = [];
+      }
+
       return json({
         id: record.id,
         rawPhoto: record.rawPhoto,
-        ingredients: JSON.parse(record.ingredients),
+        ingredients: parsedIngredients,
         status: record.status,
         createdAt: record.createdAt?.toISOString() || new Date().toISOString(),
       });
@@ -467,10 +470,17 @@ For each item, determine its eco-focused sub-category (Ruminant meat, Non-rumina
         .where(eq(pendingConsumptionRecords.id, recordId))
         .returning();
 
+      let updatedIngredients: unknown[] = [];
+      try {
+        updatedIngredients = JSON.parse(updated.ingredients);
+      } catch {
+        updatedIngredients = [];
+      }
+
       return json({
         id: updated.id,
         rawPhoto: updated.rawPhoto,
-        ingredients: JSON.parse(updated.ingredients),
+        ingredients: updatedIngredients,
         status: updated.status,
         createdAt: updated.createdAt?.toISOString() || new Date().toISOString(),
       });
@@ -513,7 +523,3 @@ For each item, determine its eco-focused sub-category (Ruminant meat, Non-rumina
   });
 }
 
-// TODO: Implement points system once gamification is confirmed
-async function awardPoints(_userId: number, _amount: number) {
-  // No-op until userPoints table is implemented
-}

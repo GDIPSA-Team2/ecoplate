@@ -207,6 +207,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   lockerNotifications: many(lockerNotifications),
   notifications: many(notifications),
   notificationPreferences: one(notificationPreferences),
+  redemptions: many(userRedemptions),
 }));
 
 export const productsRelations = relations(products, ({ one, many }) => ({
@@ -476,5 +477,61 @@ export const notificationPreferencesRelations = relations(notificationPreference
   user: one(users, {
     fields: [notificationPreferences.userId],
     references: [users.id],
+  }),
+}));
+
+// ==================== Rewards ====================
+
+export const rewards = sqliteTable("rewards", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url"),
+  category: text("category").notNull(),
+  pointsCost: integer("points_cost").notNull(),
+  stock: integer("stock").notNull().default(0),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+// ==================== User Redemptions ====================
+
+export const userRedemptions = sqliteTable("user_redemptions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  rewardId: integer("reward_id")
+    .notNull()
+    .references(() => rewards.id, { onDelete: "cascade" }),
+  pointsSpent: integer("points_spent").notNull(),
+  redemptionCode: text("redemption_code").notNull().unique(),
+  status: text("status").notNull().default("pending"),
+  collectedAt: integer("collected_at", { mode: "timestamp" }),
+  expiresAt: integer("expires_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+// ==================== Rewards Relations ====================
+
+export const rewardsRelations = relations(rewards, ({ many }) => ({
+  redemptions: many(userRedemptions),
+}));
+
+export const userRedemptionsRelations = relations(userRedemptions, ({ one }) => ({
+  user: one(users, {
+    fields: [userRedemptions.userId],
+    references: [users.id],
+  }),
+  reward: one(rewards, {
+    fields: [userRedemptions.rewardId],
+    references: [rewards.id],
   }),
 }));
