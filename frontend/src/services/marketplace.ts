@@ -104,10 +104,65 @@ export const marketplaceService = {
   async completeListing(
     id: number,
     buyerId?: number
-  ): Promise<{ message: string; points: { earned: number; action: string; newTotal: number } }> {
-    return api.post<{ message: string; points: { earned: number; action: string; newTotal: number } }>(
+  ): Promise<{ message: string; points: { earned: number; action: string; newTotal: number }; newBadges?: Array<{ code: string; name: string; pointsAwarded: number }> }> {
+    return api.post<{ message: string; points: { earned: number; action: string; newTotal: number }; newBadges?: Array<{ code: string; name: string; pointsAwarded: number }> }>(
       `/marketplace/listings/${id}/sold`,
       { buyerId }
     );
+  },
+
+  /**
+   * Reserve a listing for a specific buyer (seller only)
+   */
+  async reserveListingForBuyer(id: number, buyerId: number): Promise<{ message: string }> {
+    return api.post<{ message: string }>(`/marketplace/listings/${id}/reserve`, { buyerId });
+  },
+
+  /**
+   * Get interested buyers for a listing (users who messaged about it)
+   */
+  async getInterestedBuyers(listingId: number): Promise<Array<{
+    id: number;
+    name: string;
+    avatarUrl: string | null;
+    conversationId: number;
+  }>> {
+    return api.get(`/marketplace/listings/${listingId}/interested-buyers`);
+  },
+
+  /**
+   * Unreserve a listing (seller only)
+   */
+  async unreserveListing(id: number): Promise<{ message: string }> {
+    return api.post<{ message: string }>(`/marketplace/listings/${id}/unreserve`);
+  },
+
+  /**
+   * Buy a listing directly (as buyer)
+   */
+  async buyListing(id: number): Promise<{ message: string }> {
+    return api.post<{ message: string }>(`/marketplace/listings/${id}/buy`);
+  },
+
+  /**
+   * Get price recommendation based on original price, expiry date, and category
+   */
+  async getPriceRecommendation(params: {
+    originalPrice: number;
+    expiryDate?: string;
+    category?: string;
+  }): Promise<{
+    recommended_price: number;
+    min_price: number;
+    max_price: number;
+    original_price: number;
+    discount_percentage: number;
+    days_until_expiry: number;
+    category: string;
+    urgency_label: string;
+    reasoning: string;
+    fallback?: boolean;
+  }> {
+    return api.post("/marketplace/price-recommendation", params);
   },
 };

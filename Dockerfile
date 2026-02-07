@@ -4,7 +4,11 @@
 # =============================================================================
 # Stage 1: Build Frontend
 # =============================================================================
-FROM oven/bun:1.1-alpine AS frontend-builder
+FROM oven/bun:1-alpine AS frontend-builder
+
+# Build args for frontend environment variables
+ARG VITE_GOOGLE_MAPS_API_KEY
+ENV VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY
 
 WORKDIR /app/frontend
 
@@ -23,7 +27,7 @@ RUN bun run build
 # =============================================================================
 # Stage 2: Build Backend
 # =============================================================================
-FROM oven/bun:1.1-alpine AS backend-builder
+FROM oven/bun:1-alpine AS backend-builder
 
 WORKDIR /app/backend
 
@@ -39,9 +43,12 @@ COPY backend/ .
 # =============================================================================
 # Stage 3: Production Runtime
 # =============================================================================
-FROM oven/bun:1.1-alpine AS production
+FROM oven/bun:1-alpine AS production
 
 WORKDIR /app
+
+# Update system packages to get security patches
+RUN apk update && apk upgrade --no-cache
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S ecoplate && \
@@ -57,8 +64,11 @@ COPY --from=backend-builder /app/backend/drizzle.config.ts ./
 # Copy frontend build output to be served by backend
 COPY --from=frontend-builder /app/frontend/dist ./public
 
-# Create data directory for SQLite
-RUN mkdir -p /app/data && chown -R ecoplate:ecoplate /app
+# Copy entrypoint script
+COPY entrypoint.sh ./entrypoint.sh
+
+# Create data directory for SQLite and make entrypoint executable
+RUN mkdir -p /app/data && chmod +x /app/entrypoint.sh && chown -R ecoplate:ecoplate /app
 
 # Switch to non-root user
 USER ecoplate
@@ -67,8 +77,8 @@ USER ecoplate
 EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=5 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1
 
-# Start the server (serves both API and static frontend)
-CMD ["bun", "run", "src/index.ts"]
+# Start with entrypoint (runs migration + seed if needed, then starts server)
+ENTRYPOINT ["sh", "/app/entrypoint.sh"]

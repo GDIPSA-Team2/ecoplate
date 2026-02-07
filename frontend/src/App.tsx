@@ -10,13 +10,15 @@ import CreateListingPage from "./pages/CreateListingPage";
 import EditListingPage from "./pages/EditListingPage";
 import ListingDetailPage from "./pages/ListingDetailPage";
 import MyListingsPage from "./pages/MyListingsPage";
-//import MyPurchasesPage from "./pages/MyPurchasesPage";
+import MyPurchasesPage from "./pages/MyPurchasesPage";
 import MessagesPage from "./pages/MessagesPage";
 import ConversationPage from "./pages/ConversationPage";
-import EcoBoardPage from "./pages/EcoBoardPage";
-import EcopointsPage from "./pages/Ecopoints";
+import EcoPointsPage from "./pages/EcoPointsPage.tsx";
 import BadgesPage from "./pages/BadgesPage";
 import AccountPage from "./pages/AccountPage";
+import NotificationsPage from "./pages/NotificationsPage";
+import RewardsPage from "./pages/RewardsPage";
+import MyRedemptionsPage from "./pages/MyRedemptionsPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -54,14 +56,17 @@ function App() {
         <Route path="marketplace" element={<MarketplacePage />} />
         <Route path="marketplace/create" element={<CreateListingPage />} />
         <Route path="marketplace/my-listings" element={<MyListingsPage />} />
-        {/*<Route path="marketplace/my-purchases" element={<MyPurchasesPage />} />*/}
+        <Route path="marketplace/my-purchases" element={<MyPurchasesPage />} />
         <Route path="marketplace/:id" element={<ListingDetailPage />} />
         <Route path="marketplace/:id/edit" element={<EditListingPage />} />
         <Route path="messages" element={<MessagesPage />} />
         <Route path="messages/:conversationId" element={<ConversationPage />} />
-        <Route path="ecoboard" element={<EcoBoardPage />} />
-        <Route path="ecopoints" element={<EcopointsPage />} />
+        <Route path="ecopoints" element={<EcoPointsPage />} />
+        <Route path="ecoboard" element={<Navigate to="/ecopoints" replace />} />
         <Route path="badges" element={<BadgesPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="rewards" element={<RewardsPage />} />
+        <Route path="rewards/my-redemptions" element={<MyRedemptionsPage />} />
         <Route path="account" element={<AccountPage />} />
       </Route>
     </Routes>

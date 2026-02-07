@@ -10,60 +10,52 @@ import {
   classifyCategory,
   type IngredientInput,
 } from "../services/consumption-service";
+import { awardPoints } from "../services/gamification-service";
+import { convertToKg } from "../utils/co2-calculator";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import type * as schema from "../db/schema";
 
 // ==================== Validation Schemas ====================
 
+// Max base64 image size: ~7MB (5MB image + base64 overhead)
+const MAX_BASE64_SIZE = 7 * 1024 * 1024;
+
 const identifySchema = z.object({
-  imageBase64: z.string().min(1, "Image is required"),
+  imageBase64: z.string().min(1, "Image is required").max(MAX_BASE64_SIZE, "Image too large (max 5MB)"),
 });
 
 const ingredientSchema = z.object({
-  productId: z.number(),
-  productName: z.string(),
-  quantityUsed: z.number().positive(),
+  productId: z.number().int().positive(),
+  productName: z.string().min(1).max(200),
+  quantityUsed: z.number().positive().max(10000),
   unit: z.string().nullable().optional(),
-  category: z.string(),
-  unitPrice: z.number(),
-  co2Emission: z.number().optional(),
+  category: z.string().max(50),
+  unitPrice: z.number().min(0).max(100000),
+  co2Emission: z.number().min(0).max(10000).optional(),
 });
 
 const analyzeWasteSchema = z.object({
-  imageBase64: z.string().min(1, "Image is required"),
-  ingredients: z.array(ingredientSchema).min(1, "Ingredients are required"),
+  imageBase64: z.string().min(1, "Image is required").max(MAX_BASE64_SIZE, "Image too large (max 5MB)"),
+  ingredients: z.array(ingredientSchema).min(1, "Ingredients are required").max(50, "Too many ingredients"),
 });
 
 const confirmIngredientsSchema = z.object({
-  ingredients: z.array(z.object({
-    productId: z.number(),
-    productName: z.string(),
-    quantityUsed: z.number().positive(),
-    unit: z.string().nullable().optional(),
-    category: z.string(),
-    unitPrice: z.number(),
-    co2Emission: z.number().optional(),
-  })).min(1, "Ingredients are required"),
-  pendingRecordId: z.number().optional(),
+  ingredients: z.array(ingredientSchema).min(1, "Ingredients are required").max(50, "Too many ingredients"),
+  pendingRecordId: z.number().int().positive().optional(),
+});
+
+const wasteItemSchema = z.object({
+  productId: z.number().int().positive(),
+  productName: z.string().min(1).max(200),
+  quantityWasted: z.number().min(0).max(10000),
 });
 
 const confirmWasteSchema = z.object({
-  ingredients: z.array(z.object({
-    productId: z.number(),
-    productName: z.string(),
-    quantityUsed: z.number().positive(),
-    unit: z.string().nullable().optional(),
-    interactionId: z.number().optional(),
-    category: z.string(),
-    unitPrice: z.number(),
-    co2Emission: z.number().optional(),
-  })).min(1, "Ingredients are required"),
-  wasteItems: z.array(z.object({
-    productId: z.number(),
-    productName: z.string(),
-    quantityWasted: z.number(),
-  })),
-  pendingRecordId: z.number().optional(),
+  ingredients: z.array(ingredientSchema.extend({
+    interactionId: z.number().int().positive().optional(),
+  })).min(1, "Ingredients are required").max(50, "Too many ingredients"),
+  wasteItems: z.array(wasteItemSchema).max(50, "Too many waste items"),
+  pendingRecordId: z.number().int().positive().optional(),
 });
 
 // ==================== Route Registration ====================
@@ -470,22 +462,28 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
       const todayDate = new Date().toISOString().split("T")[0];
 
       for (const ing of ingredients) {
-        // 1. Record Consume interaction with full quantity
+        // Fetch product first to get unit for normalization
+        const product = await db.query.products.findFirst({
+          where: eq(products.id, ing.productId)
+        });
+        const quantityInKg = convertToKg(ing.quantityUsed, product?.unit);
+
+        // 1. Record consumed interaction with normalized quantity
         const [interaction] = await db.insert(productSustainabilityMetrics).values({
           productId: ing.productId,
           userId: user.id,
           todayDate,
-          quantity: ing.quantityUsed,
+          quantity: quantityInKg,
           unit: ing.unit || null,
-          type: "Consume",
+          type: "consumed",
         }).returning();
 
         interactionIds.push(interaction.id);
 
-        // 2. Deduct from product quantity
-        const product = await db.query.products.findFirst({
-          where: eq(products.id, ing.productId)
-        });
+        // 2. Award points with normalized quantity (skip metric recording since we already recorded above)
+        await awardPoints(user.id, "consumed", ing.productId, quantityInKg, true);
+
+        // 3. Deduct from product quantity (keep raw unit — this is inventory, not points)
         if (product) {
           await db.update(products)
             .set({ quantity: Math.max(0, product.quantity - ing.quantityUsed) })
@@ -534,25 +532,25 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
         // Find waste for this ingredient
         const waste = wasteItems.find(w => w.productId === ing.productId);
         const wastedQty = waste?.quantityWasted || 0;
-        const consumedQty = ing.quantityUsed - wastedQty;
 
-        // 1. Update existing Consume interaction (reduce to actual consumed)
-        if (ing.interactionId) {
-          await db.update(productSustainabilityMetrics)
-            .set({ quantity: consumedQty })
-            .where(eq(productSustainabilityMetrics.id, ing.interactionId));
-        }
-
-        // 2. Create Waste interaction if any waste
+        // 1. Create wasted interaction if any waste
         if (wastedQty > 0) {
+          const product = await db.query.products.findFirst({
+            where: eq(products.id, ing.productId)
+          });
+          const wastedInKg = convertToKg(wastedQty, product?.unit);
+
           await db.insert(productSustainabilityMetrics).values({
             productId: ing.productId,
             userId: user.id,
             todayDate,
-            quantity: wastedQty,
+            quantity: wastedInKg,
             unit: ing.unit || null,
-            type: "Waste",
+            type: "wasted",
           });
+
+          // Penalize points for waste (skip metric recording since we already recorded above)
+          await awardPoints(user.id, "wasted", ing.productId, wastedInKg, true);
         }
       }
 

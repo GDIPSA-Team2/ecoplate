@@ -70,7 +70,14 @@ export const CATEGORY_FALLBACKS: Record<string, number> = {
   other: 2.0,
 };
 
+export const DISPOSAL_EMISSION_FACTORS: Record<string, number> = {
+  landfill: 0.5,
+  composting: 0.1,
+  incineration: 0.9,
+};
+
 const DEFAULT_EMISSION_FACTOR = 2.0;
+const DEFAULT_DISPOSAL_METHOD = "landfill";
 
 // ==================== Types ====================
 
@@ -92,6 +99,7 @@ export interface WasteItem {
 export interface WasteMetrics {
   totalCO2Wasted: number;
   totalCO2Saved: number;
+  disposalCO2: number;
   totalEconomicWaste: number;
   totalEconomicConsumed: number;
   wastePercentage: number;
@@ -158,7 +166,8 @@ export function getSustainabilityRating(score: number): string {
  */
 export function calculateWasteMetrics(
   ingredients: IngredientInput[],
-  wasteItems: WasteItem[]
+  wasteItems: WasteItem[],
+  disposalMethod: string = DEFAULT_DISPOSAL_METHOD
 ): WasteMetrics {
   // Build waste lookup by productId or productName
   const wasteMap = new Map<string, number>();
@@ -223,6 +232,10 @@ export function calculateWasteMetrics(
   const wastePercentage =
     totalUsedWeight > 0 ? (totalWasteWeight / totalUsedWeight) * 100 : 0;
 
+  // Calculate disposal CO2 based on method
+  const disposalFactor = DISPOSAL_EMISSION_FACTORS[disposalMethod] ?? DISPOSAL_EMISSION_FACTORS.landfill;
+  const disposalCO2 = totalWasteWeight * disposalFactor;
+
   // Composite sustainability score (0-100, lower is better)
   // Economic component: waste cost ratio
   const totalCost = totalEconomicWaste + totalEconomicConsumed;
@@ -246,6 +259,7 @@ export function calculateWasteMetrics(
   return {
     totalCO2Wasted: round2(totalCO2Wasted),
     totalCO2Saved: round2(totalCO2Saved),
+    disposalCO2: round2(disposalCO2),
     totalEconomicWaste: round2(totalEconomicWaste),
     totalEconomicConsumed: round2(totalEconomicConsumed),
     wastePercentage: round2(wastePercentage),
@@ -288,7 +302,7 @@ export async function recordConsumptionInteractions(
         userId,
         todayDate,
         quantity: consumedQty,
-        type: "Consume",
+        type: "consumed",
       });
       count++;
     }
@@ -299,7 +313,7 @@ export async function recordConsumptionInteractions(
         userId,
         todayDate,
         quantity: wastedQty,
-        type: "Waste",
+        type: "wasted",
       });
       count++;
     }

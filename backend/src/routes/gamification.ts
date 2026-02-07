@@ -1,67 +1,88 @@
 import { Router, json } from "../utils/router";
-import { db } from "../index";
+import { db } from "../db/connection";
 import * as schema from "../db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { getUser } from "../middleware/auth";
 import { getOrCreateUserPoints, getUserMetrics, getDetailedPointsStats, awardPoints } from "../services/gamification-service";
 import { POINT_VALUES } from "../services/gamification-service";
+import { getBadgeProgress } from "../services/badge-service";
 
 export function registerGamificationRoutes(router: Router) {
   // ================================
   // GET /api/v1/gamification/points
   // ================================
   router.get("/api/v1/gamification/points", async (req) => {
-    const user = getUser(req);
+    try {
+      const user = getUser(req);
 
-    const points = await getOrCreateUserPoints(user.id);
-    const detailedStats = await getDetailedPointsStats(user.id);
+      const points = await getOrCreateUserPoints(user.id);
+      const detailedStats = await getDetailedPointsStats(user.id);
 
-    // Get recent interactions as "transactions" for the UI
-    const recentInteractions = await db.query.productSustainabilityMetrics.findMany({
-      where: eq(schema.productSustainabilityMetrics.userId, user.id),
-      orderBy: [desc(schema.productSustainabilityMetrics.todayDate)],
-      limit: 20,
-      with: {
-        product: {
-          columns: { productName: true },
+      // Get recent interactions as "transactions" for the UI
+      const recentInteractions = await db.query.productSustainabilityMetrics.findMany({
+        where: eq(schema.productSustainabilityMetrics.userId, user.id),
+        orderBy: [
+          desc(schema.productSustainabilityMetrics.todayDate),
+          desc(schema.productSustainabilityMetrics.id),
+        ],
+        limit: 20,
+        with: {
+          product: {
+            columns: { productName: true, unit: true },
+          },
         },
-      },
-    });
+      });
 
-    // Map interactions to transaction like format
-    const transactions = recentInteractions.map((i) => {
-      const amount = POINT_VALUES[i.type as keyof typeof POINT_VALUES] ?? 0;
+      // Map interactions to transaction like format, filtering out "add" entries
+      const transactions = recentInteractions
+        .filter((i) => {
+          const t = (i.type || "").toLowerCase();
+          return t !== "add" && t !== "shared";
+        })
+        .map((i) => {
+          const normalizedType = (i.type || "").toLowerCase() as keyof typeof POINT_VALUES;
+          const baseAmount = POINT_VALUES[normalizedType] ?? 0;
+          const scaled = Math.round(baseAmount * (i.quantity ?? 1));
+          const amount = scaled === 0 ? Math.sign(baseAmount) : scaled;
 
-      return {
-        id: i.id,
-        amount,
-        type: amount < 0 ? "penalty" : "earned",
-        action: i.type,
-        createdAt: i.todayDate,
-      };
-    });
+          return {
+            id: i.id,
+            amount,
+            type: amount < 0 ? "penalty" : "earned",
+            action: normalizedType,
+            createdAt: i.todayDate,
+            productName: i.product?.productName || (({ sold: "Sold", consumed: "Consumed", wasted: "Wasted" } as Record<string, string>)[normalizedType] ?? normalizedType),
+            quantity: i.quantity ?? 1,
+            unit: i.product?.unit ?? "pcs",
+          };
+        });
 
-    return json({
-      points: {
-        total: points.totalPoints,
-        available: points.totalPoints,
-        lifetime: points.totalPoints,
-        currentStreak: points.currentStreak,
-        longestStreak: detailedStats.longestStreak,
-      },
-      stats: {
-        totalActiveDays: detailedStats.totalActiveDays,
-        lastActiveDate: detailedStats.lastActiveDate,
-        firstActivityDate: detailedStats.firstActivityDate,
-        pointsToday: detailedStats.pointsToday,
-        pointsThisWeek: detailedStats.pointsThisWeek,
-        pointsThisMonth: detailedStats.pointsThisMonth,
-        bestDayPoints: detailedStats.bestDayPoints,
-        averagePointsPerActiveDay: detailedStats.averagePointsPerActiveDay,
-      },
-      breakdown: detailedStats.breakdownByType,
-      transactions,
-    });
+      return json({
+        points: {
+          total: points.totalPoints,
+          available: points.totalPoints,
+          lifetime: points.totalPoints,
+          currentStreak: points.currentStreak,
+          longestStreak: detailedStats.longestStreak,
+        },
+        stats: {
+          totalActiveDays: detailedStats.totalActiveDays,
+          lastActiveDate: detailedStats.lastActiveDate,
+          firstActivityDate: detailedStats.firstActivityDate,
+          pointsToday: detailedStats.pointsToday,
+          pointsThisWeek: detailedStats.pointsThisWeek,
+          pointsThisMonth: detailedStats.pointsThisMonth,
+          bestDayPoints: detailedStats.bestDayPoints,
+          averagePointsPerActiveDay: detailedStats.averagePointsPerActiveDay,
+        },
+        breakdown: detailedStats.breakdownByType,
+        pointsByMonth: detailedStats.pointsByMonth,
+        transactions,
+      });
+    } catch (error) {
+      console.error("Error fetching gamification points:", error);
+      return json({ error: "Failed to fetch points data" }, 500);
+    }
   });
 
   // ================================
@@ -122,7 +143,10 @@ export function registerGamificationRoutes(router: Router) {
 
     const earnedBadgeIds = new Set(earnedBadges.map((ub) => ub.badgeId));
 
-    // Combine all badges with earned status
+    // Get progress data for all badges
+    const progress = await getBadgeProgress(user.id);
+
+    // Combine all badges with earned status and progress
     const badgesWithStatus = allBadges.map((badge) => ({
       id: badge.id,
       code: badge.code,
@@ -133,6 +157,7 @@ export function registerGamificationRoutes(router: Router) {
       imageUrl: badge.badgeImageUrl,
       earned: earnedBadgeIds.has(badge.id),
       earnedAt: earnedBadges.find((ub) => ub.badgeId === badge.id)?.earnedAt || null,
+      progress: progress[badge.code] || null,
     }));
 
     return json({
@@ -178,6 +203,22 @@ export function registerGamificationRoutes(router: Router) {
         wasteReductionRate: metrics.wasteReductionRate,
         co2Saved: metrics.estimatedCo2Saved,
       },
+    });
+  });
+
+  // ================================
+  // POST /api/v1/gamification/sync-badges
+  // Check and award any badges the user has earned but not received
+  // ================================
+  router.post("/api/v1/gamification/sync-badges", async (req) => {
+    const user = getUser(req);
+
+    const { checkAndAwardBadges } = await import("../services/badge-service");
+    const newBadges = await checkAndAwardBadges(user.id);
+
+    return json({
+      message: newBadges.length > 0 ? `Awarded ${newBadges.length} new badges` : "No new badges earned",
+      newBadges,
     });
   });
 

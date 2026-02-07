@@ -508,7 +508,7 @@ function AddProductModal({
         description: description || undefined,
         co2Emission: calculatedCO2,
       });
-      addToast("Product added! +2 points", "success");
+      addToast("Product added!", "success");
       onAdded();
     } catch (error) {
       addToast("Failed to add product", "error");
@@ -733,7 +733,7 @@ function ScanReceiptModal({
         setScannedItems(
           response.items.map((item) => ({
             ...item,
-            id: Math.random().toString(36).slice(2),
+            id: crypto.randomUUID(),
           }))
         );
 
@@ -934,8 +934,7 @@ function ScanReceiptModal({
         });
         addedCount++;
       }
-      const points = addedCount * 2;
-      addToast(`Added ${addedCount} items to your fridge! +${points} points`, "success");
+      addToast(`Added ${addedCount} items to your fridge!`, "success");
       onScanned();
     } catch {
       if (addedCount > 0) {
@@ -1185,9 +1184,9 @@ function ScanReceiptModal({
                 className="w-full h-auto py-4 flex flex-col items-center gap-2"
                 onClick={handleOpenCamera}
               >
-                <Camera className="h-8 w-8 text-muted-foreground" />
-                <span className="font-medium">Take Photo</span>
-                <span className="text-xs text-muted">
+                <Camera className="h-8 w-8 text-primary" />
+                <span className="font-medium text-foreground">Take Photo</span>
+                <span className="text-xs text-muted-foreground">
                   Use your camera to capture a receipt
                 </span>
               </Button>
@@ -1195,7 +1194,7 @@ function ScanReceiptModal({
               {/* Divider */}
               <div className="flex items-center gap-3">
                 <div className="flex-1 border-t border-border" />
-                <span className="text-xs text-muted">or</span>
+                <span className="text-xs text-muted-foreground">or</span>
                 <div className="flex-1 border-t border-border" />
               </div>
 
@@ -1205,7 +1204,7 @@ function ScanReceiptModal({
                   "border-2 border-dashed rounded-lg p-6 transition-colors cursor-pointer text-center",
                   isDragging
                     ? "border-primary bg-primary/5"
-                    : "border-border hover:border-border/80"
+                    : "border-muted-foreground/30 hover:border-primary/50"
                 )}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -1220,11 +1219,11 @@ function ScanReceiptModal({
                 }}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <Upload className="h-8 w-8 mx-auto text-muted mb-2" />
+                <Upload className="h-8 w-8 mx-auto text-primary mb-2" />
                 <p className="text-foreground font-medium text-sm">
                   {isDragging ? "Drop your receipt here" : "Upload from files"}
                 </p>
-                <p className="text-xs text-muted mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   Drag and drop, or click to browse
                 </p>
               </div>
@@ -1685,7 +1684,7 @@ function TrackConsumptionModal({
         // Add unique IDs to each ingredient for React keys
         const ingredientsWithIds = response.ingredients.map((ing) => ({
           ...ing,
-          id: Math.random().toString(36).slice(2),
+          id: crypto.randomUUID(),
         }));
 
         setIngredients(ingredientsWithIds);
@@ -1751,7 +1750,7 @@ function TrackConsumptionModal({
 
         // Convert waste items to editable format with productId
         const wasteItemsWithIds = response.wasteAnalysis.wasteItems.map((item) => ({
-          id: Math.random().toString(36).slice(2),
+          id: crypto.randomUUID(),
           productId: item.productId,
           productName: item.productName,
           quantity: item.quantityWasted,
@@ -1841,7 +1840,7 @@ function TrackConsumptionModal({
     setIngredients((prev) => [
       ...prev,
       {
-        id: Math.random().toString(36).slice(2),
+        id: crypto.randomUUID(),
         productId: 0,
         name: "",
         matchedProductName: "",
@@ -1869,7 +1868,7 @@ function TrackConsumptionModal({
     setEditableWasteItems((prev) => [
       ...prev,
       {
-        id: Math.random().toString(36).slice(2),
+        id: crypto.randomUUID(),
         productName: "",
         quantity: 1,
         unit: null,
@@ -2074,14 +2073,14 @@ function TrackConsumptionModal({
               className="w-full h-auto py-4 flex flex-col items-center gap-2"
               onClick={handleOpenCamera}
             >
-              <Camera className="h-8 w-8 text-muted-foreground" />
-              <span className="font-medium">Take Photo</span>
-              <span className="text-xs text-muted">{cameraLabel}</span>
+              <Camera className="h-8 w-8 text-primary" />
+              <span className="font-medium text-foreground">Take Photo</span>
+              <span className="text-xs text-muted-foreground">{cameraLabel}</span>
             </Button>
 
             <div className="flex items-center gap-3">
               <div className="flex-1 border-t border-border" />
-              <span className="text-xs text-muted">or</span>
+              <span className="text-xs text-muted-foreground">or</span>
               <div className="flex-1 border-t border-border" />
             </div>
 
@@ -2090,7 +2089,7 @@ function TrackConsumptionModal({
                 "border-2 border-dashed rounded-lg p-6 transition-colors cursor-pointer text-center",
                 isDragging
                   ? "border-primary bg-primary/5"
-                  : "border-border hover:border-border/80"
+                  : "border-muted-foreground/30 hover:border-primary/50"
               )}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -2105,11 +2104,11 @@ function TrackConsumptionModal({
               }}
               onClick={() => fileInputRef.current?.click()}
             >
-              <Upload className="h-8 w-8 mx-auto text-muted mb-2" />
+              <Upload className="h-8 w-8 mx-auto text-primary mb-2" />
               <p className="text-foreground font-medium text-sm">
                 {isDragging ? "Drop your photo here" : "Upload from files"}
               </p>
-              <p className="text-xs text-muted mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Drag and drop, or click to browse
               </p>
             </div>
@@ -2449,14 +2448,14 @@ function TrackConsumptionModal({
                 className="w-full h-auto py-4 flex flex-col items-center gap-2"
                 onClick={handleOpenCamera}
               >
-                <Camera className="h-8 w-8 text-muted-foreground" />
-                <span className="font-medium">Take Photo</span>
-                <span className="text-xs text-muted">Capture your plate after eating</span>
+                <Camera className="h-8 w-8 text-primary" />
+                <span className="font-medium text-foreground">Take Photo</span>
+                <span className="text-xs text-muted-foreground">Capture your plate after eating</span>
               </Button>
 
               <div className="flex items-center gap-3">
                 <div className="flex-1 border-t border-border" />
-                <span className="text-xs text-muted">or</span>
+                <span className="text-xs text-muted-foreground">or</span>
                 <div className="flex-1 border-t border-border" />
               </div>
 
@@ -2465,7 +2464,7 @@ function TrackConsumptionModal({
                   "border-2 border-dashed rounded-lg p-6 transition-colors cursor-pointer text-center",
                   isDragging
                     ? "border-primary bg-primary/5"
-                    : "border-border hover:border-border/80"
+                    : "border-muted-foreground/30 hover:border-primary/50"
                 )}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -2480,11 +2479,11 @@ function TrackConsumptionModal({
                 }}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <Upload className="h-8 w-8 mx-auto text-muted mb-2" />
+                <Upload className="h-8 w-8 mx-auto text-primary mb-2" />
                 <p className="text-foreground font-medium text-sm">
                   {isDragging ? "Drop your photo here" : "Upload from files"}
                 </p>
-                <p className="text-xs text-muted mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   Drag and drop, or click to browse
                 </p>
               </div>
