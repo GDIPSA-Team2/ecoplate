@@ -6,9 +6,11 @@ import { Capacitor } from "@capacitor/core";
  */
 
 // Use relative URLs on web (goes through Vite proxy), full URL on mobile
+// VITE_API_URL includes /api/v1 suffix, but upload paths already include it
+// and static file URLs (uploads/) must not have it — so we strip it here
 const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
-const API_BASE_URL = isNative
-  ? (import.meta.env.VITE_API_URL || "http://10.0.2.2:3000")
+const SERVER_ORIGIN = isNative
+  ? (import.meta.env.VITE_API_URL || "http://10.0.2.2:3000").replace(/\/api\/v1\/?$/, "")
   : "";
 
 export interface UploadImageResponse {
@@ -36,7 +38,7 @@ export const uploadService = {
       throw new Error("Not authenticated");
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/v1/upload/image`, {
+    const response = await fetch(`${SERVER_ORIGIN}/api/v1/upload/image`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -77,7 +79,7 @@ export const uploadService = {
       throw new Error("Not authenticated");
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/v1/upload/images`, {
+    const response = await fetch(`${SERVER_ORIGIN}/api/v1/upload/images`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -105,9 +107,9 @@ export const uploadService = {
     }
     // Handle URLs that already start with /
     if (imageUrl.startsWith("/")) {
-      return `${API_BASE_URL}${imageUrl}`;
+      return `${SERVER_ORIGIN}${imageUrl}`;
     }
-    return `${API_BASE_URL}/${imageUrl}`;
+    return `${SERVER_ORIGIN}/${imageUrl}`;
   },
 
   /**
