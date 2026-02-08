@@ -95,9 +95,11 @@ COPY --from=ecolocker-builder /app/ecolocker/dist ./public/ecolocker
 # Copy entrypoint script
 COPY entrypoint.sh ./entrypoint.sh
 
-# Remove any remaining Go binaries from entire image (Trivy CVE-2024-24790, CVE-2023-39325)
-# Go binaries may exist in base image tools, not just node_modules
-RUN grep -rl "Go BuildID" /usr/local/bin/ /app/ 2>/dev/null | xargs rm -f 2>/dev/null || true
+# Remove Go binaries from entire image and clean Bun global cache
+# Bun caches esbuild Go binaries at /root/.bun/install/cache/ which trigger Trivy CVEs
+# Also removes bun-types docs containing example Stripe key (Trivy false positive)
+RUN grep -rl "Go BuildID" /usr/local/bin/ /app/ /root/.bun/ 2>/dev/null | xargs rm -f 2>/dev/null || true && \
+    rm -rf /root/.bun/install/cache
 
 # Create data directory for SQLite and make entrypoint executable
 RUN mkdir -p /app/data && chmod +x /app/entrypoint.sh && chown -R ecoplate:ecoplate /app

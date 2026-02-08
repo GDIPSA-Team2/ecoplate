@@ -145,6 +145,12 @@ def parse_trufflehog(reports_dir):
             continue
         try:
             obj = json.loads(line)
+            # Skip trufflehog log/status lines (they have "level" and "msg" fields)
+            # Only actual secret findings have "SourceMetadata" and "DetectorName"
+            if "level" in obj or "msg" in obj:
+                continue
+            if "SourceMetadata" not in obj and "DetectorName" not in obj:
+                continue
             # Extract location from git history OR filesystem metadata
             source_meta = obj.get("SourceMetadata", {}).get("Data", {})
             git_meta = source_meta.get("Git", {})
@@ -345,14 +351,10 @@ def parse_zap(reports_dir, subdir, label):
             if alert_name in ZAP_SUPPRESSED_ALERTS:
                 continue
 
-            risk = alert.get("riskdesc", "").lower()
-            sev = "info"
-            if "high" in risk:
-                sev = "high"
-            elif "medium" in risk:
-                sev = "medium"
-            elif "low" in risk:
-                sev = "low"
+            # Use riskcode (numeric) instead of riskdesc to avoid confusing
+            # confidence with severity (e.g. "Informational (High)" != HIGH)
+            risk_code = str(alert.get("riskcode", "0"))
+            sev = {"3": "high", "2": "medium", "1": "low"}.get(risk_code, "info")
             findings.append(Finding(
                 title=alert_name,
                 severity=sev,
