@@ -43,6 +43,9 @@ jobs:
 
       - name: Resolve original branch and commit
         id: meta
+        env:
+          WR_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          WR_COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           if [ -f reports/metadata/pipeline-metadata.json ]; then
             BRANCH=$(python3 -c "import json; print(json.load(open('reports/metadata/pipeline-metadata.json'))['branch'])")
@@ -51,8 +54,8 @@ jobs:
             echo "commit=$COMMIT" >> $GITHUB_OUTPUT
             echo "Resolved from pipeline metadata: branch=$BRANCH commit=$COMMIT"
           else
-            echo "branch=${{ github.event.workflow_run.head_branch || github.ref_name }}" >> $GITHUB_OUTPUT
-            echo "commit=${{ github.event.workflow_run.head_sha || github.sha }}" >> $GITHUB_OUTPUT
+            echo "branch=$WR_BRANCH" >> $GITHUB_OUTPUT
+            echo "commit=$WR_COMMIT" >> $GITHUB_OUTPUT
             echo "Fallback to workflow_run event data"
           fi
 
