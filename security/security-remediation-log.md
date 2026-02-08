@@ -187,8 +187,29 @@ Root cause analysis: several fixes from Round 1 did not take effect due to deplo
 
 ---
 
+## Round 4 Fixes (Post Third Scan — New Trivy CVEs from Base Image)
+
+Root cause: Docker base image `oven/bun:1.2-alpine` is a floating tag. Between scans, it resolved to a different image containing Go binaries compiled with Go 1.20.7 and Go 1.23.12, introducing new CVEs.
+
+### 20. Trivy — New Go Binary CVEs (CVE-2024-24790, CVE-2023-39325, CVE-2025-58183)
+
+- **Severity:** CRITICAL + 2x HIGH + 12x MEDIUM
+- **Root Cause:** `oven/bun:1.2-alpine` floating tag resolved to image with Go binaries that have known vulnerabilities
+- **Fix (pin version):** Changed all `FROM oven/bun:1.2-alpine` to `FROM oven/bun:1.2.5-alpine` for reproducible builds
+- **Fix (Go binary cleanup):** Added `grep -rl "Go BuildID" node_modules/ | xargs rm -f` to remove any Go-compiled binaries from production image
+- **File Changed:** `Dockerfile`
+
+### 21. Fixes Not Reaching main Branch
+
+- **Root Cause:** All previous fixes were committed to `dev` branch but never merged to `main`. Security scan pipeline runs on `main`.
+- **Fix:** Merge `dev` into `main` before next scan
+- **Impact:** npm audit (2H + 2M), ZAP Server leak (2H), ZAP Content-Type (1H) will all be resolved after merge
+
+---
+
 ## Remaining Items (Manual Action Required)
 
 1. **Rotate compromised credentials** detected by Trufflehog in git history
 2. **CSP unsafe-inline** — accepted risk until nonce-based CSP can be implemented
 3. **Sec-Fetch-* headers** — accepted risk (ZAP scanner false positives)
+4. **Merge `dev` to `main`** — all code fixes are on dev but scan runs on main
