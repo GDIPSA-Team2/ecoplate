@@ -59,8 +59,14 @@ jobs:
         if: always()
         run: |
           echo "## Backend Test Results" >> $GITHUB_STEP_SUMMARY
+          # Extract summary line
+          SUMMARY=$(grep -E "^\s*[0-9]+ pass" backend/test-output.txt | tail -1 || echo "No results")
+          echo "✅ **$SUMMARY**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          # Extract coverage table only
+          echo "### Coverage" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat backend/test-output.txt >> $GITHUB_STEP_SUMMARY
+          sed -n '/^-.*|.*|.*|/,/^-.*|.*|.*|/p' backend/test-output.txt | head -20 >> $GITHUB_STEP_SUMMARY || echo "See job logs for details"
           echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Upload backend coverage
         if: always()
@@ -85,8 +91,14 @@ jobs:
         if: always()
         run: |
           echo "## Frontend Test Results" >> $GITHUB_STEP_SUMMARY
+          # Extract summary line
+          SUMMARY=$(grep -E "^\s*[0-9]+ pass" frontend/test-output.txt | tail -1 || echo "No results")
+          echo "✅ **$SUMMARY**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          # Extract coverage table only
+          echo "### Coverage" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat frontend/test-output.txt >> $GITHUB_STEP_SUMMARY
+          sed -n '/^-.*|.*|.*|/,/^-.*|.*|.*|/p' frontend/test-output.txt | head -20 >> $GITHUB_STEP_SUMMARY || echo "See job logs for details"
           echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Upload frontend coverage
         if: always()
@@ -121,8 +133,14 @@ jobs:
         if: always()
         run: |
           echo "## Recommendation Engine Test Results" >> $GITHUB_STEP_SUMMARY
+          # Extract pytest summary (e.g., "X passed in Y seconds")
+          SUMMARY=$(grep -E "passed|failed" recommendation-engine/test-output.txt | grep -E "^=.*=$" | tail -1 || echo "No results")
+          echo "✅ **$SUMMARY**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          # Extract coverage summary
+          echo "### Coverage" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat recommendation-engine/test-output.txt >> $GITHUB_STEP_SUMMARY
+          grep -E "^(TOTAL|Name|--)" recommendation-engine/test-output.txt | head -10 >> $GITHUB_STEP_SUMMARY || echo "See job logs for details"
           echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Upload recommendation coverage
         if: always()
@@ -1068,13 +1086,14 @@ jobs:
         if: always()
         run: |
           echo "## E2E Selenium Test Results" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
           if [ -f e2e/test-output.log ]; then
-            cat e2e/test-output.log >> $GITHUB_STEP_SUMMARY
+            # Extract pass/fail counts
+            PASSED=$(grep -c "✓\|PASSED\|passed" e2e/test-output.log 2>/dev/null || echo "0")
+            FAILED=$(grep -c "✗\|FAILED\|failed" e2e/test-output.log 2>/dev/null || echo "0")
+            echo "✅ **$PASSED passed, $FAILED failed**" >> $GITHUB_STEP_SUMMARY
           else
-            echo "No test output available" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ No test output available" >> $GITHUB_STEP_SUMMARY
           fi
-          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload test screenshots
         if: always()
