@@ -36,7 +36,7 @@ const ingredientSchema = z.object({
 
 const analyzeWasteSchema = z.object({
   imageBase64: z.string().min(1, "Image is required").max(MAX_BASE64_SIZE, "Image too large (max 5MB)"),
-  ingredients: z.array(ingredientSchema).min(1, "Ingredients are required").max(50, "Too many ingredients"),
+  ingredients: z.array(ingredientSchema).max(50, "Too many ingredients"),
 });
 
 const confirmIngredientsSchema = z.object({
@@ -53,7 +53,7 @@ const wasteItemSchema = z.object({
 const confirmWasteSchema = z.object({
   ingredients: z.array(ingredientSchema.extend({
     interactionId: z.number().int().positive().optional(),
-  })).min(1, "Ingredients are required").max(50, "Too many ingredients"),
+  })).max(50, "Too many ingredients"),
   wasteItems: z.array(wasteItemSchema).max(50, "Too many waste items"),
   pendingRecordId: z.number().int().positive().optional(),
 });
@@ -279,7 +279,7 @@ Return an empty ingredients array if no food ingredients are visible.`,
   // API 2: Analyze waste from a photo of leftover food
   router.post("/api/v1/consumption/analyze-waste", async (req) => {
     try {
-      const user = getUser(req);
+      getUser(req);
       const body = await parseBody(req);
 
       const parsed = analyzeWasteSchema.safeParse(body);
@@ -452,7 +452,7 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
     try {
       const user = getUser(req);
       console.log("[confirm-ingredients] User:", user.id);
-      const body = await parseBody(req);
+      const body = await parseBody<{ ingredients?: unknown[]; pendingRecordId?: number }>(req);
       console.log("[confirm-ingredients] Body received:", {
         ingredientsCount: Array.isArray(body?.ingredients) ? body.ingredients.length : 'not array',
         pendingRecordId: body?.pendingRecordId,
