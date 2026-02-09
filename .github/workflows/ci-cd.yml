@@ -826,32 +826,70 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Download all artifacts
+      - name: Download Semgrep report
         uses: actions/download-artifact@v4
-        with:
-          path: all-artifacts
+        with: { name: semgrep-report, path: reports/semgrep }
+        continue-on-error: true
 
-      - name: Map artifacts to report directories
-        run: |
-          mkdir -p reports/semgrep reports/bandit reports/trufflehog \
-                   reports/pip-audit reports/js-audit reports/checkov \
-                   reports/license reports/sbom reports/trivy-app \
-                   reports/trivy-rec reports/container-sbom \
-                   reports/zap-baseline reports/zap-api
+      - name: Download Bandit report
+        uses: actions/download-artifact@v4
+        with: { name: bandit-report, path: reports/bandit }
+        continue-on-error: true
 
-          cp all-artifacts/semgrep-report/* reports/semgrep/ || true
-          cp all-artifacts/bandit-report/* reports/bandit/ || true
-          cp all-artifacts/trufflehog-report/* reports/trufflehog/ || true
-          cp all-artifacts/pip-audit-report/* reports/pip-audit/ || true
-          cp all-artifacts/js-audit-reports/* reports/js-audit/ || true
-          cp all-artifacts/checkov-report/* reports/checkov/ || true
-          cp all-artifacts/license-report/* reports/license/ || true
-          cp all-artifacts/sbom/* reports/sbom/ || true
-          cp all-artifacts/trivy-app-report/* reports/trivy-app/ || true
-          cp all-artifacts/trivy-rec-report/* reports/trivy-rec/ || true
-          cp all-artifacts/container-sbom/* reports/container-sbom/ || true
-          cp all-artifacts/zap-baseline-report/* reports/zap-baseline/ || true
-          cp all-artifacts/zap-api-report/* reports/zap-api/ || true
+      - name: Download Trufflehog report
+        uses: actions/download-artifact@v4
+        with: { name: trufflehog-report, path: reports/trufflehog }
+        continue-on-error: true
+
+      - name: Download pip-audit report
+        uses: actions/download-artifact@v4
+        with: { name: pip-audit-report, path: reports/pip-audit }
+        continue-on-error: true
+
+      - name: Download JS audit reports
+        uses: actions/download-artifact@v4
+        with: { name: js-audit-reports, path: reports/js-audit }
+        continue-on-error: true
+
+      - name: Download Checkov report
+        uses: actions/download-artifact@v4
+        with: { name: checkov-report, path: reports/checkov }
+        continue-on-error: true
+
+      - name: Download License report
+        uses: actions/download-artifact@v4
+        with: { name: license-report, path: reports/license }
+        continue-on-error: true
+
+      - name: Download SBOM
+        uses: actions/download-artifact@v4
+        with: { name: sbom, path: reports/sbom }
+        continue-on-error: true
+
+      - name: Download Trivy app report
+        uses: actions/download-artifact@v4
+        with: { name: trivy-app-report, path: reports/trivy-app }
+        continue-on-error: true
+
+      - name: Download Trivy rec report
+        uses: actions/download-artifact@v4
+        with: { name: trivy-rec-report, path: reports/trivy-rec }
+        continue-on-error: true
+
+      - name: Download Container SBOM
+        uses: actions/download-artifact@v4
+        with: { name: container-sbom, path: reports/container-sbom }
+        continue-on-error: true
+
+      - name: Download ZAP Baseline report
+        uses: actions/download-artifact@v4
+        with: { name: zap-baseline-report, path: reports/zap-baseline }
+        continue-on-error: true
+
+      - name: Download ZAP API report
+        uses: actions/download-artifact@v4
+        with: { name: zap-api-report, path: reports/zap-api }
+        continue-on-error: true
 
       - name: Check report completeness
         run: |
