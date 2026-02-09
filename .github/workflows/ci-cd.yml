@@ -702,6 +702,8 @@ jobs:
           script: |
             echo "${{ secrets.GHCR_DEPLOY_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_DEPLOY_USER }}" --password-stdin
             cd /ecoplate
+            printf 'JWT_SECRET="%s"\nOPENAI_API_KEY="%s"\n' "$(echo '${{ secrets.JWT_SECRET }}' | tr -d '\n')" '${{ secrets.OPENAI_API_KEY }}' > deploy/.env
+            chmod 600 deploy/.env
             export IMAGE_TAG="${{ github.sha }}"
             export APP_IMAGE="${{ env.APP_IMAGE }}"
             export REC_IMAGE="${{ env.REC_IMAGE }}"
@@ -735,6 +737,8 @@ jobs:
           script: |
             echo "${{ secrets.GHCR_DEPLOY_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_DEPLOY_USER }}" --password-stdin
             cd /ecoplate
+            printf 'JWT_SECRET="%s"\nOPENAI_API_KEY="%s"\n' "$(echo '${{ secrets.JWT_SECRET }}' | tr -d '\n')" '${{ secrets.OPENAI_API_KEY }}' > deploy/.env
+            chmod 600 deploy/.env
             export IMAGE_TAG="${{ github.sha }}"
             export APP_IMAGE="${{ env.APP_IMAGE }}"
             export REC_IMAGE="${{ env.REC_IMAGE }}"
@@ -918,6 +922,18 @@ jobs:
             mkdir -p e2e/reports
             echo '<!DOCTYPE html><html><head><title>E2E Test Report</title></head><body><h1>E2E Test Report</h1><p>0 tests passed, 1 tests failed</p><p class="failed">Test execution failed - see workflow logs for details</p></body></html>' > e2e/reports/test-report.html
           fi
+
+      - name: Write E2E test summary
+        if: always()
+        run: |
+          echo "## E2E Selenium Test Results" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          if [ -f e2e/test-output.log ]; then
+            cat e2e/test-output.log >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No test output available" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload test screenshots
         if: always()

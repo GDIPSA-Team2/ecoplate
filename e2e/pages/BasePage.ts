@@ -1,5 +1,5 @@
 import { WebDriver, By, until, WebElement } from 'selenium-webdriver';
-import { config } from '../selenium.config.js';
+import { config } from '../selenium.config';
 
 export abstract class BasePage {
   protected driver: WebDriver;

@@ -1,5 +1,5 @@
 import { By } from 'selenium-webdriver';
-import { BasePage } from './BasePage.js';
+import { BasePage } from './BasePage';
 
 export class MyFridgePage extends BasePage {
   private scanReceiptButton = By.xpath("//button[contains(text(), 'Scan Receipt')]");

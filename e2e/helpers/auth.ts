@@ -1,7 +1,7 @@
 import { WebDriver } from 'selenium-webdriver';
-import { LoginPage } from '../pages/LoginPage.js';
-import { testUsers } from '../fixtures/users.js';
-import { config } from '../selenium.config.js';
+import { LoginPage } from '../pages/LoginPage';
+import { testUsers } from '../fixtures/users';
+import { config } from '../selenium.config';
 
 export async function loginAsTestUser(driver: WebDriver, userType: 'primary' | 'secondary' = 'primary'): Promise<void> {
   const loginPage = new LoginPage(driver);

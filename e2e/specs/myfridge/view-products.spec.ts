@@ -1,7 +1,7 @@
 import { WebDriver } from 'selenium-webdriver';
-import { createDriver, quitDriver, takeScreenshot } from '../../helpers/driver.js';
-import { MyFridgePage } from '../../pages/MyFridgePage.js';
-import { loginAsTestUser } from '../../helpers/auth.js';
+import { createDriver, quitDriver, takeScreenshot } from '../../helpers/driver';
+import { MyFridgePage } from '../../pages/MyFridgePage';
+import { loginAsTestUser } from '../../helpers/auth';
 
 describe('MyFridge - View Products', () => {
   let driver: WebDriver;

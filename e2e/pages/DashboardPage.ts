@@ -1,5 +1,5 @@
 import { By } from 'selenium-webdriver';
-import { BasePage } from './BasePage.js';
+import { BasePage } from './BasePage';
 
 export class DashboardPage extends BasePage {
   private greeting = By.css('h1');
