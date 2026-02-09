@@ -702,7 +702,7 @@ jobs:
           script: |
             echo "${{ secrets.GHCR_DEPLOY_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_DEPLOY_USER }}" --password-stdin
             cd /ecoplate
-            printf 'JWT_SECRET=%s\nOPENAI_API_KEY=%s\n' '${{ secrets.JWT_SECRET }}' '${{ secrets.OPENAI_API_KEY }}' > deploy/.env
+            printf 'JWT_SECRET="%s"\nOPENAI_API_KEY="%s"\n' "$(echo '${{ secrets.JWT_SECRET }}' | tr -d '\n')" '${{ secrets.OPENAI_API_KEY }}' > deploy/.env
             chmod 600 deploy/.env
             export IMAGE_TAG="${{ github.sha }}"
             export APP_IMAGE="${{ env.APP_IMAGE }}"
@@ -737,7 +737,7 @@ jobs:
           script: |
             echo "${{ secrets.GHCR_DEPLOY_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_DEPLOY_USER }}" --password-stdin
             cd /ecoplate
-            printf 'JWT_SECRET=%s\nOPENAI_API_KEY=%s\n' '${{ secrets.JWT_SECRET }}' '${{ secrets.OPENAI_API_KEY }}' > deploy/.env
+            printf 'JWT_SECRET="%s"\nOPENAI_API_KEY="%s"\n' "$(echo '${{ secrets.JWT_SECRET }}' | tr -d '\n')" '${{ secrets.OPENAI_API_KEY }}' > deploy/.env
             chmod 600 deploy/.env
             export IMAGE_TAG="${{ github.sha }}"
             export APP_IMAGE="${{ env.APP_IMAGE }}"
