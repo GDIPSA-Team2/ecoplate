@@ -1,10 +1,13 @@
 import { Router, json, error, parseBody } from "../utils/router";
-import { db } from "../index";
+import { db } from "../db/connection";
 import { products, productSustainabilityMetrics, pendingConsumptionRecords } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { z } from "zod";
 import { getUser } from "../middleware/auth";
 import OpenAI from "openai";
+import { getCO2Emission, classifyCategory } from "../services/consumption-service";
+import { awardPoints, type PointAction } from "../services/gamification-service";
+import { convertToKg } from "../utils/co2-calculator";
 
 const productSchema = z.object({
   productName: z.string().min(1).max(200),
@@ -18,7 +21,7 @@ const productSchema = z.object({
 });
 
 const interactionSchema = z.object({
-  type: z.enum(["Add", "Consume", "Waste"]),
+  type: z.enum(["add", "consumed", "wasted"]),
   quantity: z.number().positive(),
   todayDate: z.string().optional(),
 });
@@ -38,13 +41,6 @@ const pendingConsumptionSchema = z.object({
   })).default([]),
   status: z.enum(["PENDING_WASTE_PHOTO", "COMPLETED"]).default("PENDING_WASTE_PHOTO"),
 });
-
-// Points awarded for different actions
-const POINTS: Record<string, number> = {
-  Add: 2,
-  Consume: 5,
-  Waste: -2,
-};
 
 export function registerMyFridgeRoutes(router: Router) {
   // Get all products for the authenticated user
@@ -81,18 +77,15 @@ export function registerMyFridgeRoutes(router: Router) {
         })
         .returning();
 
-      // Log "Add" interaction for sustainability tracking
+      // Log "add" interaction for sustainability tracking (no points awarded)
       const todayDate = new Date().toISOString().split("T")[0];
       await db.insert(productSustainabilityMetrics).values({
         productId: product.id,
         userId: user.id,
         todayDate,
         quantity: data.quantity,
-        type: "Add",
+        type: "add",
       });
-
-      // Award points for adding a product
-      await awardPoints(user.id, POINTS.Add);
 
       return json(product);
     } catch (e) {
@@ -195,15 +188,6 @@ export function registerMyFridgeRoutes(router: Router) {
         return error("Product not found", 404);
       }
 
-      // Log the interaction
-      await db.insert(productSustainabilityMetrics).values({
-        productId,
-        userId: user.id,
-        todayDate: data.todayDate || new Date().toISOString().split("T")[0],
-        quantity: data.quantity,
-        type: data.type,
-      });
-
       // Deduct quantity from product
       const newQuantity = Math.max(0, (product.quantity || 0) - data.quantity);
       await db
@@ -211,13 +195,18 @@ export function registerMyFridgeRoutes(router: Router) {
         .set({ quantity: newQuantity })
         .where(eq(products.id, productId));
 
-      // Award/deduct points based on action
-      const pointsChange = POINTS[data.type];
-      await awardPoints(user.id, pointsChange);
+      // Award/deduct points (also records the sustainability metric)
+      const quantityInKg = convertToKg(data.quantity, product.unit);
+      const pointsResult = await awardPoints(
+        user.id,
+        data.type as PointAction,
+        productId,
+        quantityInKg
+      );
 
       return json({
         message: "Product interaction logged",
-        pointsChange,
+        pointsChange: pointsResult.amount,
         newQuantity,
       });
     } catch (e) {
@@ -254,18 +243,62 @@ export function registerMyFridgeRoutes(router: Router) {
             content: [
               {
                 type: "text",
-                text: `Analyze this grocery receipt image and extract the food items. Only include food items. Ignore non-food items like bags, taxes, totals, etc. If no food items are found, return an empty items array.
+                text: `You are a grocery receipt reader for Singapore supermarkets (NTUC FairPrice, Cold Storage, Giant, etc.).
 
-For each item, determine its eco-focused sub-category (Ruminant meat, Non-ruminant meat, Seafood, Dairy, Eggs, Grains & cereals, Legumes & pulses, Vegetables, Fruits, Nuts & seeds, Oils & fats, Sugar & sweeteners, Processed plant-based foods) and use it to:
-1. Map to the corresponding simple category:
-   - Ruminant meat, Non-ruminant meat, Seafood → "meat"
-   - Dairy, Eggs → "dairy"
-   - Vegetables, Fruits, Legumes & pulses → "produce"
-   - Grains & cereals, Nuts & seeds, Oils & fats, Sugar & sweeteners → "pantry"
-   - Processed plant-based foods → "other"
-2. Estimate co2Emission in kg CO2e per unit based on the eco-focused sub-category.
-3. Determine the unit of measurement for the quantity (e.g. kg, g, ml, L, pcs, pack, loaf, dozen, bottle, can).
-4. Extract the price of the item from the receipt. If the price is not visible, estimate a reasonable market price.`,
+YOUR TASK:
+Extract food items from the receipt and PARSE embedded quantity/unit from product names.
+
+CRITICAL - PARSE EMBEDDED QUANTITIES:
+Many Singapore receipts embed quantity in the product name. You MUST extract these:
+- "BACON200G" → name: "BACON", quantity: 200, unit: "g"
+- "FRESH MILK 1L" → name: "FRESH MILK", quantity: 1, unit: "L"
+- "EGGS (M) 30S" → name: "EGGS (M)", quantity: 30, unit: "pcs" (S means pieces)
+- "BUTTER 250G" → name: "BUTTER", quantity: 250, unit: "g"
+- "RICE 5KG" → name: "RICE", quantity: 5, unit: "kg"
+
+COMMON PATTERNS TO PARSE:
+- Numbers followed by G/g = grams (200G → 200g)
+- Numbers followed by KG/kg = kilograms (1.5KG → 1.5kg)
+- Numbers followed by ML/ml = milliliters (500ML → 500ml)
+- Numbers followed by L/l = liters (1L → 1L)
+- Numbers followed by S = pieces/count (30S → 30 pcs)
+- Numbers followed by PCS/PC = pieces (6PCS → 6 pcs)
+
+INSTRUCTIONS:
+1. Read each line item on the receipt
+2. PARSE any embedded quantity/unit from the product name
+3. REMOVE the parsed quantity/unit from the product name
+4. Extract the price shown for this item
+
+IGNORE (do not include):
+- Bags, taxes, totals, subtotals, discounts
+- Store name, address, date, time, receipt number
+- Payment methods, change, card numbers
+- Non-food items (cleaning supplies, toiletries)
+
+HANDLING EDGE CASES:
+- If NO embedded quantity found, set quantity: 1 and unit: "pcs"
+- If price is unclear, set unitPrice: 0
+- If text is unreadable, skip that item
+- Numbers in brand names are NOT quantities (e.g., "F&N 100 Plus" → keep as name)
+
+EXAMPLES:
+Receipt: "PAULS FRESH MILK 1L    $4.50"
+Output: {"name": "PAULS FRESH MILK", "quantity": 1, "unit": "L", "unitPrice": 4.50}
+
+Receipt: "GOURMET B/BACON200G    $8.90"
+Output: {"name": "GOURMET B/BACON", "quantity": 200, "unit": "g", "unitPrice": 8.90}
+
+Receipt: "PSR FSH EGGS (M) 30S    $6.80"
+Output: {"name": "PSR FSH EGGS (M)", "quantity": 30, "unit": "pcs", "unitPrice": 6.80}
+
+Receipt: "COCA COLA 1.5L    $2.50"
+Output: {"name": "COCA COLA", "quantity": 1.5, "unit": "L", "unitPrice": 2.50}
+
+Receipt: "CHICKEN THIGH    $5.60"
+Output: {"name": "CHICKEN THIGH", "quantity": 1, "unit": "pcs", "unitPrice": 5.60}
+
+If no food items found or image is not a receipt, return {"items": []}.`,
               },
               {
                 type: "image_url",
@@ -291,27 +324,18 @@ For each item, determine its eco-focused sub-category (Ruminant meat, Non-rumina
                   items: {
                     type: "object",
                     properties: {
-                      name: { type: "string", description: "Product name" },
-                      quantity: { type: "number", description: "Number of items" },
-                      category: {
-                        type: "string",
-                        enum: ["produce", "dairy", "meat", "bakery", "frozen", "beverages", "pantry", "other"],
-                        description: "Simple food category",
-                      },
+                      name: { type: "string", description: "Product name with embedded quantity/unit REMOVED (e.g., 'BACON' not 'BACON200G')" },
+                      quantity: { type: "number", description: "Numeric quantity PARSED from product name (e.g., 200 from '200G', 30 from '30S')" },
                       unit: {
                         type: "string",
-                        description: "Unit of measurement for the quantity (e.g. kg, g, ml, L, pcs, pack, loaf, dozen, bottle, can)",
-                      },
-                      co2Emission: {
-                        type: "number",
-                        description: "Estimated kg CO2e per unit based on eco-focused sub-category",
+                        description: "Unit PARSED from product name suffix: g, kg, ml, L, pcs (for S suffix or when no unit found)",
                       },
                       unitPrice: {
                         type: "number",
-                        description: "Price of the item as shown on the receipt",
+                        description: "Price shown on receipt (0 if unclear)",
                       },
                     },
-                    required: ["name", "quantity", "category", "unit", "co2Emission", "unitPrice"],
+                    required: ["name", "quantity", "unit", "unitPrice"],
                     additionalProperties: false,
                   },
                 },
@@ -328,10 +352,17 @@ For each item, determine its eco-focused sub-category (Ruminant meat, Non-rumina
       console.log("Finish reason:", response.choices[0]?.finish_reason);
       console.log("Refusal:", response.choices[0]?.message?.refusal);
       const parsed = JSON.parse(content) as {
-        items: Array<{ name: string; quantity: number; category: string; unit: string; co2Emission: number; unitPrice: number }>;
+        items: Array<{ name: string; quantity: number; unit: string; unitPrice: number }>;
       };
 
-      return json({ items: parsed.items });
+      // Post-process: Add category and CO2 emission using backend lookup
+      const processedItems = parsed.items.map((item) => ({
+        ...item,
+        category: classifyCategory(item.name),
+        co2Emission: getCO2Emission(item.name),
+      }));
+
+      return json({ items: processedItems });
     } catch (e) {
       console.error("Receipt scan error:", e);
       return error("Failed to scan receipt", 500);
@@ -535,7 +566,3 @@ For each item, determine its eco-focused sub-category (Ruminant meat, Non-rumina
   });
 }
 
-// TODO: Implement points system once gamification is confirmed
-async function awardPoints(_userId: number, _amount: number) {
-  // No-op until userPoints table is implemented
-}

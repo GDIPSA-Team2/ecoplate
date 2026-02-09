@@ -1,20 +1,20 @@
 import * as jose from "jose";
 import { error } from "../utils/router";
 
-// Validate JWT_SECRET is set
-function getJwtSecret(): Uint8Array {
-  const secret = process.env.JWT_SECRET;
-
-  if (!secret) {
-    throw new Error("JWT_SECRET environment variable is required. Set it in your .env file.");
-  }
-
-  return new TextEncoder().encode(secret);
-}
-
-const JWT_SECRET = getJwtSecret();
-
 const TOKEN_EXPIRY = "7d"; // 7 days
+
+// Lazy-load JWT_SECRET so importing this module doesn't throw during tests
+let _jwtSecret: Uint8Array | null = null;
+function getJwtSecret(): Uint8Array {
+  if (!_jwtSecret) {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error("JWT_SECRET environment variable is required. Set it in your .env file.");
+    }
+    _jwtSecret = new TextEncoder().encode(secret);
+  }
+  return _jwtSecret;
+}
 
 export interface JWTPayload {
   sub: string;
@@ -36,12 +36,12 @@ export async function generateToken(payload: JWTPayload): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(TOKEN_EXPIRY)
-    .sign(JWT_SECRET);
+    .sign(getJwtSecret());
 }
 
 export async function verifyToken(token: string): Promise<JWTPayload | null> {
   try {
-    const { payload } = await jose.jwtVerify(token, JWT_SECRET);
+    const { payload } = await jose.jwtVerify(token, getJwtSecret());
     return payload as unknown as JWTPayload;
   } catch {
     return null;

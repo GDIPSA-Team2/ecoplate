@@ -7,6 +7,10 @@
 # Pin to specific version for reproducible builds and security
 FROM oven/bun:1.2.5-alpine AS frontend-builder
 
+# Build args for frontend environment variables
+ARG VITE_GOOGLE_MAPS_API_KEY
+ENV VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY
+
 WORKDIR /app/frontend
 
 # Copy frontend package files
@@ -22,7 +26,26 @@ COPY frontend/ .
 RUN bun run build
 
 # =============================================================================
-# Stage 2: Build Backend
+# Stage 2: Build EcoLocker Frontend
+# =============================================================================
+FROM oven/bun:1.2.5-alpine AS ecolocker-builder
+
+WORKDIR /app/ecolocker
+
+# Copy ecolocker package files
+COPY ecolocker/package.json ecolocker/bun.lockb* ./
+
+# Install ecolocker dependencies
+RUN bun install --frozen-lockfile
+
+# Copy ecolocker source
+COPY ecolocker/ .
+
+# Build ecolocker (vite build defaults to production mode)
+RUN bun run build
+
+# =============================================================================
+# Stage 3: Build Backend
 # =============================================================================
 FROM oven/bun:1.2.5-alpine AS backend-builder
 
@@ -38,7 +61,7 @@ RUN bun install --frozen-lockfile
 COPY backend/ .
 
 # =============================================================================
-# Stage 3: Production Runtime
+# Stage 4: Production Runtime
 # =============================================================================
 FROM oven/bun:1.2.5-alpine AS production
 
@@ -66,6 +89,9 @@ RUN bun install --production && \
 
 # Copy frontend build output to be served by backend
 COPY --from=frontend-builder /app/frontend/dist ./public
+
+# Copy ecolocker build output under public/ecolocker/
+COPY --from=ecolocker-builder /app/ecolocker/dist ./public/ecolocker
 
 # Copy entrypoint script
 COPY entrypoint.sh ./entrypoint.sh

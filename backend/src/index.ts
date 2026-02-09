@@ -1,5 +1,3 @@
-import { Database } from "bun:sqlite";
-import { drizzle } from "drizzle-orm/bun-sqlite";
 import { Router, json, error } from "./utils/router";
 import { authMiddleware } from "./middleware/auth";
 import { registerAuthRoutes } from "./routes/auth";
@@ -10,17 +8,17 @@ import { registerMessageRoutes } from "./routes/messages";
 import { registerDashboardRoutes } from "./routes/dashboard";
 import { registerGamificationRoutes } from "./routes/gamification";
 import { registerUploadRoutes } from "./routes/upload";
+import { registerEcoLockerRoutes } from "./routes/ecolocker";
+import { startLockerJobs } from "./jobs/locker-jobs";
 import { registerNotificationRoutes } from "./routes/notifications";
 import { registerRewardsRoutes } from "./routes/rewards";
 import * as schema from "./db/schema";
 import { existsSync } from "fs";
 import { join } from "path";
+import { db } from "./db/connection";
 
-// Initialize database
-const dbPath = process.env.DATABASE_PATH || "ecoplate.db";
-const sqlite = new Database(dbPath);
-sqlite.exec("PRAGMA journal_mode = WAL;");
-export const db = drizzle(sqlite, { schema });
+// Re-export db for backwards compatibility
+export { db };
 
 // Create routers
 const publicRouter = new Router();
@@ -38,6 +36,7 @@ registerMessageRoutes(protectedRouter);
 registerDashboardRoutes(protectedRouter);
 registerGamificationRoutes(protectedRouter);
 registerUploadRoutes(protectedRouter);
+registerEcoLockerRoutes(protectedRouter);
 registerNotificationRoutes(protectedRouter);
 registerRewardsRoutes(protectedRouter);
 
@@ -117,6 +116,28 @@ async function serveStatic(path: string): Promise<Response | null> {
     return null;
   }
 
+  // Handle EcoLocker SPA under /ecolocker/
+  if (path.startsWith("/ecolocker")) {
+    const ecolockerDir = join(publicDir, "ecolocker");
+    // Strip the /ecolocker prefix to get the relative path
+    const relativePath = path.replace(/^\/ecolocker\/?/, "/") || "/";
+    let filePath = join(ecolockerDir, relativePath);
+
+    // SPA fallback: serve index.html for non-file paths
+    if (relativePath === "/" || !existsSync(filePath)) {
+      filePath = join(ecolockerDir, "index.html");
+    }
+
+    if (!existsSync(filePath)) {
+      return null;
+    }
+
+    const file = Bun.file(filePath);
+    return new Response(file, {
+      headers: { "Content-Type": getMimeType(filePath) },
+    });
+  }
+
   let filePath = join(publicDir, path);
 
   // Default to index.html for root or non-existent files (SPA routing)
@@ -181,3 +202,6 @@ const server = Bun.serve({
 });
 
 console.log(`EcoPlate server running at http://localhost:${server.port}`);
+
+// Start EcoLocker background jobs
+startLockerJobs();
