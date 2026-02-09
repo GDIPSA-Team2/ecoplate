@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { v4 as uuidv4 } from "uuid";
 import { api } from "../services/api";
 import { useToast } from "../contexts/ToastContext";
 import { usePoints } from "../contexts/PointsContext";
@@ -746,7 +745,7 @@ function ScanReceiptModal({
         setScannedItems(
           response.items.map((item) => ({
             ...item,
-            id: uuidv4(),
+            id: crypto.randomUUID(),
           }))
         );
 
