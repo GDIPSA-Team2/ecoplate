@@ -745,7 +745,7 @@ function ScanReceiptModal({
         setScannedItems(
           response.items.map((item) => ({
             ...item,
-            id: crypto.randomUUID(),
+            id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36),
           }))
         );
 
@@ -1697,7 +1697,7 @@ function TrackConsumptionModal({
         // Add unique IDs to each ingredient for React keys
         const ingredientsWithIds = response.ingredients.map((ing) => ({
           ...ing,
-          id: crypto.randomUUID(),
+          id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36),
         }));
 
         setIngredients(ingredientsWithIds);
@@ -1763,7 +1763,7 @@ function TrackConsumptionModal({
 
         // Convert waste items to editable format with productId
         const wasteItemsWithIds = response.wasteAnalysis.wasteItems.map((item) => ({
-          id: crypto.randomUUID(),
+          id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36),
           productId: item.productId,
           productName: item.productName,
           quantity: item.quantityWasted,
@@ -1853,7 +1853,7 @@ function TrackConsumptionModal({
     setIngredients((prev) => [
       ...prev,
       {
-        id: crypto.randomUUID(),
+        id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36),
         productId: 0,
         name: "",
         matchedProductName: "",
@@ -1881,7 +1881,7 @@ function TrackConsumptionModal({
     setEditableWasteItems((prev) => [
       ...prev,
       {
-        id: crypto.randomUUID(),
+        id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36),
         productName: "",
         quantity: 1,
         unit: null,
