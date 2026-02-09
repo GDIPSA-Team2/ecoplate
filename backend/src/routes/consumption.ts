@@ -448,14 +448,22 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
 
   // API 3: Confirm ingredients - records Consume interactions and deducts from products
   router.post("/api/v1/consumption/confirm-ingredients", async (req) => {
+    console.log("[confirm-ingredients] Endpoint called");
     try {
       const user = getUser(req);
+      console.log("[confirm-ingredients] User:", user.id);
       const body = await parseBody(req);
+      console.log("[confirm-ingredients] Body received:", {
+        ingredientsCount: Array.isArray(body?.ingredients) ? body.ingredients.length : 'not array',
+        pendingRecordId: body?.pendingRecordId,
+      });
 
       const parsed = confirmIngredientsSchema.safeParse(body);
       if (!parsed.success) {
+        console.error("[confirm-ingredients] Validation failed:", parsed.error.errors);
         return error(parsed.error.errors[0].message, 400);
       }
+      console.log("[confirm-ingredients] Validation passed");
 
       const { ingredients, pendingRecordId } = parsed.data;
       const interactionIds: number[] = [];
@@ -509,12 +517,14 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
           .where(eq(pendingConsumptionRecords.id, pendingRecordId));
       }
 
+      console.log("[confirm-ingredients] Success! interactionIds:", interactionIds);
       return json({ interactionIds, success: true });
     } catch (e) {
       if (e instanceof z.ZodError) {
+        console.error("[confirm-ingredients] Zod error:", e.errors);
         return error(e.errors[0].message, 400);
       }
-      console.error("Consumption confirm-ingredients error:", e);
+      console.error("[confirm-ingredients] Error:", e instanceof Error ? e.message : e);
       return error("Failed to confirm ingredients", 500);
     }
   });

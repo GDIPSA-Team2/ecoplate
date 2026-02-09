@@ -84,6 +84,7 @@ export default function MyFridgePage() {
   const [selectedPendingRecord, setSelectedPendingRecord] = useState<PendingConsumptionRecord | null>(null);
   const { addToast } = useToast();
   const navigate = useNavigate();
+  const { points } = usePoints();
 
   useEffect(() => {
     loadProducts();
@@ -180,8 +181,6 @@ export default function MyFridgePage() {
       </div>
     );
   }
-
-  const { points } = usePoints();
 
   return (
     <div className="space-y-6">
@@ -380,6 +379,7 @@ export default function MyFridgePage() {
           onClose={() => {
             setShowTrackConsumption(false);
             setSelectedPendingRecord(null);
+            loadPendingConsumptions();
           }}
           onComplete={() => {
             setShowTrackConsumption(false);
@@ -1644,10 +1644,23 @@ function TrackConsumptionModal({
     }
   }, [step, rawPhoto]);
 
-  const handleClose = () => {
+  const handleClose = async () => {
     if (rawPhoto) {
       if (!confirm("Are you sure you want to close? Your progress will be lost.")) return;
     }
+    // Delete pending record if one was created during this session
+    if (pendingRecordId) {
+      try {
+        await api.delete(`/myfridge/consumption/pending/${pendingRecordId}`);
+      } catch {
+        // Silently fail - record will show in pending list for manual cleanup
+      }
+    }
+    // Reset all loading states
+    setSavingDraft(false);
+    setIdentifyingIngredients(false);
+    setConfirmingIngredients(false);
+    setConfirmingWaste(false);
     camera.stopCamera();
     onClose();
   };
@@ -1748,7 +1761,7 @@ function TrackConsumptionModal({
           };
         }>("/consumption/analyze-waste", {
           imageBase64: base64,
-          ingredients: ingredients.map((ing) => ({
+          ingredients: ingredients.filter(ing => ing.productId > 0).map((ing) => ({
             productId: ing.productId,
             productName: ing.name,
             quantityUsed: ing.estimatedQuantity,
@@ -2207,25 +2220,31 @@ function TrackConsumptionModal({
         setPendingRecordId(recordId);
       }
 
-      // Confirm ingredients - records Consume interactions and deducts from products
-      const response = await api.post<{ interactionIds: number[] }>("/consumption/confirm-ingredients", {
-        ingredients: ingredients.map(ing => ({
-          productId: ing.productId,
-          productName: ing.name,
-          quantityUsed: ing.estimatedQuantity,
-          unit: ing.unit,
-          category: ing.category,
-          unitPrice: ing.unitPrice,
-          co2Emission: ing.co2Emission,
-        })),
-        pendingRecordId: recordId,
-      });
+      // Confirm ingredients - only send those with valid productId (matched to DB)
+      const matchedIngredients = ingredients.filter(ing => ing.productId > 0);
+      if (matchedIngredients.length > 0) {
+        const response = await api.post<{ interactionIds: number[] }>("/consumption/confirm-ingredients", {
+          ingredients: matchedIngredients.map(ing => ({
+            productId: ing.productId,
+            productName: ing.name,
+            quantityUsed: ing.estimatedQuantity,
+            unit: ing.unit,
+            category: ing.category,
+            unitPrice: ing.unitPrice,
+            co2Emission: ing.co2Emission,
+          })),
+          pendingRecordId: recordId,
+        });
 
-      // Store interaction IDs in ingredients for later use
-      setIngredients(prev => prev.map((ing, i) => ({
-        ...ing,
-        interactionId: response.interactionIds[i]
-      })));
+        // Store interaction IDs in matched ingredients
+        let matchedIdx = 0;
+        setIngredients(prev => prev.map(ing => {
+          if (ing.productId > 0 && matchedIdx < response.interactionIds.length) {
+            return { ...ing, interactionId: response.interactionIds[matchedIdx++] };
+          }
+          return ing;
+        }));
+      }
 
       // Refresh points after confirming ingredients
       try {
