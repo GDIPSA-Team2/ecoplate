@@ -1,6 +1,6 @@
 import { WebDriver } from 'selenium-webdriver';
-import { createDriver, quitDriver } from '../../helpers/driver.js';
-import { RegisterPage } from '../../pages/RegisterPage.js';
+import { createDriver, quitDriver } from '../../helpers/driver';
+import { RegisterPage } from '../../pages/RegisterPage';
 
 describe('Register', () => {
   let driver: WebDriver;

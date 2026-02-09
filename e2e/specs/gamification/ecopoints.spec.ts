@@ -1,7 +1,7 @@
 import { WebDriver } from 'selenium-webdriver';
-import { createDriver, quitDriver } from '../../helpers/driver.js';
-import { EcoPointsPage } from '../../pages/EcoPointsPage.js';
-import { loginAsTestUser } from '../../helpers/auth.js';
+import { createDriver, quitDriver } from '../../helpers/driver';
+import { EcoPointsPage } from '../../pages/EcoPointsPage';
+import { loginAsTestUser } from '../../helpers/auth';
 
 describe('Gamification - EcoPoints', () => {
   let driver: WebDriver;

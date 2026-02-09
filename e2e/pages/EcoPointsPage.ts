@@ -1,5 +1,5 @@
 import { By } from 'selenium-webdriver';
-import { BasePage } from './BasePage.js';
+import { BasePage } from './BasePage';
 
 export class EcoPointsPage extends BasePage {
   private totalPoints = By.css('[data-testid="total-points"]');

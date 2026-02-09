@@ -1,8 +1,8 @@
 import { WebDriver } from 'selenium-webdriver';
-import { createDriver, quitDriver } from '../../helpers/driver.js';
-import { LoginPage } from '../../pages/LoginPage.js';
-import { DashboardPage } from '../../pages/DashboardPage.js';
-import { loginAsTestUser, isLoggedIn } from '../../helpers/auth.js';
+import { createDriver, quitDriver } from '../../helpers/driver';
+import { LoginPage } from '../../pages/LoginPage';
+import { DashboardPage } from '../../pages/DashboardPage';
+import { loginAsTestUser, isLoggedIn } from '../../helpers/auth';
 
 describe('Logout', () => {
   let driver: WebDriver;

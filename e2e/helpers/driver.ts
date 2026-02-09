@@ -1,6 +1,6 @@
 import { Builder, WebDriver, Browser } from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome.js';
-import { config } from '../selenium.config.js';
+import { config } from '../selenium.config';
 import * as fs from 'fs';
 import * as path from 'path';
 

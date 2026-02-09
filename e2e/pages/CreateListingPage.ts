@@ -1,5 +1,5 @@
 import { By } from 'selenium-webdriver';
-import { BasePage } from './BasePage.js';
+import { BasePage } from './BasePage';
 
 export class CreateListingPage extends BasePage {
   private titleInput = By.css('input[name="title"], input#title');

@@ -1,8 +1,8 @@
 import { WebDriver } from 'selenium-webdriver';
-import { createDriver, quitDriver } from '../../helpers/driver.js';
-import { MarketplacePage } from '../../pages/MarketplacePage.js';
-import { CreateListingPage } from '../../pages/CreateListingPage.js';
-import { loginAsTestUser } from '../../helpers/auth.js';
+import { createDriver, quitDriver } from '../../helpers/driver';
+import { MarketplacePage } from '../../pages/MarketplacePage';
+import { CreateListingPage } from '../../pages/CreateListingPage';
+import { loginAsTestUser } from '../../helpers/auth';
 
 describe('Marketplace - Create Listing', () => {
   let driver: WebDriver;
