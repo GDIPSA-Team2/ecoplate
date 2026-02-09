@@ -1,5 +1,5 @@
 import { By } from 'selenium-webdriver';
-import { BasePage } from './BasePage.js';
+import { BasePage } from './BasePage';
 
 export class RegisterPage extends BasePage {
   private nameInput = By.css('input#name');

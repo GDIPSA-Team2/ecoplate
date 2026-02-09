@@ -1,7 +1,7 @@
 import { WebDriver } from 'selenium-webdriver';
-import { createDriver, quitDriver } from '../../helpers/driver.js';
-import { MarketplacePage } from '../../pages/MarketplacePage.js';
-import { loginAsTestUser } from '../../helpers/auth.js';
+import { createDriver, quitDriver } from '../../helpers/driver';
+import { MarketplacePage } from '../../pages/MarketplacePage';
+import { loginAsTestUser } from '../../helpers/auth';
 
 describe('Marketplace - Browse', () => {
   let driver: WebDriver;

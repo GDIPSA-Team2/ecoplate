@@ -1,7 +1,7 @@
 import { WebDriver } from 'selenium-webdriver';
-import { createDriver, quitDriver, takeScreenshot } from '../../helpers/driver.js';
-import { LoginPage } from '../../pages/LoginPage.js';
-import { testUsers } from '../../fixtures/users.js';
+import { createDriver, quitDriver, takeScreenshot } from '../../helpers/driver';
+import { LoginPage } from '../../pages/LoginPage';
+import { testUsers } from '../../fixtures/users';
 
 describe('Login', () => {
   let driver: WebDriver;

@@ -1,5 +1,5 @@
 import { By } from 'selenium-webdriver';
-import { BasePage } from './BasePage.js';
+import { BasePage } from './BasePage';
 
 export class MarketplacePage extends BasePage {
   private createListingButton = By.xpath("//button[contains(text(), 'Create Listing')] | //a[contains(@href, '/marketplace/create')]");
