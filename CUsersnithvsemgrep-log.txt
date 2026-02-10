@@ -1,0 +1,405 @@
+SAST (Semgrep)	Set up job	﻿2026-02-08T06:55:21.5506086Z Current runner version: '2.331.0'
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5531691Z ##[group]Runner Image Provisioner
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5533002Z Hosted Compute Agent
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5533844Z Version: 20260123.484
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5534400Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5535078Z Build Date: 2026-01-23T19:41:17Z
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5535766Z Worker ID: {4cda48fc-3e15-4ab5-80bb-b9c3d2cdd131}
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5536453Z Azure Region: centralus
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5537014Z ##[endgroup]
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5538572Z ##[group]Operating System
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5539193Z Ubuntu
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5539620Z 24.04.3
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5540157Z LTS
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5540587Z ##[endgroup]
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5541114Z ##[group]Runner Image
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5541707Z Image: ubuntu-24.04
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5542500Z Version: 20260201.15.1
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5543493Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260201.15/images/ubuntu/Ubuntu2404-Readme.md
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5545117Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260201.15
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5546057Z ##[endgroup]
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5547196Z ##[group]GITHUB_TOKEN Permissions
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5549215Z Contents: read
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5549851Z Metadata: read
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5550342Z Packages: read
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5550842Z ##[endgroup]
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5553168Z Secret source: Actions
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5554269Z Prepare workflow directory
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.5969290Z Prepare all required actions
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.6006576Z Getting action download info
+SAST (Semgrep)	Set up job	2026-02-08T06:55:21.9327404Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+SAST (Semgrep)	Set up job	2026-02-08T06:55:22.0262862Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+SAST (Semgrep)	Set up job	2026-02-08T06:55:22.2373941Z Complete job name: SAST (Semgrep)
+SAST (Semgrep)	Initialize containers	﻿2026-02-08T06:55:22.2832570Z ##[group]Checking docker version
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.2844965Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.3701694Z '1.48'
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.3714344Z Docker daemon API version: '1.48'
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.3715089Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.3874125Z '1.48'
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.3887050Z Docker client API version: '1.48'
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.3892728Z ##[endgroup]
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.3895597Z ##[group]Clean up resources from previous jobs
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.3900985Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=181a06"
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.4036575Z ##[command]/usr/bin/docker network prune --force --filter "label=181a06"
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.4158898Z ##[endgroup]
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.4159423Z ##[group]Create local container network
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.4169417Z ##[command]/usr/bin/docker network create --label 181a06 github_network_4902cbeb3ce5442b90164de6d1f75e92
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.4659020Z 2bc94f9ae225ee334bff27ce9a2aef75534db620bf8efa044e79079ca1dd6c6e
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.4677034Z ##[endgroup]
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.4700525Z ##[group]Starting job container
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.4721052Z ##[command]/usr/bin/docker pull semgrep/semgrep
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:22.4824973Z Using default tag: latest
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.0821802Z latest: Pulling from semgrep/semgrep
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2478068Z 589002ba0eae: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2479349Z b3396225f9f8: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2480459Z bd9ddc54bea9: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2481441Z 7f7ea5908721: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2482611Z b90f89fb7e01: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2483535Z 7d2f3ef37665: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2484356Z 1ce102bd88f8: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2484959Z 815b6f7a06c3: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2485535Z 2c5ff3a20b85: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2486118Z 9b37086ef399: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2486685Z 27625f4b1200: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2487315Z 48503e6e39d9: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2488212Z 0b03e00bc89d: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2488798Z 958b569b9309: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2489467Z f2d20f43eee7: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2490101Z a3f6bec3a453: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2490667Z 31dc26cf6d28: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2491244Z c996750d33b9: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2491788Z 0fdf820434d7: Pulling fs layer
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2492546Z 27625f4b1200: Waiting
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2493061Z 48503e6e39d9: Waiting
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2493551Z 0b03e00bc89d: Waiting
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2494046Z f2d20f43eee7: Waiting
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2494570Z 958b569b9309: Waiting
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2495069Z a3f6bec3a453: Waiting
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2495557Z 7f7ea5908721: Waiting
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2496052Z 815b6f7a06c3: Waiting
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2496543Z b90f89fb7e01: Waiting
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2497104Z 2c5ff3a20b85: Waiting
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2497723Z 7d2f3ef37665: Waiting
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2498227Z 31dc26cf6d28: Waiting
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2498734Z 1ce102bd88f8: Waiting
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2499425Z c996750d33b9: Waiting
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.2499940Z 9b37086ef399: Waiting
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.4607131Z bd9ddc54bea9: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.5566686Z 589002ba0eae: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.5567968Z 589002ba0eae: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.6749811Z b3396225f9f8: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.6751374Z b3396225f9f8: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.6838756Z 589002ba0eae: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.7132074Z 7f7ea5908721: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.7133551Z 7f7ea5908721: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.7438331Z b90f89fb7e01: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.7439794Z b90f89fb7e01: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.8241082Z 7d2f3ef37665: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.8242373Z 7d2f3ef37665: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.9877568Z 1ce102bd88f8: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:23.9881803Z 1ce102bd88f8: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:24.1693620Z 9b37086ef399: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:24.1694976Z 9b37086ef399: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:24.1901124Z 815b6f7a06c3: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:24.1904092Z 815b6f7a06c3: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:24.3110007Z 2c5ff3a20b85: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:24.3111396Z 2c5ff3a20b85: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:24.3539343Z 27625f4b1200: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:24.3540208Z 27625f4b1200: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:24.5301072Z 958b569b9309: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:24.5302131Z 958b569b9309: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:24.5493457Z 0b03e00bc89d: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:24.5494431Z 0b03e00bc89d: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:24.7217984Z f2d20f43eee7: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:24.7218504Z f2d20f43eee7: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:24.7269084Z a3f6bec3a453: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:24.7269534Z a3f6bec3a453: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:25.0233426Z 48503e6e39d9: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:25.0234064Z 48503e6e39d9: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:25.0606270Z c996750d33b9: Verifying Checksum
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:25.0606858Z c996750d33b9: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:25.1041848Z 31dc26cf6d28: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:25.2333924Z 0fdf820434d7: Download complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:26.0661274Z b3396225f9f8: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:26.0820314Z bd9ddc54bea9: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:26.1200424Z 7f7ea5908721: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:26.1349272Z b90f89fb7e01: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:26.1477495Z 7d2f3ef37665: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:26.2088456Z 1ce102bd88f8: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:27.5007235Z 815b6f7a06c3: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:28.5186881Z 2c5ff3a20b85: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:28.5473019Z 9b37086ef399: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:28.5595375Z 27625f4b1200: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.3646100Z 48503e6e39d9: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.4655578Z 0b03e00bc89d: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.5016359Z 958b569b9309: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.5160405Z f2d20f43eee7: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.5285164Z a3f6bec3a453: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.5430437Z 31dc26cf6d28: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.5562024Z c996750d33b9: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.5702887Z 0fdf820434d7: Pull complete
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.5761851Z Digest: sha256:e520bbf05969b662ec720e3cb685e60a9ed4556b808445a1a7c1d608cea6be69
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.5778528Z Status: Downloaded newer image for semgrep/semgrep:latest
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.5788332Z docker.io/semgrep/semgrep:latest
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.5869179Z ##[command]/usr/bin/docker create --name 77ec55d0066f4d11baf1c3b0c8e1b68d_semgrepsemgrep_7ae8b5 --label 181a06 --workdir /__w/ecoplate/ecoplate --network github_network_4902cbeb3ce5442b90164de6d1f75e92  -e "HOME=/github/home" -e GITHUB_ACTIONS=true -e CI=true -v "/var/run/docker.sock":"/var/run/docker.sock" -v "/home/runner/work":"/__w" -v "/home/runner/actions-runner/cached/externals":"/__e":ro -v "/home/runner/work/_temp":"/__w/_temp" -v "/home/runner/work/_actions":"/__w/_actions" -v "/opt/hostedtoolcache":"/__t" -v "/home/runner/work/_temp/_github_home":"/github/home" -v "/home/runner/work/_temp/_github_workflow":"/github/workflow" --entrypoint "tail" semgrep/semgrep "-f" "/dev/null"
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.6166433Z a453981af2283cc33fa88110b53072c77ae2e46121c0ba22bf587b9bd03961e9
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.6188962Z ##[command]/usr/bin/docker start a453981af2283cc33fa88110b53072c77ae2e46121c0ba22bf587b9bd03961e9
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8015007Z a453981af2283cc33fa88110b53072c77ae2e46121c0ba22bf587b9bd03961e9
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8033785Z ##[command]/usr/bin/docker ps --all --filter id=a453981af2283cc33fa88110b53072c77ae2e46121c0ba22bf587b9bd03961e9 --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8148678Z a453981af2283cc33fa88110b53072c77ae2e46121c0ba22bf587b9bd03961e9 Up Less than a second
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8167585Z ##[command]/usr/bin/docker inspect --format "{{range .Config.Env}}{{println .}}{{end}}" a453981af2283cc33fa88110b53072c77ae2e46121c0ba22bf587b9bd03961e9
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8281464Z HOME=/github/home
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8281834Z GITHUB_ACTIONS=true
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8282308Z CI=true
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8282745Z PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8283294Z SEMGREP_IN_DOCKER=1
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8283624Z SEMGREP_USER_AGENT_APPEND=Docker
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8283997Z PYTHONIOENCODING=utf8
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8284316Z PYTHONUNBUFFERED=1
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8285706Z DOCKER_OTEL_RESOURCE_ATTRIBUTES=vcs.ref.head.name=develop,vcs.ref.head.revision=5b779b9fe6c8d9c5b5a3819281e09467232ec238,vcs.repository.url.full=github.com/semgrep/semgrep-proprietary,docker.base_image=alpine:3.23
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8287194Z DD_SERVICE=semgrep-core
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8287576Z TSAN_OPTIONS=exitcode=0 report_signal_unsafe=0
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8302797Z ##[endgroup]
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8311536Z ##[group]Waiting for all services to be ready
+SAST (Semgrep)	Initialize containers	2026-02-08T06:55:33.8313530Z ##[endgroup]
+SAST (Semgrep)	Run actions/checkout@v4	﻿2026-02-08T06:55:33.8569588Z ##[group]Run actions/checkout@v4
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:33.8570137Z with:
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:33.8570336Z   repository: GDIPSA-Team2/ecoplate
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:33.8570742Z   token: ***
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:33.8570917Z   ssh-strict: true
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:33.8571085Z   ssh-user: git
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:33.8571277Z   persist-credentials: true
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:33.8571477Z   clean: true
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:33.8571665Z   sparse-checkout-cone-mode: true
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:33.8572129Z   fetch-depth: 1
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:33.8572433Z   fetch-tags: false
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:33.8572612Z   show-progress: true
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:33.8572793Z   lfs: false
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:33.8572947Z   submodules: false
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:33.8573126Z   set-safe-directory: true
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:33.8573622Z ##[endgroup]
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:33.8630227Z ##[command]/usr/bin/docker exec  a453981af2283cc33fa88110b53072c77ae2e46121c0ba22bf587b9bd03961e9 sh -c "cat /etc/*release | grep ^ID"
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.0926176Z Syncing repository: GDIPSA-Team2/ecoplate
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.0928537Z ##[group]Getting Git version info
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.0929081Z Working directory is '/__w/ecoplate/ecoplate'
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.0929949Z [command]/usr/bin/git version
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.0930455Z git version 2.52.0
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.0960069Z ##[endgroup]
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.0975974Z Temporarily overriding HOME='/__w/_temp/26c32788-74d0-43fe-aef5-01e9af6d374d' before making global git config changes
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.0976951Z Adding repository directory to the temporary git global config as a safe directory
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.0982543Z [command]/usr/bin/git config --global --add safe.directory /__w/ecoplate/ecoplate
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1011690Z Deleting the contents of '/__w/ecoplate/ecoplate'
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1015758Z ##[group]Initializing the repository
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1028535Z [command]/usr/bin/git init /__w/ecoplate/ecoplate
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1067088Z hint: Using 'master' as the name for the initial branch. This default branch name
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1068050Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1068952Z hint: to use in all of your new repositories, which will suppress this warning,
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1069641Z hint: call:
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1069987Z hint:
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1070488Z hint: 	git config --global init.defaultBranch <name>
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1071036Z hint:
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1071551Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1072691Z hint: 'development'. The just-created branch can be renamed via this command:
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1073399Z hint:
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1073792Z hint: 	git branch -m <name>
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1074210Z hint:
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1074809Z hint: Disable this message with "git config set advice.defaultBranchName false"
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1075745Z Initialized empty Git repository in /__w/ecoplate/ecoplate/.git/
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1082276Z [command]/usr/bin/git remote add origin https://github.com/GDIPSA-Team2/ecoplate
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1110737Z ##[endgroup]
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1111323Z ##[group]Disabling automatic garbage collection
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1116060Z [command]/usr/bin/git config --local gc.auto 0
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1142102Z ##[endgroup]
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1142530Z ##[group]Setting up auth
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1149663Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1179315Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1372862Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1401414Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1597932Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1627494Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1819523Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1852740Z ##[endgroup]
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1854320Z ##[group]Fetching the repository
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.1862250Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +eb6ba5caf2d584237b2c1c93f330e15ff62fceb0:refs/remotes/origin/dev
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.6149468Z From https://github.com/GDIPSA-Team2/ecoplate
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.6150169Z  * [new ref]         eb6ba5caf2d584237b2c1c93f330e15ff62fceb0 -> origin/dev
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.6177280Z ##[endgroup]
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.6177824Z ##[group]Determining the checkout info
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.6180292Z ##[endgroup]
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.6185814Z [command]/usr/bin/git sparse-checkout disable
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.6235578Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.6259222Z ##[group]Checking out the ref
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.6265061Z [command]/usr/bin/git checkout --progress --force -B dev refs/remotes/origin/dev
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.6704681Z branch 'dev' set up to track 'origin/dev'.
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.6705922Z Switched to a new branch 'dev'
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.6720898Z ##[endgroup]
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.6765443Z [command]/usr/bin/git log -1 --format=%H
+SAST (Semgrep)	Run actions/checkout@v4	2026-02-08T06:55:34.6786052Z eb6ba5caf2d584237b2c1c93f330e15ff62fceb0
+SAST (Semgrep)	Run Semgrep	﻿2026-02-08T06:55:34.7050737Z ##[group]Run semgrep scan --config=auto \
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7051124Z [36;1msemgrep scan --config=auto \[0m
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7051756Z [36;1m  --exclude-rule "javascript.express.security.x-frame-options-misconfiguration.x-frame-options-misconfiguration" \[0m
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7052907Z [36;1m  --exclude-rule "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring" \[0m
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7053582Z [36;1m  --exclude-rule "generic.nginx.security.header-redefinition.header-redefinition" \[0m
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7054277Z [36;1m  --exclude-rule "generic.nginx.security.possible-h2c-smuggling.possible-nginx-h2c-smuggling" \[0m
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7054994Z [36;1m  --exclude-rule "python.flask.security.audit.hardcoded-config.avoid_hardcoded_config_TESTING" \[0m
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7055806Z [36;1m  --exclude-rule "yaml.github-actions.security.workflow-run-target-code-checkout.workflow-run-target-code-checkout" \[0m
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7056453Z [36;1m  --json --output=semgrep-report.json . || true[0m
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7056807Z [36;1msemgrep scan --config=auto \[0m
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7057405Z [36;1m  --exclude-rule "javascript.express.security.x-frame-options-misconfiguration.x-frame-options-misconfiguration" \[0m
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7058224Z [36;1m  --exclude-rule "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring" \[0m
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7059037Z [36;1m  --exclude-rule "generic.nginx.security.header-redefinition.header-redefinition" \[0m
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7059725Z [36;1m  --exclude-rule "generic.nginx.security.possible-h2c-smuggling.possible-nginx-h2c-smuggling" \[0m
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7060432Z [36;1m  --exclude-rule "python.flask.security.audit.hardcoded-config.avoid_hardcoded_config_TESTING" \[0m
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7061243Z [36;1m  --exclude-rule "yaml.github-actions.security.workflow-run-target-code-checkout.workflow-run-target-code-checkout" \[0m
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7061822Z [36;1m  . || true[0m
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7065140Z shell: sh -e {0}
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:34.7065361Z ##[endgroup]
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.7462193Z                
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.7462691Z                
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.7463138Z ┌─────────────┐
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.7463352Z │ Scan Status │
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.7463554Z └─────────────┘
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.7470590Z   Scanning 254 files tracked by git with 1058 Code rules:
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.8237552Z                                                                                                                         
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.8238180Z   Language      Rules   Files          Origin      Rules                                                                
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.8239040Z  ─────────────────────────────        ───────────────────                                                               
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.8239696Z   <multilang>      71     170          Community    1058                                                                
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.8240245Z   ts              164     155                                                                                           
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.8240771Z   python          242      13                                                                                           
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.8241268Z   json              4      13                                                                                           
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.8242363Z   yaml             30      11                                                                                           
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.8242843Z   html              1       8                                                                                           
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.8243304Z   js              154       4                                                                                           
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.8243803Z   dockerfile        6       2                                                                                           
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.8244298Z   bash              4       2                                                                                           
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:38.8244980Z                                                                                                                         
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:47.6394308Z                 
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:47.6394750Z                 
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:47.6395368Z ┌──────────────┐
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:47.6395728Z │ Scan Summary │
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:47.6396079Z └──────────────┘
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:47.6396484Z ✅ Scan completed successfully.
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:47.6396937Z  • Findings: 4 (4 blocking)
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:47.6397329Z  • Rules run: 517
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:47.6397669Z  • Targets scanned: 254
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:47.6398035Z  • Parsed lines: ~99.9%
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:47.6398390Z  • Scan skipped: 
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:47.6398835Z    ◦ Files matching .semgrepignore patterns: 2
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:47.6399394Z  • Scan was limited to files tracked by git
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:47.6400191Z  • For a detailed list of skipped files and lines, run semgrep with the --verbose flag
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:47.6400907Z Ran 517 rules on 254 files: 4 findings.
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3005151Z                
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3005697Z                
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3006248Z ┌─────────────┐
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3006492Z │ Scan Status │
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3006775Z └─────────────┘
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3013240Z   Scanning 255 files tracked by git with 1058 Code rules:
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3743958Z                                                                                                                         
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3744728Z   Language      Rules   Files          Origin      Rules                                                                
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3745602Z  ─────────────────────────────        ───────────────────                                                               
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3746176Z   <multilang>      71     170          Community    1058                                                                
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3746750Z   ts              164     155                                                                                           
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3747220Z   json              4      14                                                                                           
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3747717Z   python          242      13                                                                                           
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3748192Z   yaml             30      11                                                                                           
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3748655Z   html              1       8                                                                                           
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3749111Z   js              154       4                                                                                           
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3749585Z   dockerfile        6       2                                                                                           
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3750079Z   bash              4       2                                                                                           
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:55:52.3750524Z                                                                                                                         
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9302113Z                    
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9302520Z                    
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9303182Z ┌─────────────────┐
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9303533Z │ 4 Code Findings │
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9303888Z └─────────────────┘
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9304255Z                         
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9304625Z     backend/src/index.ts
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9305904Z     ❯❱ javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9307527Z           Detected possible user input going into a `path.join` or `path.resolve` function. This could   
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9308462Z           possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9309641Z           stored in the file system. Instead, be sure to sanitize or validate user input first.          
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9310388Z           Details: https://sg.run/OPqk                                                                   
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9310951Z                                                                                                          
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9311482Z           109┆ const uploadPath = join(publicDir, path);
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9314054Z             ⋮┆----------------------------------------
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9314515Z           141┆ let filePath = join(publicDir, path);
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9314795Z                                
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9315013Z     backend/src/utils/router.ts
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9315496Z     ❯❱ javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9316165Z           RegExp() called with a `path` function argument, this might allow an attacker to cause a Regular    
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9316844Z           Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For  
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9317480Z           this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-      
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9318139Z           controlled input, consider performing input validation or use a regex checking/sanitization library 
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9318803Z           such as https://www.npmjs.com/package/recheck to verify that the regex does not appear vulnerable to
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9319312Z           ReDoS.                                                                                              
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9319751Z           Details: https://sg.run/gr65                                                                        
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9320206Z                                                                                                               
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9320616Z            32┆ const pattern = new RegExp(`^${patternStr}$`);
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9320892Z                                 
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9321116Z     recommendation-engine/app.py
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9321549Z     ❯❱ python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9322253Z           Running flask app with host 0.0.0.0 could expose the server publicly.
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9322691Z           Details: https://sg.run/eLby                                         
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9323027Z                                                                                
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9323443Z           552┆ app.run(host='0.0.0.0', port=port, debug=debug)  # nosec B104
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9323687Z 
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9684646Z                 
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9685078Z                 
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9685632Z ┌──────────────┐
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9685984Z │ Scan Summary │
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9686266Z └──────────────┘
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9686540Z ✅ Scan completed successfully.
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9686872Z  • Findings: 4 (4 blocking)
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9687137Z  • Rules run: 517
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9687383Z  • Targets scanned: 255
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9687642Z  • Parsed lines: ~99.9%
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9688205Z  • Scan skipped: 
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9688512Z    ◦ Files matching .semgrepignore patterns: 2
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9688907Z  • Scan was limited to files tracked by git
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9689469Z  • For a detailed list of skipped files and lines, run semgrep with the --verbose flag
+SAST (Semgrep)	Run Semgrep	2026-02-08T06:56:00.9689988Z Ran 517 rules on 255 files: 4 findings.
+SAST (Semgrep)	Upload Semgrep report	﻿2026-02-08T06:56:01.6088889Z ##[group]Run actions/upload-artifact@v4
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:01.6089164Z with:
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:01.6089333Z   name: semgrep-report
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:01.6089528Z   path: semgrep-report.json
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:01.6089735Z   retention-days: 30
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:01.6089921Z   if-no-files-found: ignore
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:01.6090111Z   compression-level: 6
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:01.6090293Z   overwrite: false
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:01.6090469Z   include-hidden-files: false
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:01.6090678Z ##[endgroup]
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:01.6094223Z ##[command]/usr/bin/docker exec  a453981af2283cc33fa88110b53072c77ae2e46121c0ba22bf587b9bd03961e9 sh -c "cat /etc/*release | grep ^ID"
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:01.9576160Z With the provided path, there will be 1 file uploaded
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:01.9582267Z Artifact name is valid!
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:01.9584688Z Root directory input is valid!
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:02.1229199Z Beginning upload of artifact content to blob storage
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:02.3020414Z Uploaded bytes 5394
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:02.3456284Z Finished uploading artifact content to blob storage!
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:02.3460544Z SHA256 digest of uploaded artifact zip is cdcba279eba8d7707439e3ce8a021dea5730c46d2c3be10384dc1488f7329292
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:02.3463326Z Finalizing artifact upload
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:02.4609999Z Artifact semgrep-report.zip successfully finalized. Artifact ID 5421180980
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:02.4611082Z Artifact semgrep-report has been successfully uploaded! Final size is 5394 bytes. Artifact ID is 5421180980
+SAST (Semgrep)	Upload Semgrep report	2026-02-08T06:56:02.4618773Z Artifact download URL: https://github.com/GDIPSA-Team2/ecoplate/actions/runs/21793976673/artifacts/5421180980
+SAST (Semgrep)	Post Run actions/checkout@v4	﻿2026-02-08T06:56:02.4782467Z Post job cleanup.
+SAST (Semgrep)	Post Run actions/checkout@v4	2026-02-08T06:56:02.4786512Z ##[command]/usr/bin/docker exec  a453981af2283cc33fa88110b53072c77ae2e46121c0ba22bf587b9bd03961e9 sh -c "cat /etc/*release | grep ^ID"
+SAST (Semgrep)	Post Run actions/checkout@v4	2026-02-08T06:56:02.6919583Z [command]/usr/bin/git version
+SAST (Semgrep)	Post Run actions/checkout@v4	2026-02-08T06:56:02.6961112Z git version 2.52.0
+SAST (Semgrep)	Post Run actions/checkout@v4	2026-02-08T06:56:02.7003672Z Copying '/github/home/.gitconfig' to '/__w/_temp/3027a336-591b-4ea3-a660-59ca3e02129d/.gitconfig'
+SAST (Semgrep)	Post Run actions/checkout@v4	2026-02-08T06:56:02.7017864Z Temporarily overriding HOME='/__w/_temp/3027a336-591b-4ea3-a660-59ca3e02129d' before making global git config changes
+SAST (Semgrep)	Post Run actions/checkout@v4	2026-02-08T06:56:02.7019096Z Adding repository directory to the temporary git global config as a safe directory
+SAST (Semgrep)	Post Run actions/checkout@v4	2026-02-08T06:56:02.7023979Z [command]/usr/bin/git config --global --add safe.directory /__w/ecoplate/ecoplate
+SAST (Semgrep)	Post Run actions/checkout@v4	2026-02-08T06:56:02.7058660Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+SAST (Semgrep)	Post Run actions/checkout@v4	2026-02-08T06:56:02.7104586Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+SAST (Semgrep)	Post Run actions/checkout@v4	2026-02-08T06:56:02.7318771Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+SAST (Semgrep)	Post Run actions/checkout@v4	2026-02-08T06:56:02.7346326Z http.https://github.com/.extraheader
+SAST (Semgrep)	Post Run actions/checkout@v4	2026-02-08T06:56:02.7362745Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+SAST (Semgrep)	Post Run actions/checkout@v4	2026-02-08T06:56:02.7394895Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+SAST (Semgrep)	Post Run actions/checkout@v4	2026-02-08T06:56:02.7601391Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+SAST (Semgrep)	Post Run actions/checkout@v4	2026-02-08T06:56:02.7632324Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+SAST (Semgrep)	Stop containers	﻿2026-02-08T06:56:02.7952887Z Stop and remove container: 77ec55d0066f4d11baf1c3b0c8e1b68d_semgrepsemgrep_7ae8b5
+SAST (Semgrep)	Stop containers	2026-02-08T06:56:02.7957958Z ##[command]/usr/bin/docker rm --force a453981af2283cc33fa88110b53072c77ae2e46121c0ba22bf587b9bd03961e9
+SAST (Semgrep)	Stop containers	2026-02-08T06:56:02.8826583Z a453981af2283cc33fa88110b53072c77ae2e46121c0ba22bf587b9bd03961e9
+SAST (Semgrep)	Stop containers	2026-02-08T06:56:02.8854409Z Remove container network: github_network_4902cbeb3ce5442b90164de6d1f75e92
+SAST (Semgrep)	Stop containers	2026-02-08T06:56:02.8859087Z ##[command]/usr/bin/docker network rm github_network_4902cbeb3ce5442b90164de6d1f75e92
+SAST (Semgrep)	Stop containers	2026-02-08T06:56:03.0130730Z github_network_4902cbeb3ce5442b90164de6d1f75e92
+SAST (Semgrep)	Complete job	﻿2026-02-08T06:56:03.0191276Z Cleaning up orphan processes

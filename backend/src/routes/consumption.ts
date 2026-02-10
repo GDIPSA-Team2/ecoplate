@@ -36,7 +36,7 @@ const ingredientSchema = z.object({
 
 const analyzeWasteSchema = z.object({
   imageBase64: z.string().min(1, "Image is required").max(MAX_BASE64_SIZE, "Image too large (max 5MB)"),
-  ingredients: z.array(ingredientSchema).min(1, "Ingredients are required").max(50, "Too many ingredients"),
+  ingredients: z.array(ingredientSchema).max(50, "Too many ingredients"),
 });
 
 const confirmIngredientsSchema = z.object({
@@ -53,7 +53,7 @@ const wasteItemSchema = z.object({
 const confirmWasteSchema = z.object({
   ingredients: z.array(ingredientSchema.extend({
     interactionId: z.number().int().positive().optional(),
-  })).min(1, "Ingredients are required").max(50, "Too many ingredients"),
+  })).max(50, "Too many ingredients"),
   wasteItems: z.array(wasteItemSchema).max(50, "Too many waste items"),
   pendingRecordId: z.number().int().positive().optional(),
 });
@@ -279,7 +279,7 @@ Return an empty ingredients array if no food ingredients are visible.`,
   // API 2: Analyze waste from a photo of leftover food
   router.post("/api/v1/consumption/analyze-waste", async (req) => {
     try {
-      const user = getUser(req);
+      getUser(req);
       const body = await parseBody(req);
 
       const parsed = analyzeWasteSchema.safeParse(body);
@@ -448,14 +448,22 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
 
   // API 3: Confirm ingredients - records Consume interactions and deducts from products
   router.post("/api/v1/consumption/confirm-ingredients", async (req) => {
+    console.log("[confirm-ingredients] Endpoint called");
     try {
       const user = getUser(req);
-      const body = await parseBody(req);
+      console.log("[confirm-ingredients] User:", user.id);
+      const body = await parseBody<{ ingredients?: unknown[]; pendingRecordId?: number }>(req);
+      console.log("[confirm-ingredients] Body received:", {
+        ingredientsCount: Array.isArray(body?.ingredients) ? body.ingredients.length : 'not array',
+        pendingRecordId: body?.pendingRecordId,
+      });
 
       const parsed = confirmIngredientsSchema.safeParse(body);
       if (!parsed.success) {
+        console.error("[confirm-ingredients] Validation failed:", parsed.error.errors);
         return error(parsed.error.errors[0].message, 400);
       }
+      console.log("[confirm-ingredients] Validation passed");
 
       const { ingredients, pendingRecordId } = parsed.data;
       const interactionIds: number[] = [];
@@ -481,7 +489,12 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
         interactionIds.push(interaction.id);
 
         // 2. Award points with normalized quantity (skip metric recording since we already recorded above)
-        await awardPoints(user.id, "consumed", ing.productId, quantityInKg, true);
+        try {
+          await awardPoints(user.id, "consumed", ing.productId, quantityInKg, true);
+        } catch (pointsError) {
+          console.error(`[Points] Failed to award points for user ${user.id} on product ${ing.productId}:`, pointsError);
+          // Don't fail the entire request, just log the error
+        }
 
         // 3. Deduct from product quantity (keep raw unit — this is inventory, not points)
         if (product) {
@@ -504,12 +517,14 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
           .where(eq(pendingConsumptionRecords.id, pendingRecordId));
       }
 
+      console.log("[confirm-ingredients] Success! interactionIds:", interactionIds);
       return json({ interactionIds, success: true });
     } catch (e) {
       if (e instanceof z.ZodError) {
+        console.error("[confirm-ingredients] Zod error:", e.errors);
         return error(e.errors[0].message, 400);
       }
-      console.error("Consumption confirm-ingredients error:", e);
+      console.error("[confirm-ingredients] Error:", e instanceof Error ? e.message : e);
       return error("Failed to confirm ingredients", 500);
     }
   });
@@ -550,7 +565,12 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
           });
 
           // Penalize points for waste (skip metric recording since we already recorded above)
-          await awardPoints(user.id, "wasted", ing.productId, wastedInKg, true);
+          try {
+            await awardPoints(user.id, "wasted", ing.productId, wastedInKg, true);
+          } catch (pointsError) {
+            console.error(`[Points] Failed to penalize points for user ${user.id} on product ${ing.productId}:`, pointsError);
+            // Don't fail the entire request, just log the error
+          }
         }
       }
 
