@@ -536,7 +536,7 @@ def collect_all(reports_dir):
         parse_trivy(reports_dir, "trivy-app", "App"),
         parse_trivy(reports_dir, "trivy-rec", "Recommendation"),
         parse_container_sbom(reports_dir),
-        parse_zap(reports_dir, "zap-baseline", "Baseline"),
+        parse_zap(reports_dir, "zap-full", "Full Scan"),
         parse_zap(reports_dir, "zap-api", "API"),
         parse_e2e_results(reports_dir),
     ]

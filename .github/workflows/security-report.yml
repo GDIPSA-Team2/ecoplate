@@ -148,13 +148,13 @@ jobs:
           search_artifacts: true
         continue-on-error: true
 
-      - name: Download ZAP Baseline report
+      - name: Download ZAP Full Scan report
         uses: dawidd6/action-download-artifact@v3
         with:
           workflow: ci-cd.yml
           branch: ${{ inputs.branch }}
-          name: zap-baseline-report
-          path: reports/zap-baseline
+          name: zap-full-report
+          path: reports/zap-full
           if_no_artifact_found: warn
           search_artifacts: true
         continue-on-error: true

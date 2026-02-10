@@ -965,7 +965,7 @@ jobs:
 
   deploy-staging:
     name: Deploy to Staging
-    needs: [build-and-push, set-env]
+    needs: [build-and-push, set-env, scan-app-image, scan-rec-image]
     if: needs.set-env.outputs.deploy_env == 'staging'
     runs-on: ubuntu-latest
     environment: staging
@@ -1000,7 +1000,7 @@ jobs:
 
   deploy-production:
     name: Deploy to Production
-    needs: [build-and-push, set-env]
+    needs: [build-and-push, set-env, scan-app-image, scan-rec-image]
     if: needs.set-env.outputs.deploy_env == 'production'
     runs-on: ubuntu-latest
     environment: production
@@ -1062,7 +1062,7 @@ jobs:
           echo "Waiting 30 seconds for deployment to stabilize..."
           sleep 30
           for i in $(seq 1 10); do
-            if curl -sf http://${{ steps.target.outputs.host }}/api/v1/health > /dev/null 2>&1; then
+            if curl -sfk https://${{ steps.target.outputs.host }}/api/v1/health > /dev/null 2>&1; then
               echo "Application is healthy"
               break
             fi
@@ -1073,10 +1073,10 @@ jobs:
       - name: Run ZAP Full Scan
         uses: zaproxy/action-full-scan@v0.13.0
         with:
-          target: "http://${{ steps.target.outputs.host }}"
-          cmd_options: "-a -j"
+          target: "https://${{ steps.target.outputs.host }}"
+          cmd_options: "-a -j -z '-config connection.dnsTtlSuccessfulQueries=-1 -config network.connection.httpProxy.enabled=false'"
           allow_issue_writing: false
-          artifact_name: zap-baseline-report
+          artifact_name: zap-full-report
         continue-on-error: true
 
   dast-api:
@@ -1101,12 +1101,12 @@ jobs:
       - name: Wait for deployment
         run: |
           sleep 45
-          curl -sf http://${{ steps.target.outputs.host }}/api/v1/health || true
+          curl -sfk https://${{ steps.target.outputs.host }}/api/v1/health || true
 
       - name: Run ZAP API Scan
         uses: zaproxy/action-api-scan@v0.9.0
         with:
-          target: "http://${{ steps.target.outputs.host }}/api/v1/"
+          target: "https://${{ steps.target.outputs.host }}/api/v1/"
           format: openapi
           cmd_options: "-a"
           allow_issue_writing: false
@@ -1160,7 +1160,7 @@ jobs:
           echo "Waiting for deployment to stabilize..."
           sleep 30
           for i in $(seq 1 10); do
-            if curl -sf http://${{ steps.target.outputs.host }}/api/v1/health > /dev/null 2>&1; then
+            if curl -sfk https://${{ steps.target.outputs.host }}/api/v1/health > /dev/null 2>&1; then
               echo "Application is healthy"
               break
             fi
@@ -1187,7 +1187,7 @@ jobs:
         env:
           HEADLESS: "true"
           BROWSER: "firefox"
-          BASE_URL: http://${{ steps.target.outputs.host }}
+          BASE_URL: https://${{ steps.target.outputs.host }}
         continue-on-error: true
 
       - name: Generate fallback report if missing
@@ -1315,9 +1315,9 @@ jobs:
         with: { name: container-sbom, path: reports/container-sbom }
         continue-on-error: true
 
-      - name: Download ZAP Baseline report
+      - name: Download ZAP Full Scan report
         uses: actions/download-artifact@v4
-        with: { name: zap-baseline-report, path: reports/zap-baseline }
+        with: { name: zap-full-report, path: reports/zap-full }
         continue-on-error: true
 
       - name: Download ZAP API report
@@ -1343,7 +1343,7 @@ jobs:
 
       - name: Check report completeness
         run: |
-          EXPECTED="semgrep bandit trufflehog pip-audit js-audit checkov license sbom trivy-app trivy-rec container-sbom zap-baseline zap-api e2e-test-report"
+          EXPECTED="semgrep bandit trufflehog pip-audit js-audit checkov license sbom trivy-app trivy-rec container-sbom zap-full zap-api e2e-test-report"
           SKIPPED=0
           for dir in $EXPECTED; do
             if [ -z "$(ls -A reports/$dir 2>/dev/null)" ]; then

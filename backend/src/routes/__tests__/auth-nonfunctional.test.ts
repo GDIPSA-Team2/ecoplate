@@ -105,7 +105,7 @@ describe("Auth - JWT Security Tests", () => {
       "",
       "a.b",
       "a.b.c.d",
-      "eyJhbGciOiJIUzI1NiJ9.invalid.signature",
+      "malformed-header.invalid.signature",
     ];
 
     for (const token of malformedTokens) {

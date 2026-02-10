@@ -366,11 +366,11 @@ describe("ListingDetailPage - EcoLocker Integration", () => {
   });
 
   it("should handle JWT tokens in URL", () => {
-    // JWT tokens contain dots which should be preserved
-    const jwtToken = "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjF9.signature";
+    // Tokens with dots (like JWTs) should be preserved in the URL
+    const jwtToken = "header.payload.signature";
     const url = `/ecolocker?token=${jwtToken}&listingId=1`;
 
-    expect(url).toContain("eyJhbGciOiJIUzI1NiJ9");
+    expect(url).toContain("header.payload.signature");
     expect(url.split(".").length).toBeGreaterThan(2); // JWT has multiple parts
   });
 
@@ -410,12 +410,12 @@ describe("ListingDetailPage - EcoLocker URL Construction", () => {
   });
 
   it("should handle special characters in token", () => {
-    const mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjF9.abc123";
+    const mockToken = "test-header.test-payload.test-sig";
     const mockListingId = 1;
 
     const url = `/ecolocker?token=${mockToken}&listingId=${mockListingId}`;
 
-    expect(url).toContain("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9");
+    expect(url).toContain("test-header.test-payload.test-sig");
     expect(url).toContain("listingId=1");
   });
 

@@ -47,11 +47,11 @@ wait_for_health() {
         sleep "$HEALTH_INTERVAL"
     done
 
-    # Check main app via nginx (port 80)
+    # Check main app via nginx (HTTPS on port 443)
     i=0
     while (( i < HEALTH_RETRIES )); do
-        if curl -sf "http://127.0.0.1:80/api/v1/health" > /dev/null 2>&1; then
-            log "App (via nginx) is healthy"
+        if curl -sfk "https://127.0.0.1:443/api/v1/health" > /dev/null 2>&1; then
+            log "App (via nginx HTTPS) is healthy"
             return 0
         fi
         (( i++ ))
@@ -75,6 +75,21 @@ deploy() {
     export IMAGE_TAG="${IMAGE_TAG:-latest}"
     export APP_IMAGE="${APP_IMAGE}"
     export REC_IMAGE="${REC_IMAGE}"
+
+    # Step 0: Ensure SSL certificates exist
+    local ssl_dir="${DEPLOY_DIR}/ssl"
+    if [ ! -f "${ssl_dir}/cert.pem" ] || [ ! -f "${ssl_dir}/key.pem" ]; then
+        log "Generating self-signed SSL certificate..."
+        mkdir -p "${ssl_dir}"
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout "${ssl_dir}/key.pem" \
+            -out "${ssl_dir}/cert.pem" \
+            -subj "/CN=ecoplate/O=EcoPlate/C=SG" 2>/dev/null
+        chmod 644 "${ssl_dir}/cert.pem" "${ssl_dir}/key.pem"
+        log "SSL certificate generated at ${ssl_dir}/"
+    else
+        log "SSL certificates already exist"
+    fi
 
     # Step 1: Pull new images
     pull_images
