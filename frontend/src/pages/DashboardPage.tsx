@@ -792,38 +792,37 @@ export default function DashboardPage() {
             <h3 className="text-sm sm:text-base font-semibold mb-3 sm:mb-4">
               Price Comparison
             </h3>
-            <div className="h-56 sm:h-72 -ml-2 sm:ml-0">
+            <div className="h-64 sm:h-80 -ml-2 sm:ml-0">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={financialData.priceComparison}
-                  margin={{ top: 5, right: 5, bottom: 50, left: 0 }}
+                  layout="vertical"
+                  margin={{ top: 5, right: 20, bottom: 5, left: 5 }}
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
                     className="stroke-muted"
                   />
-                  <XAxis
+                  <XAxis type="number" tick={{ fontSize: 10 }} />
+                  <YAxis
+                    type="category"
                     dataKey="name"
-                    tick={{ fontSize: 8, textAnchor: "end" }}
-                    tickMargin={5}
-                    interval={0}
-                    angle={-45}
-                    height={60}
+                    tick={{ fontSize: 10 }}
+                    width={140}
                   />
-                  <YAxis tick={{ fontSize: 10 }} tickMargin={4} width={35} />
                   <Tooltip contentStyle={{ fontSize: 12 }} />
-                  <Legend wrapperStyle={{ fontSize: 10, paddingTop: 10 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Bar
                     dataKey="originalPrice"
                     fill="#94a3b8"
-                    name="Original"
-                    radius={[4, 4, 0, 0]}
+                    name="Original Price"
+                    radius={[0, 4, 4, 0]}
                   />
                   <Bar
                     dataKey="sellingPrice"
                     fill="#22c55e"
-                    name="Sold For"
-                    radius={[4, 4, 0, 0]}
+                    name="Selling Price"
+                    radius={[0, 4, 4, 0]}
                   />
                 </BarChart>
               </ResponsiveContainer>
