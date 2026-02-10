@@ -166,6 +166,8 @@ jobs:
       - name: Install lcov
         run: sudo apt-get update && sudo apt-get install -y lcov
 
+      - uses: actions/checkout@v4
+
       - name: Download backend coverage
         uses: actions/download-artifact@v4
         with:
@@ -205,11 +207,11 @@ jobs:
               cp -r frontend-cov/* combined-report/frontend/ 2>/dev/null || true
             fi
           fi
-          if [ -f recommendation-cov/coverage.lcov ]; then
-            LCOV_ARGS="$LCOV_ARGS -a recommendation-cov/coverage.lcov"
+          if [ -f recommendation-cov/recommendation-engine/coverage.lcov ]; then
+            LCOV_ARGS="$LCOV_ARGS -a recommendation-cov/recommendation-engine/coverage.lcov"
             # Copy recommendation pytest-cov HTML report
-            if [ -d recommendation-cov/coverage-html ]; then
-              cp -r recommendation-cov/coverage-html/* combined-report/recommendation/ 2>/dev/null || true
+            if [ -d recommendation-cov/recommendation-engine/coverage-html ]; then
+              cp -r recommendation-cov/recommendation-engine/coverage-html/* combined-report/recommendation/ 2>/dev/null || true
             fi
           fi
 
@@ -217,6 +219,19 @@ jobs:
           if [ -n "$LCOV_ARGS" ]; then
             lcov $LCOV_ARGS -o combined-report/lcov.info 2>/dev/null || true
           fi
+
+          # Create fallback HTML for any component whose report is missing
+          for component in backend frontend recommendation; do
+            if [ ! -f combined-report/$component/index.html ]; then
+              cat > combined-report/$component/index.html << 'FALLBACK'
+          <!DOCTYPE html><html><head><title>Coverage Unavailable</title>
+          <style>body{font-family:sans-serif;background:#1e293b;color:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+          .c{text-align:center;max-width:500px;padding:2rem}h1{color:#ef4444}</style></head>
+          <body><div class="c"><h1>Coverage Report Unavailable</h1>
+          <p>The detailed report for this component could not be generated. Check the workflow logs.</p></div></body></html>
+          FALLBACK
+            fi
+          done
 
       - name: Extract per-component coverage and generate dashboard
         id: coverage
@@ -250,18 +265,14 @@ jobs:
           # Extract metrics
           BE_LINES=$(extract_lcov_metric backend-cov/lcov.info "lines")
           BE_FUNCS=$(extract_lcov_metric backend-cov/lcov.info "functions")
-          BE_BRANCH=$(extract_lcov_metric backend-cov/lcov.info "branches")
           FE_LINES=$(extract_lcov_metric frontend-cov/lcov.info "lines")
           FE_FUNCS=$(extract_lcov_metric frontend-cov/lcov.info "functions")
-          FE_BRANCH=$(extract_lcov_metric frontend-cov/lcov.info "branches")
-          RE_LINES=$(extract_lcov_metric recommendation-cov/coverage.lcov "lines")
-          RE_FUNCS=$(extract_lcov_metric recommendation-cov/coverage.lcov "functions")
-          RE_BRANCH=$(extract_lcov_metric recommendation-cov/coverage.lcov "branches")
+          RE_LINES=$(extract_lcov_metric recommendation-cov/recommendation-engine/coverage.lcov "lines")
+          RE_FUNCS=$(extract_lcov_metric recommendation-cov/recommendation-engine/coverage.lcov "functions")
 
           # Calculate averages
           AVG_LINES=$(python3 -c "vals=[float(v) for v in '${BE_LINES},${FE_LINES},${RE_LINES}'.split(',') if v.replace('.','',1).isdigit()]; print(f'{sum(vals)/len(vals):.1f}' if vals else 'N/A')")
           AVG_FUNCS=$(python3 -c "vals=[float(v) for v in '${BE_FUNCS},${FE_FUNCS},${RE_FUNCS}'.split(',') if v.replace('.','',1).isdigit()]; print(f'{sum(vals)/len(vals):.1f}' if vals else 'N/A')")
-          AVG_BRANCH=$(python3 -c "vals=[float(v) for v in '${BE_BRANCH},${FE_BRANCH},${RE_BRANCH}'.split(',') if v.replace('.','',1).isdigit()]; print(f'{sum(vals)/len(vals):.1f}' if vals else 'N/A')")
 
           # File counts for each component
           BE_FILES=$(find combined-report/backend -name "*.html" 2>/dev/null | wc -l | tr -d ' ')
@@ -271,12 +282,14 @@ jobs:
           # GitHub Step Summary
           echo "## Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Component | Lines | Functions | Branches |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|-------|-----------|----------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend | ${BE_LINES}% | ${BE_FUNCS}% | ${BE_BRANCH}% |" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend | ${FE_LINES}% | ${FE_FUNCS}% | ${FE_BRANCH}% |" >> $GITHUB_STEP_SUMMARY
-          echo "| Recommendation Engine | ${RE_LINES}% | ${RE_FUNCS}% | ${RE_BRANCH}% |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Average** | **${AVG_LINES}%** | **${AVG_FUNCS}%** | **${AVG_BRANCH}%** |" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Lines | Functions |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-------|-----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | ${BE_LINES}% | ${BE_FUNCS}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | ${FE_LINES}% | ${FE_FUNCS}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Recommendation Engine | ${RE_LINES}% | ${RE_FUNCS}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Average** | **${AVG_LINES}%** | **${AVG_FUNCS}%** |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> Backend function coverage shows N/A because Bun's LCOV reporter does not include function data (FN/FNDA records)." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "> Download **combined-coverage-report** artifact for detailed line-by-line coverage." >> $GITHUB_STEP_SUMMARY
 
@@ -332,6 +345,8 @@ jobs:
               .metric.good { color: var(--good); }
               .metric.okay { color: var(--okay); }
               .metric.poor { color: var(--poor); }
+              .metric.na { color: var(--text-secondary); font-style: italic; }
+              .summary-value.na { color: var(--text-secondary); }
               .avg-row { background: var(--bg-card); font-weight: 600; }
               footer { text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.85rem; border-top: 1px solid var(--border); margin-top: 2rem; }
             </style>
@@ -356,12 +371,6 @@ jobs:
                   <p class="summary-label">Functions tested</p>
                   <div class="progress-bar"><div class="progress-fill $(get_color ${AVG_FUNCS})" style="width: ${AVG_FUNCS}%"></div></div>
                 </div>
-                <div class="summary-card">
-                  <h3>Average Branch Coverage</h3>
-                  <div class="summary-value $(get_color ${AVG_BRANCH})">${AVG_BRANCH}%</div>
-                  <p class="summary-label">Decision branches tested</p>
-                  <div class="progress-bar"><div class="progress-fill $(get_color ${AVG_BRANCH})" style="width: ${AVG_BRANCH}%"></div></div>
-                </div>
               </div>
               <h2 style="font-size: 1.25rem; margin-bottom: 1rem;">Detailed Reports (Click to View Line-by-Line Coverage)</h2>
               <div class="quick-links">
@@ -381,12 +390,12 @@ jobs:
               <div class="table-container">
                 <div class="table-header"><h2>Coverage by Component</h2></div>
                 <table>
-                  <thead><tr><th>Component</th><th>Lines</th><th>Functions</th><th>Branches</th><th>Detailed Report</th></tr></thead>
+                  <thead><tr><th>Component</th><th>Lines</th><th>Functions</th><th>Detailed Report</th></tr></thead>
                   <tbody>
-                    <tr><td>Backend (Bun)</td><td class="metric $(get_color ${BE_LINES})">${BE_LINES}%</td><td class="metric $(get_color ${BE_FUNCS})">${BE_FUNCS}%</td><td class="metric $(get_color ${BE_BRANCH})">${BE_BRANCH}%</td><td><a href="backend/index.html" style="color: var(--accent);">View Details →</a></td></tr>
-                    <tr><td>Frontend (React)</td><td class="metric $(get_color ${FE_LINES})">${FE_LINES}%</td><td class="metric $(get_color ${FE_FUNCS})">${FE_FUNCS}%</td><td class="metric $(get_color ${FE_BRANCH})">${FE_BRANCH}%</td><td><a href="frontend/index.html" style="color: var(--accent);">View Details →</a></td></tr>
-                    <tr><td>Recommendation Engine (Python)</td><td class="metric $(get_color ${RE_LINES})">${RE_LINES}%</td><td class="metric $(get_color ${RE_FUNCS})">${RE_FUNCS}%</td><td class="metric $(get_color ${RE_BRANCH})">${RE_BRANCH}%</td><td><a href="recommendation/index.html" style="color: var(--accent);">View Details →</a></td></tr>
-                    <tr class="avg-row"><td>Average</td><td class="metric">${AVG_LINES}%</td><td class="metric">${AVG_FUNCS}%</td><td class="metric">${AVG_BRANCH}%</td><td></td></tr>
+                    <tr><td>Backend (Bun)</td><td class="metric $(get_color ${BE_LINES})">${BE_LINES}%</td><td class="metric $(get_color ${BE_FUNCS})">${BE_FUNCS}%</td><td><a href="backend/index.html" style="color: var(--accent);">View Details →</a></td></tr>
+                    <tr><td>Frontend (React)</td><td class="metric $(get_color ${FE_LINES})">${FE_LINES}%</td><td class="metric $(get_color ${FE_FUNCS})">${FE_FUNCS}%</td><td><a href="frontend/index.html" style="color: var(--accent);">View Details →</a></td></tr>
+                    <tr><td>Recommendation Engine (Python)</td><td class="metric $(get_color ${RE_LINES})">${RE_LINES}%</td><td class="metric $(get_color ${RE_FUNCS})">${RE_FUNCS}%</td><td><a href="recommendation/index.html" style="color: var(--accent);">View Details →</a></td></tr>
+                    <tr class="avg-row"><td>Average</td><td class="metric">${AVG_LINES}%</td><td class="metric">${AVG_FUNCS}%</td><td></td></tr>
                   </tbody>
                 </table>
               </div>
