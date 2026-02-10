@@ -209,7 +209,7 @@ export default function RewardsPage() {
 
       {/* Rewards Grid */}
       {filteredRewards.length === 0 ? (
-        <Card className="p-8 text-center">
+        <Card className="p-8 text-center max-w-md mx-auto">
           <Gift className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
           <p className="text-muted-foreground">No rewards available</p>
         </Card>
@@ -237,7 +237,7 @@ export default function RewardsPage() {
                 )}
               </div>
 
-              <div className="p-4">
+              <div className="p-5">
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="font-semibold text-lg">{reward.name}</h3>
                   <Badge variant="secondary" className="text-xs flex-shrink-0">

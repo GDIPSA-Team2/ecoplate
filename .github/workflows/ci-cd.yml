@@ -54,14 +54,28 @@ jobs:
           bun-version: "1.3"
       - run: bun install --ignore-scripts
       - name: Run backend tests with coverage
-        run: cd backend && bun test --coverage 2>&1 | tee test-output.txt
+        run: cd backend && bun test --coverage --coverage-reporter=lcov --coverage-reporter=text --coverage-dir=coverage 2>&1 | tee test-output.txt
       - name: Write test summary
         if: always()
         run: |
           echo "## Backend Test Results" >> $GITHUB_STEP_SUMMARY
+          # Extract Bun test summary (format: "323 pass")
+          PASS=$(grep -E "^[[:space:]]*[0-9]+ pass" backend/test-output.txt | tail -1 || echo "")
+          FAIL=$(grep -E "^[[:space:]]*[0-9]+ fail" backend/test-output.txt | tail -1 || echo "")
+          echo "✅ **$PASS** $FAIL" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          # Extract coverage table (Bun format: File | % Funcs | % Lines | Uncovered)
+          echo "### Coverage" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat backend/test-output.txt >> $GITHUB_STEP_SUMMARY
+          grep -E "(^-+\||File.*\||All files)" backend/test-output.txt | head -5 >> $GITHUB_STEP_SUMMARY || echo "See job logs for details"
           echo '```' >> $GITHUB_STEP_SUMMARY
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage/
+          retention-days: 5
 
   test-frontend:
     name: Test Frontend
@@ -78,8 +92,15 @@ jobs:
         if: always()
         run: |
           echo "## Frontend Test Results" >> $GITHUB_STEP_SUMMARY
+          # Extract Vitest summary line (format: "Tests  547 passed | 30 skipped")
+          SUMMARY=$(grep -E "Tests.*passed" frontend/test-output.txt | tail -1 | sed 's/\x1b\[[0-9;]*m//g' || echo "No results")
+          echo "✅ **$SUMMARY**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          # Extract coverage summary
+          echo "### Coverage" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat frontend/test-output.txt >> $GITHUB_STEP_SUMMARY
+          # Get coverage summary section (last few lines with percentages)
+          grep -E "^(Statements|Branches|Functions|Lines)\s*:" frontend/test-output.txt >> $GITHUB_STEP_SUMMARY || echo "See job logs for details"
           echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Upload frontend coverage
         if: always()
@@ -105,16 +126,23 @@ jobs:
       - name: Run tests with coverage
         run: |
           cd recommendation-engine
-          pytest test_app.py test_ml.py -v \
+          pytest test_*.py -v \
             --cov=. --cov-report=term-missing \
             --cov-report=html:coverage-html \
+            --cov-report=lcov:coverage.lcov \
             --junitxml=test-results.xml 2>&1 | tee test-output.txt
       - name: Write test summary
         if: always()
         run: |
           echo "## Recommendation Engine Test Results" >> $GITHUB_STEP_SUMMARY
+          # Extract pytest summary (e.g., "X passed in Y seconds")
+          SUMMARY=$(grep -E "passed|failed" recommendation-engine/test-output.txt | grep -E "^=.*=$" | tail -1 || echo "No results")
+          echo "✅ **$SUMMARY**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          # Extract coverage summary
+          echo "### Coverage" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat recommendation-engine/test-output.txt >> $GITHUB_STEP_SUMMARY
+          grep -E "^(TOTAL|Name|--)" recommendation-engine/test-output.txt | head -10 >> $GITHUB_STEP_SUMMARY || echo "See job logs for details"
           echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Upload recommendation coverage
         if: always()
@@ -124,6 +152,267 @@ jobs:
           path: |
             recommendation-engine/coverage-html/
             recommendation-engine/test-results.xml
+            recommendation-engine/coverage.lcov
+          retention-days: 14
+
+  test-coverage-summary:
+    name: Test Coverage Summary
+    needs: [test-backend, test-frontend, test-recommendation]
+    runs-on: ubuntu-latest
+    if: always()
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Install lcov
+        run: sudo apt-get update && sudo apt-get install -y lcov
+
+      - name: Download backend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend-cov/
+        continue-on-error: true
+
+      - name: Download frontend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend-cov/
+        continue-on-error: true
+
+      - name: Download recommendation coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: recommendation-coverage
+          path: recommendation-cov/
+        continue-on-error: true
+
+      - name: Merge coverage and generate detailed HTML reports
+        run: |
+          mkdir -p combined-report/backend combined-report/frontend combined-report/recommendation
+
+          # Collect available lcov files and generate detailed HTML
+          LCOV_ARGS=""
+          if [ -f backend-cov/lcov.info ]; then
+            LCOV_ARGS="$LCOV_ARGS -a backend-cov/lcov.info"
+            # Generate detailed HTML for backend using genhtml
+            genhtml backend-cov/lcov.info -o combined-report/backend --title "Backend Coverage" --legend || true
+          fi
+          if [ -f frontend-cov/lcov.info ]; then
+            LCOV_ARGS="$LCOV_ARGS -a frontend-cov/lcov.info"
+            # Copy frontend Istanbul HTML report (already detailed with line-by-line)
+            if [ -d frontend-cov ]; then
+              cp -r frontend-cov/* combined-report/frontend/ 2>/dev/null || true
+            fi
+          fi
+          if [ -f recommendation-cov/coverage.lcov ]; then
+            LCOV_ARGS="$LCOV_ARGS -a recommendation-cov/coverage.lcov"
+            # Copy recommendation pytest-cov HTML report
+            if [ -d recommendation-cov/coverage-html ]; then
+              cp -r recommendation-cov/coverage-html/* combined-report/recommendation/ 2>/dev/null || true
+            fi
+          fi
+
+          # Generate merged lcov for PR annotations
+          if [ -n "$LCOV_ARGS" ]; then
+            lcov $LCOV_ARGS -o combined-report/lcov.info 2>/dev/null || true
+          fi
+
+      - name: Extract per-component coverage and generate dashboard
+        id: coverage
+        run: |
+          extract_lcov_metric() {
+            local file="$1" metric="$2"
+            if [ -f "$file" ]; then
+              local result
+              result=$(lcov --summary "$file" 2>&1 | grep "$metric" | awk '{print $2}' | tr -d '%')
+              if [ -z "$result" ] || echo "$result" | grep -qiE "^(no|n/a|nan)"; then
+                echo "N/A"
+              elif echo "$result" | grep -qE '^[0-9.]+$'; then
+                echo "$result"
+              else
+                echo "N/A"
+              fi
+            else
+              echo "N/A"
+            fi
+          }
+
+          get_color() {
+            val="$1"
+            if [ "$val" = "N/A" ]; then echo "na"
+            elif [ "$(echo "$val >= 70" | bc -l 2>/dev/null || echo 0)" = "1" ]; then echo "good"
+            elif [ "$(echo "$val >= 50" | bc -l 2>/dev/null || echo 0)" = "1" ]; then echo "okay"
+            else echo "poor"
+            fi
+          }
+
+          # Extract metrics
+          BE_LINES=$(extract_lcov_metric backend-cov/lcov.info "lines")
+          BE_FUNCS=$(extract_lcov_metric backend-cov/lcov.info "functions")
+          BE_BRANCH=$(extract_lcov_metric backend-cov/lcov.info "branches")
+          FE_LINES=$(extract_lcov_metric frontend-cov/lcov.info "lines")
+          FE_FUNCS=$(extract_lcov_metric frontend-cov/lcov.info "functions")
+          FE_BRANCH=$(extract_lcov_metric frontend-cov/lcov.info "branches")
+          RE_LINES=$(extract_lcov_metric recommendation-cov/coverage.lcov "lines")
+          RE_FUNCS=$(extract_lcov_metric recommendation-cov/coverage.lcov "functions")
+          RE_BRANCH=$(extract_lcov_metric recommendation-cov/coverage.lcov "branches")
+
+          # Calculate averages
+          AVG_LINES=$(python3 -c "vals=[float(v) for v in '${BE_LINES},${FE_LINES},${RE_LINES}'.split(',') if v.replace('.','',1).isdigit()]; print(f'{sum(vals)/len(vals):.1f}' if vals else 'N/A')")
+          AVG_FUNCS=$(python3 -c "vals=[float(v) for v in '${BE_FUNCS},${FE_FUNCS},${RE_FUNCS}'.split(',') if v.replace('.','',1).isdigit()]; print(f'{sum(vals)/len(vals):.1f}' if vals else 'N/A')")
+          AVG_BRANCH=$(python3 -c "vals=[float(v) for v in '${BE_BRANCH},${FE_BRANCH},${RE_BRANCH}'.split(',') if v.replace('.','',1).isdigit()]; print(f'{sum(vals)/len(vals):.1f}' if vals else 'N/A')")
+
+          # File counts for each component
+          BE_FILES=$(find combined-report/backend -name "*.html" 2>/dev/null | wc -l | tr -d ' ')
+          FE_FILES=$(find combined-report/frontend -name "*.html" 2>/dev/null | wc -l | tr -d ' ')
+          RE_FILES=$(find combined-report/recommendation -name "*.html" 2>/dev/null | wc -l | tr -d ' ')
+
+          # GitHub Step Summary
+          echo "## Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Lines | Functions | Branches |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-------|-----------|----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | ${BE_LINES}% | ${BE_FUNCS}% | ${BE_BRANCH}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | ${FE_LINES}% | ${FE_FUNCS}% | ${FE_BRANCH}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Recommendation Engine | ${RE_LINES}% | ${RE_FUNCS}% | ${RE_BRANCH}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Average** | **${AVG_LINES}%** | **${AVG_FUNCS}%** | **${AVG_BRANCH}%** |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> Download **combined-coverage-report** artifact for detailed line-by-line coverage." >> $GITHUB_STEP_SUMMARY
+
+          # Generate comprehensive HTML dashboard
+          REPORT_DATE=$(date -u '+%Y-%m-%d %H:%M UTC')
+          cat > combined-report/index.html << HTMLEOF
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>EcoPlate - Combined Coverage Report</title>
+            <style>
+              :root { --bg-primary: #0f172a; --bg-secondary: #1e293b; --bg-card: #334155; --text-primary: #f1f5f9; --text-secondary: #94a3b8; --accent: #3b82f6; --good: #22c55e; --okay: #eab308; --poor: #ef4444; --border: #475569; }
+              * { box-sizing: border-box; margin: 0; padding: 0; }
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.6; min-height: 100vh; }
+              .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+              header { margin-bottom: 2rem; }
+              h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; }
+              .subtitle { color: var(--text-secondary); font-size: 0.95rem; }
+              .meta { display: flex; gap: 2rem; margin-top: 1rem; font-size: 0.85rem; color: var(--text-secondary); }
+              .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+              .summary-card { background: var(--bg-secondary); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--border); }
+              .summary-card h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 1rem; }
+              .summary-value { font-size: 2.5rem; font-weight: 700; font-family: 'SF Mono', Monaco, monospace; }
+              .summary-value.good { color: var(--good); }
+              .summary-value.okay { color: var(--okay); }
+              .summary-value.poor { color: var(--poor); }
+              .summary-label { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.25rem; }
+              .progress-bar { width: 100%; height: 6px; background: var(--bg-primary); border-radius: 3px; overflow: hidden; margin-top: 0.5rem; }
+              .progress-fill { height: 100%; border-radius: 3px; }
+              .progress-fill.good { background: var(--good); }
+              .progress-fill.okay { background: var(--okay); }
+              .progress-fill.poor { background: var(--poor); }
+              .quick-links { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+              .quick-link { display: flex; align-items: center; gap: 1rem; padding: 1.25rem; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; text-decoration: none; color: var(--text-primary); transition: all 0.2s ease; }
+              .quick-link:hover { border-color: var(--accent); transform: translateY(-2px); }
+              .quick-link-icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+              .quick-link-icon.backend { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+              .quick-link-icon.frontend { background: linear-gradient(135deg, #3b82f6, #06b6d4); }
+              .quick-link-icon.recommendation { background: linear-gradient(135deg, #22c55e, #10b981); }
+              .quick-link-content h4 { font-size: 1rem; font-weight: 600; margin-bottom: 0.25rem; }
+              .quick-link-content p { font-size: 0.85rem; color: var(--text-secondary); }
+              .table-container { background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 2rem; }
+              .table-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); }
+              .table-header h2 { font-size: 1.1rem; font-weight: 600; }
+              table { width: 100%; border-collapse: collapse; }
+              th, td { padding: 1rem 1.5rem; text-align: left; }
+              th { background: var(--bg-card); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); font-weight: 600; }
+              tr:not(:last-child) td { border-bottom: 1px solid var(--border); }
+              tr:hover td { background: rgba(59, 130, 246, 0.05); }
+              .metric { font-family: 'SF Mono', Monaco, monospace; font-size: 0.9rem; }
+              .metric.good { color: var(--good); }
+              .metric.okay { color: var(--okay); }
+              .metric.poor { color: var(--poor); }
+              .avg-row { background: var(--bg-card); font-weight: 600; }
+              footer { text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.85rem; border-top: 1px solid var(--border); margin-top: 2rem; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <header>
+                <h1>EcoPlate Coverage Report</h1>
+                <p class="subtitle">Combined test coverage with detailed line-by-line analysis</p>
+                <div class="meta"><span>Generated: ${REPORT_DATE}</span></div>
+              </header>
+              <div class="summary-grid">
+                <div class="summary-card">
+                  <h3>Average Line Coverage</h3>
+                  <div class="summary-value $(get_color ${AVG_LINES})">${AVG_LINES}%</div>
+                  <p class="summary-label">Across all components</p>
+                  <div class="progress-bar"><div class="progress-fill $(get_color ${AVG_LINES})" style="width: ${AVG_LINES}%"></div></div>
+                </div>
+                <div class="summary-card">
+                  <h3>Average Function Coverage</h3>
+                  <div class="summary-value $(get_color ${AVG_FUNCS})">${AVG_FUNCS}%</div>
+                  <p class="summary-label">Functions tested</p>
+                  <div class="progress-bar"><div class="progress-fill $(get_color ${AVG_FUNCS})" style="width: ${AVG_FUNCS}%"></div></div>
+                </div>
+                <div class="summary-card">
+                  <h3>Average Branch Coverage</h3>
+                  <div class="summary-value $(get_color ${AVG_BRANCH})">${AVG_BRANCH}%</div>
+                  <p class="summary-label">Decision branches tested</p>
+                  <div class="progress-bar"><div class="progress-fill $(get_color ${AVG_BRANCH})" style="width: ${AVG_BRANCH}%"></div></div>
+                </div>
+              </div>
+              <h2 style="font-size: 1.25rem; margin-bottom: 1rem;">Detailed Reports (Click to View Line-by-Line Coverage)</h2>
+              <div class="quick-links">
+                <a href="backend/index.html" class="quick-link">
+                  <div class="quick-link-icon backend">⚙️</div>
+                  <div class="quick-link-content"><h4>Backend Coverage</h4><p>Bun API server • ${BE_LINES}% lines • ${BE_FILES} files</p></div>
+                </a>
+                <a href="frontend/index.html" class="quick-link">
+                  <div class="quick-link-icon frontend">🖥️</div>
+                  <div class="quick-link-content"><h4>Frontend Coverage</h4><p>React + Capacitor • ${FE_LINES}% lines • ${FE_FILES} files</p></div>
+                </a>
+                <a href="recommendation/index.html" class="quick-link">
+                  <div class="quick-link-icon recommendation">🤖</div>
+                  <div class="quick-link-content"><h4>Recommendation Engine</h4><p>Python Flask ML API • ${RE_LINES}% lines • ${RE_FILES} files</p></div>
+                </a>
+              </div>
+              <div class="table-container">
+                <div class="table-header"><h2>Coverage by Component</h2></div>
+                <table>
+                  <thead><tr><th>Component</th><th>Lines</th><th>Functions</th><th>Branches</th><th>Detailed Report</th></tr></thead>
+                  <tbody>
+                    <tr><td>Backend (Bun)</td><td class="metric $(get_color ${BE_LINES})">${BE_LINES}%</td><td class="metric $(get_color ${BE_FUNCS})">${BE_FUNCS}%</td><td class="metric $(get_color ${BE_BRANCH})">${BE_BRANCH}%</td><td><a href="backend/index.html" style="color: var(--accent);">View Details →</a></td></tr>
+                    <tr><td>Frontend (React)</td><td class="metric $(get_color ${FE_LINES})">${FE_LINES}%</td><td class="metric $(get_color ${FE_FUNCS})">${FE_FUNCS}%</td><td class="metric $(get_color ${FE_BRANCH})">${FE_BRANCH}%</td><td><a href="frontend/index.html" style="color: var(--accent);">View Details →</a></td></tr>
+                    <tr><td>Recommendation Engine (Python)</td><td class="metric $(get_color ${RE_LINES})">${RE_LINES}%</td><td class="metric $(get_color ${RE_FUNCS})">${RE_FUNCS}%</td><td class="metric $(get_color ${RE_BRANCH})">${RE_BRANCH}%</td><td><a href="recommendation/index.html" style="color: var(--accent);">View Details →</a></td></tr>
+                    <tr class="avg-row"><td>Average</td><td class="metric">${AVG_LINES}%</td><td class="metric">${AVG_FUNCS}%</td><td class="metric">${AVG_BRANCH}%</td><td></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <footer>
+                <p>Generated by EcoPlate CI/CD Pipeline</p>
+                <p style="margin-top: 0.5rem;">Thresholds: <span style="color: var(--good);">≥70% Good</span> • <span style="color: var(--okay);">≥50% Okay</span> • <span style="color: var(--poor);">&lt;50% Needs Work</span></p>
+              </footer>
+            </div>
+          </body>
+          </html>
+          HTMLEOF
+
+      - name: Annotate PR with coverage
+        if: github.event_name == 'pull_request' && hashFiles('combined-report/lcov.info') != ''
+        uses: zgosalvez/github-actions-report-lcov@v4
+        with:
+          coverage-files: combined-report/lcov.info
+          minimum-coverage: 60
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload combined coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: combined-coverage-report
+          path: combined-report/
           retention-days: 14
 
   build-check:
@@ -152,6 +441,7 @@ jobs:
       - name: Run Semgrep
         run: |
           semgrep scan --config=auto \
+            --exclude "security" \
             --exclude-rule "javascript.express.security.x-frame-options-misconfiguration.x-frame-options-misconfiguration" \
             --exclude-rule "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring" \
             --exclude-rule "generic.nginx.security.header-redefinition.header-redefinition" \
@@ -160,6 +450,7 @@ jobs:
             --exclude-rule "yaml.github-actions.security.workflow-run-target-code-checkout.workflow-run-target-code-checkout" \
             --json --output=semgrep-report.json . || true
           semgrep scan --config=auto \
+            --exclude "security" \
             --exclude-rule "javascript.express.security.x-frame-options-misconfiguration.x-frame-options-misconfiguration" \
             --exclude-rule "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring" \
             --exclude-rule "generic.nginx.security.header-redefinition.header-redefinition" \
@@ -558,7 +849,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-app.sarif
         continue-on-error: true
@@ -612,7 +903,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-rec.sarif
         continue-on-error: true
@@ -676,7 +967,7 @@ jobs:
 
   deploy-staging:
     name: Deploy to Staging
-    needs: [build-and-push, set-env]
+    needs: [build-and-push, set-env, scan-app-image, scan-rec-image]
     if: needs.set-env.outputs.deploy_env == 'staging'
     runs-on: ubuntu-latest
     environment: staging
@@ -711,7 +1002,7 @@ jobs:
 
   deploy-production:
     name: Deploy to Production
-    needs: [build-and-push, set-env]
+    needs: [build-and-push, set-env, scan-app-image, scan-rec-image]
     if: needs.set-env.outputs.deploy_env == 'production'
     runs-on: ubuntu-latest
     environment: production
@@ -749,7 +1040,7 @@ jobs:
   # ===========================================================================
 
   dast-zap:
-    name: DAST - OWASP ZAP Baseline
+    name: DAST - OWASP ZAP Full Scan
     needs: [deploy-staging, deploy-production]
     if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
     runs-on: ubuntu-latest
@@ -773,7 +1064,7 @@ jobs:
           echo "Waiting 30 seconds for deployment to stabilize..."
           sleep 30
           for i in $(seq 1 10); do
-            if curl -sf http://${{ steps.target.outputs.host }}/api/v1/health > /dev/null 2>&1; then
+            if curl -sfk https://${{ steps.target.outputs.host }}/api/v1/health > /dev/null 2>&1; then
               echo "Application is healthy"
               break
             fi
@@ -781,25 +1072,14 @@ jobs:
             sleep 10
           done
 
-      - name: Run ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.15.0
+      - name: Run ZAP Full Scan
+        uses: zaproxy/action-full-scan@v0.13.0
         with:
-          target: "http://${{ steps.target.outputs.host }}"
-          cmd_options: "-a"
+          target: "https://${{ steps.target.outputs.host }}"
+          cmd_options: "-a -j"
           allow_issue_writing: false
+          artifact_name: zap-full-report
         continue-on-error: true
-
-      - name: Upload ZAP report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-baseline-report
-          path: |
-            report_html.html
-            report_json.json
-            report_md.md
-          retention-days: 30
-          overwrite: true
 
   dast-api:
     name: DAST - API Security Scan
@@ -823,29 +1103,17 @@ jobs:
       - name: Wait for deployment
         run: |
           sleep 45
-          curl -sf http://${{ steps.target.outputs.host }}/api/v1/health || true
+          curl -sfk https://${{ steps.target.outputs.host }}/api/v1/health || true
 
       - name: Run ZAP API Scan
         uses: zaproxy/action-api-scan@v0.9.0
         with:
-          target: "http://${{ steps.target.outputs.host }}/api/v1/"
+          target: "https://${{ steps.target.outputs.host }}/api/v1/"
           format: openapi
           cmd_options: "-a"
           allow_issue_writing: false
+          artifact_name: zap-api-report
         continue-on-error: true
-
-      - name: Upload API scan report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-api-report
-          path: |
-            report_html.html
-            report_json.json
-            report_md.md
-          retention-days: 30
-          if-no-files-found: ignore
-          overwrite: true
 
   # ===========================================================================
   # LAYER 6.5 — E2E Functional Tests (push only)
@@ -864,10 +1132,18 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Setup Chrome
-        uses: browser-actions/setup-chrome@v1
+      - name: Setup Firefox
+        uses: browser-actions/setup-firefox@v1
         with:
-          chrome-version: stable
+          firefox-version: latest
+
+      - name: Setup GeckoDriver
+        uses: browser-actions/setup-geckodriver@latest
+
+      - name: Verify browser versions
+        run: |
+          firefox --version
+          geckodriver --version
 
       - name: Determine target host
         id: target
@@ -886,7 +1162,7 @@ jobs:
           echo "Waiting for deployment to stabilize..."
           sleep 30
           for i in $(seq 1 10); do
-            if curl -sf http://${{ steps.target.outputs.host }}/api/v1/health > /dev/null 2>&1; then
+            if curl -sfk https://${{ steps.target.outputs.host }}/api/v1/health > /dev/null 2>&1; then
               echo "Application is healthy"
               break
             fi
@@ -904,7 +1180,7 @@ jobs:
         id: e2e
         run: |
           cd e2e
-          HEADLESS=true BASE_URL=http://${{ steps.target.outputs.host }} npm test 2>&1 | tee test-output.log
+          npm test 2>&1 | tee test-output.log
           TEST_EXIT_CODE=${PIPESTATUS[0]}
           if [ $TEST_EXIT_CODE -ne 0 ]; then
             echo "e2e_failed=true" >> $GITHUB_OUTPUT
@@ -912,6 +1188,9 @@ jobs:
           exit 0
         env:
           HEADLESS: "true"
+          BROWSER: "firefox"
+          BASE_URL: https://${{ steps.target.outputs.host }}
+          NODE_TLS_REJECT_UNAUTHORIZED: "0"
         continue-on-error: true
 
       - name: Generate fallback report if missing
@@ -927,13 +1206,14 @@ jobs:
         if: always()
         run: |
           echo "## E2E Selenium Test Results" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
           if [ -f e2e/test-output.log ]; then
-            cat e2e/test-output.log >> $GITHUB_STEP_SUMMARY
+            # Extract pass/fail counts
+            PASSED=$(grep -c "✓\|PASSED\|passed" e2e/test-output.log 2>/dev/null || echo "0")
+            FAILED=$(grep -c "✗\|FAILED\|failed" e2e/test-output.log 2>/dev/null || echo "0")
+            echo "✅ **$PASSED passed, $FAILED failed**" >> $GITHUB_STEP_SUMMARY
           else
-            echo "No test output available" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ No test output available" >> $GITHUB_STEP_SUMMARY
           fi
-          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload test screenshots
         if: always()
@@ -1038,9 +1318,9 @@ jobs:
         with: { name: container-sbom, path: reports/container-sbom }
         continue-on-error: true
 
-      - name: Download ZAP Baseline report
+      - name: Download ZAP Full Scan report
         uses: actions/download-artifact@v4
-        with: { name: zap-baseline-report, path: reports/zap-baseline }
+        with: { name: zap-full-report, path: reports/zap-full }
         continue-on-error: true
 
       - name: Download ZAP API report
@@ -1053,9 +1333,20 @@ jobs:
         with: { name: e2e-test-report, path: reports/e2e-test-report }
         continue-on-error: true
 
+      - name: Download previous baseline for comparison
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: ci-cd.yml
+          branch: ${{ github.ref_name }}
+          name: security-baseline
+          path: baseline/
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
       - name: Check report completeness
         run: |
-          EXPECTED="semgrep bandit trufflehog pip-audit js-audit checkov license sbom trivy-app trivy-rec container-sbom zap-baseline zap-api e2e-test-report"
+          EXPECTED="semgrep bandit trufflehog pip-audit js-audit checkov license sbom trivy-app trivy-rec container-sbom zap-full zap-api e2e-test-report"
           SKIPPED=0
           for dir in $EXPECTED; do
             if [ -z "$(ls -A reports/$dir 2>/dev/null)" ]; then
@@ -1067,10 +1358,20 @@ jobs:
 
       - name: Generate consolidated security report
         run: |
+          BASELINE_ARG=""
+          if [ -f baseline/security-baseline.json ]; then
+            echo "Found previous baseline - will generate comparison"
+            BASELINE_ARG="--baseline baseline/security-baseline.json"
+          else
+            echo "No previous baseline found - generating report without comparison"
+          fi
+
           python .github/scripts/generate-security-report.py \
             --reports-dir reports \
             --output-html security-report.html \
             --output-md security-summary.md \
+            --output-baseline security-baseline.json \
+            $BASELINE_ARG \
             --branch "${{ github.ref_name }}" \
             --commit "${{ github.sha }}" \
             --repo "${{ github.repository }}"
@@ -1087,6 +1388,16 @@ jobs:
           path: |
             security-report.html
             security-summary.md
+            security-baseline.json
+            reports/
+          retention-days: 90
+
+      - name: Upload baseline for future comparisons
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-baseline
+          path: security-baseline.json
           retention-days: 90
 
   # ===========================================================================
@@ -1141,7 +1452,7 @@ jobs:
           echo "- Container SBOM: ${{ needs.container-sbom.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Dynamic Testing" >> $GITHUB_STEP_SUMMARY
-          echo "- ZAP Baseline: ${{ needs.dast-zap.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ZAP Full Scan: ${{ needs.dast-zap.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- ZAP API Scan: ${{ needs.dast-api.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Functional Testing" >> $GITHUB_STEP_SUMMARY

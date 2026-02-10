@@ -436,6 +436,12 @@ If no food items found or image is not a receipt, return {"items": []}.`,
 
       const { rawPhoto, ingredients, status } = parsed.data;
 
+      console.log("[pending/create] Starting database insertion...");
+      console.log("[pending/create] Data sizes:", {
+        rawPhotoSize: rawPhoto.length,
+        ingredientsSize: JSON.stringify(ingredients).length,
+      });
+
       const [record] = await db
         .insert(pendingConsumptionRecords)
         .values({
@@ -446,6 +452,8 @@ If no food items found or image is not a receipt, return {"items": []}.`,
         })
         .returning();
 
+      console.log("[pending/create] Database insertion successful, record ID:", record.id);
+
       let parsedIngredients: unknown[] = [];
       try {
         parsedIngredients = JSON.parse(record.ingredients);
@@ -453,18 +461,26 @@ If no food items found or image is not a receipt, return {"items": []}.`,
         parsedIngredients = [];
       }
 
-      return json({
+      console.log("[pending/create] Preparing response...");
+      const response = json({
         id: record.id,
         rawPhoto: record.rawPhoto,
         ingredients: parsedIngredients,
         status: record.status,
         createdAt: record.createdAt?.toISOString() || new Date().toISOString(),
       });
+      console.log("[pending/create] Response sent successfully");
+      return response;
     } catch (e) {
       if (e instanceof z.ZodError) {
+        console.error("[pending/create] Zod validation error:", e.errors);
         return error(e.errors[0].message, 400);
       }
-      console.error("Create pending consumption error:", e);
+      console.error("[pending/create] Error details:", {
+        message: e instanceof Error ? e.message : String(e),
+        stack: e instanceof Error ? e.stack : undefined,
+        type: e?.constructor?.name,
+      });
       return error("Failed to create pending consumption", 500);
     }
   });

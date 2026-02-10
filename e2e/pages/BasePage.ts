@@ -60,4 +60,24 @@ export abstract class BasePage {
   async waitForUrl(urlPattern: string, timeout = 10000): Promise<void> {
     await this.driver.wait(until.urlContains(urlPattern), timeout);
   }
+
+  async waitForUrlToNotContain(urlPattern: string, timeout = 10000): Promise<void> {
+    await this.driver.wait(async () => {
+      const url = await this.driver.getCurrentUrl();
+      return !url.includes(urlPattern);
+    }, timeout);
+  }
+
+  async clearLocalStorage(): Promise<void> {
+    await this.driver.executeScript('window.localStorage.clear();');
+  }
+
+  async clearSessionStorage(): Promise<void> {
+    await this.driver.executeScript('window.sessionStorage.clear();');
+  }
+
+  async clearAllStorage(): Promise<void> {
+    await this.clearLocalStorage();
+    await this.clearSessionStorage();
+  }
 }

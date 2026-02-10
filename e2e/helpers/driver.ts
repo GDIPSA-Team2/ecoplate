@@ -1,32 +1,57 @@
 import { Builder, WebDriver, Browser } from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome.js';
+import firefox from 'selenium-webdriver/firefox.js';
 import { config } from '../selenium.config';
 import * as fs from 'fs';
 import * as path from 'path';
 
 export async function createDriver(): Promise<WebDriver> {
-  const options = new chrome.Options();
+  const browserName = config.browser.name.toLowerCase();
+  let driver: WebDriver;
 
-  if (config.headless) {
-    options.addArguments('--headless=new');
+  if (browserName === 'firefox') {
+    const options = new firefox.Options();
+    options.setAcceptInsecureCerts(true);
+
+    if (config.browser.headless) {
+      options.addArguments('-headless');
+    }
+
+    options.addArguments(
+      `-width=${config.browser.windowSize.width}`,
+      `-height=${config.browser.windowSize.height}`
+    );
+
+    driver = await new Builder()
+      .forBrowser(Browser.FIREFOX)
+      .setFirefoxOptions(options)
+      .build();
+  } else {
+    // Default to Chrome
+    const options = new chrome.Options();
+    options.setAcceptInsecureCerts(true);
+
+    if (config.browser.headless) {
+      options.addArguments('--headless=new');
+    }
+
+    options.addArguments(
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--window-size=1920,1080'
+    );
+
+    driver = await new Builder()
+      .forBrowser(Browser.CHROME)
+      .setChromeOptions(options)
+      .build();
   }
 
-  options.addArguments(
-    '--no-sandbox',
-    '--disable-dev-shm-usage',
-    '--disable-gpu',
-    '--window-size=1920,1080'
-  );
-
-  const driver = await new Builder()
-    .forBrowser(Browser.CHROME)
-    .setChromeOptions(options)
-    .build();
-
   await driver.manage().setTimeouts({
-    implicit: config.timeout.implicit,
-    pageLoad: config.timeout.pageLoad,
-    script: config.timeout.script,
+    implicit: config.timeouts.implicit,
+    pageLoad: config.timeouts.pageLoad,
+    script: config.timeouts.script,
   });
 
   return driver;
@@ -52,7 +77,7 @@ export async function takeScreenshot(
   const timestamp = Date.now();
   const filename = `${name}-${timestamp}.png`;
   fs.writeFileSync(
-    path.join(screenshotDir, filename),
+    path.join(screenshotDir, filename), // nosemgrep: path-join-resolve-traversal — filename is generated internally, not user input
     screenshot,
     'base64'
   );

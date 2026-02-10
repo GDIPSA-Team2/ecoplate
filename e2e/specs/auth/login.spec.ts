@@ -17,7 +17,10 @@ describe('Login', () => {
   });
 
   beforeEach(async () => {
+    // Clear auth state before each test to ensure clean slate
     await loginPage.goto();
+    await loginPage.clearAllStorage();
+    await loginPage.goto(); // Navigate again after clearing storage
   });
 
   it('should display the login form', async () => {
@@ -32,10 +35,10 @@ describe('Login', () => {
 
   it('should login with valid credentials', async () => {
     await loginPage.login(testUsers.primary.email, testUsers.primary.password);
-    
-    // Wait for navigation to dashboard
-    await loginPage.waitForUrl('/');
-    
+
+    // Wait for navigation away from login page
+    await loginPage.waitForUrlToNotContain('/login');
+
     const url = await loginPage.getCurrentUrl();
     expect(url).not.toContain('/login');
   });

@@ -64,8 +64,23 @@ function getMimeType(path: string): string {
   return mimeTypes[ext] || "application/octet-stream";
 }
 
+// Generate a cryptographic nonce for CSP headers
+function generateNonce(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes));
+}
+
+// Inject nonce attribute into script, style, and stylesheet link tags
+function injectNonce(html: string, nonce: string): string {
+  return html
+    .replace(/<script(?=[\s>])/gi, `<script nonce="${nonce}"`)
+    .replace(/<style(?=[\s>])/gi, `<style nonce="${nonce}"`)
+    .replace(/<link([^>]*rel=["']stylesheet["'])/gi, `<link nonce="${nonce}"$1`);
+}
+
 // Security headers to address OWASP ZAP findings
-function addSecurityHeaders(response: Response, isApi: boolean = false): Response {
+function addSecurityHeaders(response: Response, isApi: boolean = false, nonce?: string): Response {
   const headers = new Headers(response.headers);
 
   // Hide server version information (override Bun's default Server header)
@@ -90,8 +105,10 @@ function addSecurityHeaders(response: Response, isApi: boolean = false): Respons
     headers.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
     headers.set("Pragma", "no-cache");
   } else {
-    // SPA headers - allow inline scripts/styles for Vite
-    headers.set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://maps.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://maps.googleapis.com https://maps.gstatic.com; connect-src 'self' https://maps.googleapis.com; font-src 'self' https://fonts.gstatic.com; form-action 'self'; base-uri 'self'; object-src 'none'; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'");
+    // SPA headers - use nonce-based CSP instead of unsafe-inline
+    const scriptSrc = nonce ? `'self' 'nonce-${nonce}' https://maps.googleapis.com` : "'self' https://maps.googleapis.com";
+    const styleSrc = nonce ? `'self' 'nonce-${nonce}' https://fonts.googleapis.com` : "'self' https://fonts.googleapis.com";
+    headers.set("Content-Security-Policy", `default-src 'self'; script-src ${scriptSrc}; style-src ${styleSrc}; img-src 'self' data: blob: https://maps.googleapis.com https://maps.gstatic.com; connect-src 'self' https://maps.googleapis.com; font-src 'self' https://fonts.gstatic.com; form-action 'self'; base-uri 'self'; object-src 'none'; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'`);
   }
 
   return new Response(response.body, {
@@ -103,9 +120,10 @@ function addSecurityHeaders(response: Response, isApi: boolean = false): Respons
 
 /** Safely join a base directory with a user-supplied path, preventing directory traversal */
 function safePath(baseDir: string, userPath: string): string | null {
+  // nosemgrep: path-join-resolve-traversal — this function IS the path traversal guard
   const resolved = resolve(baseDir, userPath.replace(/^\/+/, ""));
   // Ensure the resolved path is still within the base directory
-  if (!resolved.startsWith(resolve(baseDir))) {
+  if (!resolved.startsWith(resolve(baseDir))) { // nosemgrep: path-join-resolve-traversal
     return null;
   }
   return resolved;
@@ -169,8 +187,13 @@ const server = Bun.serve({
   async fetch(req) {
     const url = new URL(req.url);
 
-    // Handle CORS for development
-    if (req.method === "OPTIONS") {
+    // Block TRACE/TRACK methods
+    if (req.method === "TRACE" || req.method === "TRACK") {
+      return new Response(null, { status: 405 });
+    }
+
+    // Handle CORS preflight — only for API routes
+    if (req.method === "OPTIONS" && url.pathname.startsWith("/api/")) {
       return new Response(null, {
         headers: {
           "Access-Control-Allow-Origin": "*",
@@ -202,6 +225,16 @@ const server = Bun.serve({
     // Static files / SPA
     const staticResponse = await serveStatic(url.pathname);
     if (staticResponse) {
+      const contentType = staticResponse.headers.get("Content-Type") || "";
+      if (contentType.includes("text/html")) {
+        const nonce = generateNonce();
+        const html = await staticResponse.text();
+        const noncedResponse = new Response(injectNonce(html, nonce), {
+          status: staticResponse.status,
+          headers: { "Content-Type": "text/html; charset=utf-8" },
+        });
+        return addSecurityHeaders(noncedResponse, false, nonce);
+      }
       return addSecurityHeaders(staticResponse, false);
     }
 
