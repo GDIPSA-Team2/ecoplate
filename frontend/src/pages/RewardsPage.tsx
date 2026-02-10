@@ -13,8 +13,8 @@ import {
 import {
   Gift,
   Coins,
-  Package,
-  Ticket,
+  UtensilsCrossed,
+  Shirt,
   Loader2,
   CheckCircle,
   AlertCircle,
@@ -51,7 +51,7 @@ export default function RewardsPage() {
   const [redeeming, setRedeeming] = useState(false);
   const [redemptionResult, setRedemptionResult] = useState<RedemptionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "physical" | "voucher">("all");
+  const [filter, setFilter] = useState<"all" | "food" | "apparel">("all");
 
   useEffect(() => {
     fetchRewardsAndBalance();
@@ -111,10 +111,10 @@ export default function RewardsPage() {
   });
 
   const getCategoryIcon = (category: string) => {
-    return category === "physical" ? (
-      <Package className="h-4 w-4" />
+    return category === "apparel" ? (
+      <Shirt className="h-4 w-4" />
     ) : (
-      <Ticket className="h-4 w-4" />
+      <UtensilsCrossed className="h-4 w-4" />
     );
   };
 
@@ -167,18 +167,18 @@ export default function RewardsPage() {
           All
         </Button>
         <Button
-          variant={filter === "physical" ? "default" : "outline"}
-          onClick={() => setFilter("physical")}
+          variant={filter === "food" ? "default" : "outline"}
+          onClick={() => setFilter("food")}
         >
-          <Package className="h-4 w-4 mr-2" />
-          Physical
+          <UtensilsCrossed className="h-4 w-4 mr-2" />
+          Food & Beverage
         </Button>
         <Button
-          variant={filter === "voucher" ? "default" : "outline"}
-          onClick={() => setFilter("voucher")}
+          variant={filter === "apparel" ? "default" : "outline"}
+          onClick={() => setFilter("apparel")}
         >
-          <Ticket className="h-4 w-4 mr-2" />
-          Vouchers
+          <Shirt className="h-4 w-4 mr-2" />
+          Apparel
         </Button>
       </div>
 
@@ -218,7 +218,7 @@ export default function RewardsPage() {
                   <Badge variant="secondary" className="text-xs flex-shrink-0">
                     {getCategoryIcon(reward.category)}
                     <span className="ml-1">
-                      {reward.category === "physical" ? "Physical" : "Voucher"}
+                      {reward.category === "apparel" ? "Apparel" : "F&B"}
                     </span>
                   </Badge>
                 </div>
