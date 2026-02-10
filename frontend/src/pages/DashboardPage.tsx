@@ -29,6 +29,7 @@ import {
   Cell,
   BarChart,
   Bar,
+  Legend,
 } from "recharts";
 
 // ==================== Types ====================
@@ -306,7 +307,7 @@ export default function DashboardPage() {
         <Card className="overflow-hidden">
           <CardContent className="p-3 sm:p-4 lg:p-6">
             <h3 className="text-sm sm:text-base font-semibold mb-3 sm:mb-4">
-              CO\u2082 Reduction Over Time
+              CO&#8322; Saved Over Time
             </h3>
             <div className="h-48 sm:h-64 -ml-2 sm:ml-0">
               <ResponsiveContainer width="100%" height="100%">
@@ -491,9 +492,11 @@ export default function DashboardPage() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius="70%"
-                      label={({ name, percent }) =>
-                        `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
+                      outerRadius="60%"
+                      label={({ percent }) =>
+                        (percent ?? 0) > 0.05
+                          ? `${((percent ?? 0) * 100).toFixed(0)}%`
+                          : ""
                       }
                       labelLine={false}
                       fontSize={10}
@@ -507,6 +510,13 @@ export default function DashboardPage() {
                     </Pie>
                     <Tooltip
                       formatter={(value) => [`${value} kg`, "CO\u2082"]}
+                    />
+                    <Legend
+                      layout="vertical"
+                      align="right"
+                      verticalAlign="middle"
+                      iconSize={8}
+                      wrapperStyle={{ fontSize: 10, paddingLeft: 10 }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -562,7 +572,7 @@ export default function DashboardPage() {
                 <BarChart
                   data={co2Data.topItems}
                   layout="vertical"
-                  margin={{ top: 5, right: 20, bottom: 5, left: 80 }}
+                  margin={{ top: 5, right: 20, bottom: 5, left: 5 }}
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -572,8 +582,11 @@ export default function DashboardPage() {
                   <YAxis
                     type="category"
                     dataKey="name"
-                    tick={{ fontSize: 10 }}
-                    width={75}
+                    tick={{ fontSize: 9 }}
+                    width={100}
+                    tickFormatter={(value) =>
+                      value.length > 15 ? `${value.slice(0, 15)}...` : value
+                    }
                   />
                   <Tooltip
                     formatter={(value) => [`${value} kg`, "CO\u2082"]}
@@ -712,11 +725,11 @@ export default function DashboardPage() {
               <h3 className="text-sm sm:text-base font-semibold mb-3 sm:mb-4">
                 Price Comparison
               </h3>
-              <div className="h-48 sm:h-64 -ml-2 sm:ml-0">
+              <div className="h-56 sm:h-72 -ml-2 sm:ml-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={financialData.priceComparison}
-                    margin={{ top: 5, right: 5, bottom: 5, left: 0 }}
+                    margin={{ top: 5, right: 5, bottom: 50, left: 0 }}
                   >
                     <CartesianGrid
                       strokeDasharray="3 3"
@@ -724,13 +737,15 @@ export default function DashboardPage() {
                     />
                     <XAxis
                       dataKey="name"
-                      tick={{ fontSize: 9 }}
-                      tickMargin={8}
+                      tick={{ fontSize: 8, textAnchor: "end" }}
+                      tickMargin={5}
                       interval={0}
-                      angle={-20}
+                      angle={-45}
+                      height={60}
                     />
                     <YAxis tick={{ fontSize: 10 }} tickMargin={4} width={35} />
                     <Tooltip contentStyle={{ fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 10, paddingTop: 10 }} />
                     <Bar
                       dataKey="originalPrice"
                       fill="#94a3b8"
@@ -915,9 +930,11 @@ export default function DashboardPage() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius="70%"
-                      label={({ name, percent }) =>
-                        `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
+                      outerRadius="60%"
+                      label={({ percent }) =>
+                        (percent ?? 0) > 0.05
+                          ? `${((percent ?? 0) * 100).toFixed(0)}%`
+                          : ""
                       }
                       labelLine={false}
                       fontSize={10}
@@ -931,6 +948,13 @@ export default function DashboardPage() {
                     </Pie>
                     <Tooltip
                       formatter={(value) => [`${value} kg`, "Quantity"]}
+                    />
+                    <Legend
+                      layout="vertical"
+                      align="right"
+                      verticalAlign="middle"
+                      iconSize={8}
+                      wrapperStyle={{ fontSize: 10, paddingLeft: 10 }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -994,7 +1018,7 @@ export default function DashboardPage() {
                 <BarChart
                   data={foodData.topItems}
                   layout="vertical"
-                  margin={{ top: 5, right: 20, bottom: 5, left: 80 }}
+                  margin={{ top: 5, right: 20, bottom: 5, left: 5 }}
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -1004,8 +1028,11 @@ export default function DashboardPage() {
                   <YAxis
                     type="category"
                     dataKey="name"
-                    tick={{ fontSize: 10 }}
-                    width={75}
+                    tick={{ fontSize: 9 }}
+                    width={100}
+                    tickFormatter={(value) =>
+                      value.length > 15 ? `${value.slice(0, 15)}...` : value
+                    }
                   />
                   <Tooltip
                     formatter={(value) => [`${value} kg`, "Quantity"]}
