@@ -21,6 +21,8 @@ import {
   History,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { api } from "../services/api";
+import { uploadService } from "../services/upload";
 
 interface Reward {
   id: number;
@@ -58,26 +60,14 @@ export default function RewardsPage() {
   const fetchRewardsAndBalance = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
 
-      const [rewardsRes, balanceRes] = await Promise.all([
-        fetch("/api/v1/rewards", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch("/api/v1/rewards/balance", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+      const [rewardsData, balanceData] = await Promise.all([
+        api.get<Reward[]>("/rewards"),
+        api.get<{ balance: number }>("/rewards/balance"),
       ]);
 
-      if (rewardsRes.ok) {
-        const data = await rewardsRes.json();
-        setRewards(data);
-      }
-
-      if (balanceRes.ok) {
-        const data = await balanceRes.json();
-        setBalance(data.balance);
-      }
+      setRewards(rewardsData);
+      setBalance(balanceData.balance);
     } catch (err) {
       console.error("Failed to fetch rewards:", err);
     } finally {
@@ -92,22 +82,7 @@ export default function RewardsPage() {
     setError(null);
 
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch("/api/v1/rewards/redeem", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ rewardId: selectedReward.id }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Failed to redeem reward");
-        return;
-      }
+      const data = await api.post<RedemptionResult>("/rewards/redeem", { rewardId: selectedReward.id });
 
       setRedemptionResult(data);
       setBalance((prev) => prev - selectedReward.pointsCost);
@@ -117,8 +92,8 @@ export default function RewardsPage() {
           r.id === selectedReward.id ? { ...r, stock: r.stock - 1 } : r
         )
       );
-    } catch (err) {
-      setError("Failed to redeem reward. Please try again.");
+    } catch (err: any) {
+      setError(err.message || "Failed to redeem reward. Please try again.");
     } finally {
       setRedeeming(false);
     }
@@ -154,14 +129,13 @@ export default function RewardsPage() {
   return (
     <div className="w-full px-4 py-6 pb-24 lg:pb-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold">Rewards</h1>
           <p className="text-muted-foreground">Redeem your EcoPoints for rewards</p>
         </div>
         <Button
           variant="outline"
-          size="sm"
           onClick={() => navigate("/rewards/my-redemptions")}
         >
           <History className="h-4 w-4 mr-2" />
@@ -170,43 +144,40 @@ export default function RewardsPage() {
       </div>
 
       {/* Balance Card */}
-      <Card className="p-4 mb-6 bg-gradient-to-r from-green-500 to-emerald-600 text-white">
+      <div className="p-6 mb-6 rounded-2xl shadow-sm text-white" style={{ background: 'linear-gradient(to right, #22c55e, #059669)' }}>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm opacity-90">Your Balance</p>
             <div className="flex items-center gap-2">
-              <Coins className="h-6 w-6" />
-              <span className="text-3xl font-bold">{balance.toLocaleString()}</span>
-              <span className="text-lg">points</span>
+              <Coins className="h-8 w-8" />
+              <span className="text-4xl font-bold">{balance.toLocaleString()}</span>
+              <span className="text-xl">points</span>
             </div>
           </div>
-          <Gift className="h-12 w-12 opacity-50" />
+          <Gift className="h-16 w-16 opacity-50" />
         </div>
-      </Card>
+      </div>
 
       {/* Filter Tabs */}
       <div className="flex gap-2 mb-6">
         <Button
           variant={filter === "all" ? "default" : "outline"}
-          size="sm"
           onClick={() => setFilter("all")}
         >
           All
         </Button>
         <Button
           variant={filter === "physical" ? "default" : "outline"}
-          size="sm"
           onClick={() => setFilter("physical")}
         >
-          <Package className="h-4 w-4 mr-1" />
+          <Package className="h-4 w-4 mr-2" />
           Physical
         </Button>
         <Button
           variant={filter === "voucher" ? "default" : "outline"}
-          size="sm"
           onClick={() => setFilter("voucher")}
         >
-          <Ticket className="h-4 w-4 mr-1" />
+          <Ticket className="h-4 w-4 mr-2" />
           Vouchers
         </Button>
       </div>
@@ -230,21 +201,21 @@ export default function RewardsPage() {
               <div className="aspect-[4/3] bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center overflow-hidden">
                 {reward.imageUrl ? (
                   <img
-                    src={reward.imageUrl}
+                    src={uploadService.getImageUrl(reward.imageUrl)}
                     alt={reward.name}
                     className="w-full h-full object-contain bg-white"
                   />
                 ) : reward.category === "physical" ? (
-                  <Package className="h-12 w-12 text-muted-foreground" />
+                  <Package className="h-16 w-16 text-muted-foreground" />
                 ) : (
-                  <Ticket className="h-12 w-12 text-muted-foreground" />
+                  <Ticket className="h-16 w-16 text-muted-foreground" />
                 )}
               </div>
 
               <div className="p-5">
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="font-semibold text-lg">{reward.name}</h3>
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge variant="secondary" className="text-xs flex-shrink-0">
                     {getCategoryIcon(reward.category)}
                     <span className="ml-1">
                       {reward.category === "physical" ? "Physical" : "Voucher"}
@@ -253,33 +224,32 @@ export default function RewardsPage() {
                 </div>
 
                 {reward.description && (
-                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
                     {reward.description}
                   </p>
                 )}
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-primary font-semibold">
-                    <Coins className="h-4 w-4" />
-                    <span>{reward.pointsCost.toLocaleString()}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-1 text-primary font-semibold text-lg">
+                      <Coins className="h-5 w-5" />
+                      <span>{reward.pointsCost.toLocaleString()}</span>
+                    </div>
                     <span className="text-xs text-muted-foreground">
                       Stock: {reward.stock}
                     </span>
-                    <Button
-                      size="sm"
-                      disabled={reward.stock === 0 || balance < reward.pointsCost}
-                      onClick={() => setSelectedReward(reward)}
-                    >
-                      {reward.stock === 0
-                        ? "Out of Stock"
-                        : balance < reward.pointsCost
-                        ? "Not Enough Points"
-                        : "Redeem"}
-                    </Button>
                   </div>
+
+                  <Button
+                    disabled={reward.stock === 0 || balance < reward.pointsCost}
+                    onClick={() => setSelectedReward(reward)}
+                  >
+                    {reward.stock === 0
+                      ? "Out of Stock"
+                      : balance < reward.pointsCost
+                      ? "Not Enough"
+                      : "Redeem"}
+                  </Button>
                 </div>
               </div>
             </Card>

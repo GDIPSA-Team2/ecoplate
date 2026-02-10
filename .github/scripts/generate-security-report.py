@@ -620,6 +620,8 @@ def compare_baselines(current_results, previous_baseline):
 def overall_status(results):
     if any(r.status == "fail" for r in results):
         return "fail"
+    if any(r.status == "warn" for r in results):
+        return "warn"
     return "pass"
 
 
