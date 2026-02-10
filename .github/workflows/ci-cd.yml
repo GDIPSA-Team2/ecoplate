@@ -1074,7 +1074,7 @@ jobs:
         uses: zaproxy/action-full-scan@v0.13.0
         with:
           target: "https://${{ steps.target.outputs.host }}"
-          cmd_options: "-a -j -z '-config connection.dnsTtlSuccessfulQueries=-1 -config network.connection.httpProxy.enabled=false'"
+          cmd_options: "-a -j"
           allow_issue_writing: false
           artifact_name: zap-full-report
         continue-on-error: true
