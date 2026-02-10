@@ -117,21 +117,27 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 
 ---
 
-### 5. Proxy Disclosure (Medium × 1)
+### 5. Proxy Disclosure (Medium × 5)
 
 **Plugin:** 40025
 **Tool:** OWASP ZAP
 **Severity:** Medium
-**CWE:** CWE-200 (Exposure of Sensitive Information)
+**CWE:** CWE-204 (Observable Response Discrepancy)
+**WASC:** WASC-45 (Fingerprinting)
 
-**Finding:** TRACE/TRACK HTTP methods and unrestricted OPTIONS responses revealed proxy infrastructure details.
+**Finding:** ZAP identified nginx as a proxy/web server via TRACE, OPTIONS, and TRACK methods with `Max-Forwards` header. The `Server: nginx` response header and OPTIONS responses on non-API routes disclosed server infrastructure.
 
-**Fix:** Blocked TRACE/TRACK methods and restricted OPTIONS handling at both nginx and application layers.
+**Fix:** Multi-layered approach to eliminate all proxy disclosure vectors.
 
 | File | Change |
 |------|--------|
-| `deploy/nginx.conf` | Added `if ($request_method ~* ^(TRACE\|TRACK)$) { return 405; }` in HTTPS server block |
+| `deploy/Dockerfile.nginx` | Multi-stage build: compiles `headers-more-nginx-module` and loads it as a dynamic module. Enables `more_clear_headers` directive |
+| `deploy/nginx.conf` | Added `more_clear_headers Server;` and `more_clear_headers X-Powered-By;` to completely strip server identity from ALL responses (including error pages, redirects). Blocked OPTIONS on non-API routes (`location /`, static assets) with `return 405` |
 | `backend/src/index.ts` | Added TRACE/TRACK blocking returning 405; restricted OPTIONS handling to `/api/` routes only |
+
+**Before:** Every response included `Server: nginx` header; OPTIONS on `/`, `/robots.txt`, `/vite.svg` etc. were proxied through, leaking server identity.
+
+**After:** No `Server` header in any response; TRACE/TRACK return 405; OPTIONS blocked on all non-API routes; only `/api/` OPTIONS (CORS preflight) allowed.
 
 ---
 
@@ -161,6 +167,6 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 | 2 | CSP script-src unsafe-inline | Medium | 4 | Fixed |
 | 3 | CSP style-src unsafe-inline | Medium | 4 | Fixed |
 | 4 | HTTP Only Site | Medium | 1 | Fixed |
-| 5 | Proxy Disclosure | Medium | 1 | Fixed |
+| 5 | Proxy Disclosure | Medium | 5 | Fixed |
 | 6 | Semgrep false positive suppressions | Info | 4 | Suppressed |
-| **Total** | | **3 High + 10 Medium + 4 Info** | **17** | **All Resolved** |
+| **Total** | | **3 High + 14 Medium + 4 Info** | **21** | **All Resolved** |
