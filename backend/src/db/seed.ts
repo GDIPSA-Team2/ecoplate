@@ -683,61 +683,64 @@ const sampleBadges = [
   { code: "streak_30", name: "Monthly Champion", description: "30-day sustainability streak", category: "streaks", pointsAwarded: 250, sortOrder: 16 },
 ];
 
-// Sample rewards for EcoPoints redemption (all vouchers)
+// Sample rewards for EcoPoints redemption
+// Categories: "food" (F&B vouchers), "apparel" (clothing brands)
 const sampleRewards = [
+  // Food & Beverage vouchers
   {
     name: "Starbucks Gift Card $5",
     description: "Enjoy a $5 Starbucks gift card. Perfect for your morning coffee!",
-    imageUrl: "/uploads/rewards/Starbucks.svg.png",
-    category: "voucher",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/thumb/d/d3/Starbucks_Corporation_Logo_2011.svg/1200px-Starbucks_Corporation_Logo_2011.svg.png",
+    category: "food",
     pointsCost: 300,
     stock: 50,
   },
   {
     name: "Grab Voucher $5",
     description: "Redeem for a $5 Grab voucher. Use for rides or GrabFood!",
-    imageUrl: "/uploads/rewards/Grab.jpg",
-    category: "voucher",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Grab_Logo.svg/1200px-Grab_Logo.svg.png",
+    category: "food",
     pointsCost: 350,
     stock: 75,
   },
   {
     name: "Luckin Coffee $3",
     description: "Enjoy a $3 Luckin Coffee voucher. Great value for quality coffee!",
-    imageUrl: "/uploads/rewards/Luckin.jpeg",
-    category: "voucher",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Luckin_Coffee_logo.svg/1200px-Luckin_Coffee_logo.svg.png",
+    category: "food",
     pointsCost: 200,
     stock: 100,
   },
   {
     name: "CHAGEE Voucher $5",
     description: "Redeem for a $5 CHAGEE voucher. Premium tea at your fingertips!",
-    imageUrl: "/uploads/rewards/Logo-variation-01.webp",
-    category: "voucher",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/8/89/Chagee_logo.png",
+    category: "food",
     pointsCost: 300,
     stock: 80,
   },
   {
     name: "EZ-Link Card Top-up $5",
     description: "Get $5 credit for your EZ-Link card. Use for public transport!",
-    imageUrl: "/uploads/rewards/ezlink.png",
-    category: "voucher",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/thumb/f/f3/EZ-Link_logo.svg/1200px-EZ-Link_logo.svg.png",
+    category: "food",
     pointsCost: 400,
     stock: 60,
   },
   {
-    name: "Cates Voucher $5",
-    description: "Redeem for a $5 Cates voucher. Enjoy quality food and beverages!",
-    imageUrl: "/uploads/rewards/cates.png",
-    category: "voucher",
+    name: "GongCha Voucher $5",
+    description: "Redeem for a $5 GongCha voucher. Enjoy premium bubble tea!",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/thumb/7/70/Gong_Cha_logo.svg/1200px-Gong_Cha_logo.svg.png",
+    category: "food",
     pointsCost: 300,
     stock: 80,
   },
+  // Apparel vouchers
   {
     name: "Adidas Voucher $10",
     description: "Get a $10 Adidas voucher. Treat yourself to sustainable sportswear!",
     imageUrl: "https://logos-world.net/wp-content/uploads/2020/04/Adidas-Logo.png",
-    category: "voucher",
+    category: "apparel",
     pointsCost: 800,
     stock: 30,
   },
@@ -745,9 +748,26 @@ const sampleRewards = [
     name: "Nike Voucher $10",
     description: "Redeem for a $10 Nike voucher. Gear up with eco-conscious style!",
     imageUrl: "https://logos-world.net/wp-content/uploads/2020/04/Nike-Logo.png",
-    category: "voucher",
+    category: "apparel",
     pointsCost: 800,
     stock: 30,
+  },
+  // Premium high-value vouchers (requires saving up)
+  {
+    name: "Uniqlo Voucher $50",
+    description: "Premium $50 Uniqlo voucher. Reward yourself with sustainable fashion essentials!",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/UNIQLO_logo.svg/1200px-UNIQLO_logo.svg.png",
+    category: "apparel",
+    pointsCost: 3500,
+    stock: 10,
+  },
+  {
+    name: "Din Tai Fung Voucher $50",
+    description: "Premium $50 Din Tai Fung voucher. Treat yourself to world-famous dumplings and cuisine!",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/DinTaiFungLogo.svg/1200px-DinTaiFungLogo.svg.png",
+    category: "food",
+    pointsCost: 4000,
+    stock: 8,
   },
 ];
 
