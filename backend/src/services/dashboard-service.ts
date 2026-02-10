@@ -109,8 +109,9 @@ export async function getDashboardStats(
     if (!product) continue;
     const mQuantity = m.quantity ?? 0;
     let co2: number;
-    if (product.co2Emission && product.quantity > 0) {
-      co2 = product.co2Emission * (mQuantity / product.quantity);
+    // co2Emission is per-unit (kg CO2 per kg food), so multiply directly by quantity
+    if (product.co2Emission) {
+      co2 = product.co2Emission * mQuantity;
     } else {
       const cat = normalizeCategory(product.category);
       const factor = CATEGORY_CO2_FACTORS[cat] ?? CATEGORY_CO2_FACTORS["other"];
@@ -138,8 +139,9 @@ export async function getDashboardStats(
       m.productId != null ? productMap.get(m.productId) : undefined;
     const mQuantity = m.quantity ?? 0;
     let co2: number;
-    if (product?.co2Emission && product.quantity > 0) {
-      co2 = product.co2Emission * (mQuantity / product.quantity);
+    // co2Emission is per-unit (kg CO2 per kg food), so multiply directly by quantity
+    if (product?.co2Emission) {
+      co2 = product.co2Emission * mQuantity;
     } else if (product) {
       const cat = normalizeCategory(product.category);
       const factor = CATEGORY_CO2_FACTORS[cat] ?? CATEGORY_CO2_FACTORS["other"];
@@ -216,8 +218,9 @@ export async function getCO2Stats(userId: number, period: Period = "month") {
     if (!product) continue;
     const mQuantity = m.quantity ?? 0;
     let co2: number;
-    if (product.co2Emission && product.quantity > 0) {
-      co2 = product.co2Emission * (mQuantity / product.quantity);
+    // co2Emission is per-unit (kg CO2 per kg food), so multiply directly by quantity
+    if (product.co2Emission) {
+      co2 = product.co2Emission * mQuantity;
     } else {
       const cat = normalizeCategory(product.category);
       const factor = CATEGORY_CO2_FACTORS[cat] ?? CATEGORY_CO2_FACTORS["other"];
@@ -236,8 +239,9 @@ export async function getCO2Stats(userId: number, period: Period = "month") {
       m.productId != null ? productMap.get(m.productId) : undefined;
     const mQuantity = m.quantity ?? 0;
     let co2: number;
-    if (product?.co2Emission && product.quantity > 0) {
-      co2 = product.co2Emission * (mQuantity / product.quantity);
+    // co2Emission is per-unit (kg CO2 per kg food), so multiply directly by quantity
+    if (product?.co2Emission) {
+      co2 = product.co2Emission * mQuantity;
     } else if (product) {
       const cat = normalizeCategory(product.category);
       const factor = CATEGORY_CO2_FACTORS[cat] ?? CATEGORY_CO2_FACTORS["other"];
@@ -255,8 +259,9 @@ export async function getCO2Stats(userId: number, period: Period = "month") {
     if (!product) continue;
     const mQuantity = m.quantity ?? 0;
     let co2: number;
-    if (product.co2Emission && product.quantity > 0) {
-      co2 = product.co2Emission * (mQuantity / product.quantity);
+    // co2Emission is per-unit (kg CO2 per kg food), so multiply directly by quantity
+    if (product.co2Emission) {
+      co2 = product.co2Emission * mQuantity;
     } else {
       const cat = normalizeCategory(product.category);
       co2 =
