@@ -13,7 +13,6 @@ import {
   Package,
   LogOut,
   User,
-  Package,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import NotificationBell from "./common/NotificationBell";
