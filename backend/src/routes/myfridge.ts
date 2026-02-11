@@ -5,9 +5,8 @@ import { eq, and, desc } from "drizzle-orm";
 import { z } from "zod";
 import { getUser } from "../middleware/auth";
 import OpenAI from "openai";
-import { getCO2Emission, classifyCategory } from "../services/consumption-service";
+import { getEmissionFactor, classifyCategory, convertToKg } from "../utils/co2-factors";
 import { awardPoints, type PointAction } from "../services/gamification-service";
-import { convertToKg } from "../utils/co2-calculator";
 
 const productSchema = z.object({
   productName: z.string().min(1).max(200),
@@ -62,6 +61,9 @@ export function registerMyFridgeRoutes(router: Router) {
       const body = await parseBody(req);
       const data = productSchema.parse(body);
 
+      // Use provided co2Emission, or compute fallback from product name/category
+      const co2Emission = data.co2Emission ?? getEmissionFactor(data.productName, data.category);
+
       const [product] = await db
         .insert(products)
         .values({
@@ -73,7 +75,7 @@ export function registerMyFridgeRoutes(router: Router) {
           unitPrice: data.unitPrice,
           purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : undefined,
           description: data.description,
-          co2Emission: data.co2Emission,
+          co2Emission,
         })
         .returning();
 
@@ -359,7 +361,7 @@ If no food items found or image is not a receipt, return {"items": []}.`,
       const processedItems = parsed.items.map((item) => ({
         ...item,
         category: classifyCategory(item.name),
-        co2Emission: getCO2Emission(item.name),
+        co2Emission: getEmissionFactor(item.name),
       }));
 
       return json({ items: processedItems });

@@ -10,7 +10,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { awardPoints, POINT_VALUES } from "../services/gamification-service";
-import { calculateCo2Saved, convertToKg } from "../utils/co2-calculator";
+import { calculateCo2Saved, convertToKg } from "../utils/co2-factors";
 import { generateSecureFilename, validateImageFile } from "../utils/file-utils";
 
 // Fallback price calculation when recommendation engine is unavailable
