@@ -109,6 +109,7 @@ jobs:
           name: frontend-coverage
           path: frontend/coverage/
           retention-days: 14
+          if-no-files-found: ignore
 
   test-ecolocker:
     name: Test EcoLocker
@@ -141,6 +142,7 @@ jobs:
           name: ecolocker-coverage
           path: ecolocker/coverage/
           retention-days: 14
+          if-no-files-found: ignore
 
   test-recommendation:
     name: Test Recommendation Engine
@@ -644,26 +646,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Trufflehog
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
-
       - name: Run Trufflehog
-        run: |
-          trufflehog git file://. --only-verified --json > trufflehog-report.json 2>trufflehog-stderr.log || true
-          echo "=== Secret Scan Results ==="
-          trufflehog git file://. --only-verified || true
-
-      - name: Upload report
-        if: always()
-        uses: actions/upload-artifact@v4
+        uses: trufflesecurity/trufflehog@main
         with:
-          name: trufflehog-report
-          path: |
-            trufflehog-report.json
-            trufflehog-stderr.log
-          retention-days: 30
-          if-no-files-found: ignore
+          path: ./
+          base: ""
+          head: HEAD
+          extra_args: --only-verified
 
   python-deps:
     name: Python SCA (pip-audit)

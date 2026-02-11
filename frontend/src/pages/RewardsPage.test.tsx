@@ -4,10 +4,6 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import RewardsPage from "./RewardsPage";
 
-// Mock fetch
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
-
 // Mock localStorage
 const mockLocalStorage = {
   getItem: vi.fn(() => "mock-token"),
@@ -26,10 +22,6 @@ vi.mock("react-router-dom", async () => {
     useNavigate: () => mockNavigate,
   };
 });
-
-function renderWithRouter(ui: React.ReactElement) {
-  return render(<MemoryRouter>{ui}</MemoryRouter>);
-}
 
 const mockRewards = [
   {
@@ -64,27 +56,39 @@ const mockRewards = [
   },
 ];
 
+// Mock the api service
+vi.mock("../services/api", () => ({
+  api: {
+    get: vi.fn((url: string) => {
+      if (url.includes("/rewards")) {
+        return Promise.resolve(mockRewards);
+      }
+      if (url.includes("/gamification/points")) {
+        return Promise.resolve({ points: { total: 1000 } });
+      }
+      return Promise.resolve({});
+    }),
+    post: vi.fn((url: string) => {
+      if (url.includes("/rewards/redeem")) {
+        return Promise.resolve({
+          id: 1,
+          redemptionCode: "EP-ABC12345",
+          pointsSpent: 500,
+          reward: mockRewards[0],
+        });
+      }
+      return Promise.resolve({});
+    }),
+  },
+}));
+
+function renderWithRouter(ui: React.ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
+
 describe("RewardsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("/api/v1/gamification/points")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ points: { total: 1000 } }),
-        });
-      }
-      if (url.includes("/api/v1/rewards") && !url.includes("redeem")) {
-        return Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve(JSON.stringify(mockRewards)),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        text: () => Promise.resolve(JSON.stringify({})),
-      });
-    });
   });
 
   it("should render the page with title", async () => {
@@ -172,24 +176,6 @@ describe("RewardsPage", () => {
 describe("RewardsPage - Filtering", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("/api/v1/gamification/points")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ points: { total: 1000 } }),
-        });
-      }
-      if (url.includes("/api/v1/rewards")) {
-        return Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve(JSON.stringify(mockRewards)),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        text: () => Promise.resolve(JSON.stringify({})),
-      });
-    });
   });
 
   it("should filter to show only apparel rewards", async () => {
@@ -248,36 +234,6 @@ describe("RewardsPage - Filtering", () => {
 describe("RewardsPage - Redemption", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetch.mockImplementation((url: string, options?: RequestInit) => {
-      if (url.includes("/api/v1/gamification/points")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ points: { total: 1000 } }),
-        });
-      }
-      if (url.includes("/api/v1/rewards/redeem") && options?.method === "POST") {
-        return Promise.resolve({
-          ok: true,
-          text: () =>
-            Promise.resolve(JSON.stringify({
-              id: 1,
-              redemptionCode: "EP-ABC12345",
-              pointsSpent: 500,
-              reward: mockRewards[0],
-            })),
-        });
-      }
-      if (url.includes("/api/v1/rewards")) {
-        return Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve(JSON.stringify(mockRewards)),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        text: () => Promise.resolve(JSON.stringify({})),
-      });
-    });
   });
 
   it("should open confirmation dialog when Redeem clicked", async () => {
@@ -403,12 +359,9 @@ describe("RewardsPage - Error Handling", () => {
   });
 
   it("should handle API error gracefully", async () => {
-    mockFetch.mockImplementation(() => {
-      return Promise.resolve({
-        ok: false,
-        text: () => Promise.resolve(JSON.stringify({ error: "Server error" })),
-      });
-    });
+    // Import and mock the api to reject
+    const { api } = await import("../services/api");
+    vi.mocked(api.get).mockRejectedValue(new Error("Server error"));
 
     renderWithRouter(<RewardsPage />);
 
@@ -422,27 +375,20 @@ describe("RewardsPage - Error Handling", () => {
   });
 
   it("should show error message on redemption failure", async () => {
-    mockFetch.mockImplementation((url: string, options?: RequestInit) => {
-      if (url.includes("/api/v1/gamification/points")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ points: { total: 1000 } }),
-        });
+    // Import the mocked api
+    const { api } = await import("../services/api");
+
+    // Reset to default behavior for get, but make post reject
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes("/rewards")) {
+        return Promise.resolve(mockRewards);
       }
-      if (url.includes("/api/v1/rewards/redeem") && options?.method === "POST") {
-        return Promise.resolve({
-          ok: false,
-          text: () => Promise.resolve(JSON.stringify({ error: "Insufficient points" })),
-        });
+      if (url.includes("/gamification/points")) {
+        return Promise.resolve({ points: { total: 1000 } });
       }
-      if (url.includes("/api/v1/rewards")) {
-        return Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve(JSON.stringify(mockRewards)),
-        });
-      }
-      return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify({})) });
+      return Promise.resolve({});
     });
+    vi.mocked(api.post).mockRejectedValue(new Error("Insufficient points"));
 
     renderWithRouter(<RewardsPage />);
 
@@ -469,22 +415,18 @@ describe("RewardsPage - Error Handling", () => {
 });
 
 describe("RewardsPage - Empty State", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("/api/v1/gamification/points")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ points: { total: 0 } }),
-        });
+    // Import and mock the api to return empty data
+    const { api } = await import("../services/api");
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes("/rewards")) {
+        return Promise.resolve([]);
       }
-      if (url.includes("/api/v1/rewards")) {
-        return Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve(JSON.stringify([])),
-        });
+      if (url.includes("/gamification/points")) {
+        return Promise.resolve({ points: { total: 0 } });
       }
-      return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify({})) });
+      return Promise.resolve({});
     });
   });
 

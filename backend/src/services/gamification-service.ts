@@ -364,6 +364,17 @@ export async function getDetailedPointsStats(userId: number) {
   const totalPointsSpent = redemptionRows[0]?.totalSpent ?? 0;
   computedTotalPoints -= totalPointsSpent;
 
+  // Add badge bonus points to computed total
+  const badgePointsRows = await db
+    .select({
+      totalBadgePoints: sql<number>`COALESCE(SUM(${schema.badges.pointsAwarded}), 0)`,
+    })
+    .from(schema.userBadges)
+    .innerJoin(schema.badges, eq(schema.userBadges.badgeId, schema.badges.id))
+    .where(eq(schema.userBadges.userId, userId));
+  const totalBadgePoints = badgePointsRows[0]?.totalBadgePoints ?? 0;
+  computedTotalPoints += totalBadgePoints;
+
   // Self-healing: sync computed total back to DB so dashboard stays consistent
   await db
     .update(schema.userPoints)
