@@ -5,7 +5,7 @@ import {
   getCategoryFactor,
   CO2_CATEGORY_FACTORS,
   CO2_DISPOSAL_FACTOR,
-} from "../co2-calculator";
+} from "../co2-factors";
 
 describe("calculateCo2Saved", () => {
   describe("unit conversions", () => {
