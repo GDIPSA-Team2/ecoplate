@@ -1,17 +1,4 @@
-import { storage } from "./storage";
-
-const getApiBase = (): string => {
-  const isCapacitor = typeof window !== 'undefined' &&
-    (window as any).Capacitor !== undefined;
-
-  if (isCapacitor) {
-    return import.meta.env.VITE_API_URL || 'https://18.143.173.20/api/v1';
-  }
-
-  return '/api/v1';
-};
-
-const API_BASE = getApiBase();
+const API_BASE = "/api/v1";
 
 class ApiError extends Error {
   constructor(
@@ -28,7 +15,7 @@ async function request<T>(
   options: RequestInit = {},
   skipAuthRedirect = false
 ): Promise<T> {
-  const token = storage.getToken();
+  const token = localStorage.getItem("ecolocker_token");
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -48,9 +35,9 @@ async function request<T>(
 
   if (!response.ok) {
     if (response.status === 401 && !skipAuthRedirect) {
-      storage.removeToken();
-      storage.removeUser();
-      window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+      localStorage.removeItem("ecolocker_token");
+      localStorage.removeItem("ecolocker_user");
+      // Don't redirect here - let the auth context handle it
     }
     throw new ApiError(response.status, data.error || "Request failed");
   }

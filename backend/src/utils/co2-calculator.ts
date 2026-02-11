@@ -6,19 +6,16 @@
  */
 
 // CO2 emission factors by food category (kg CO2e per kg food)
-// Unified with frontend/src/utils/co2Calculator.ts
+// Sources: WRAP UK, FAO, various LCA studies
 const CO2_FACTORS: Record<string, number> = {
-  produce: 0.5, // Fruits, vegetables - low emissions
-  dairy: 5.0, // Milk, yogurt, cheese - moderate
-  meat: 15.0, // Beef, chicken, pork weighted average - high emissions
-  protein: 15.0, // Same as meat
-  bakery: 1.0, // Wheat-based products
-  frozen: 3.0, // Processing and cold chain energy
+  produce: 1.0, // Fruits, vegetables - low emissions
+  dairy: 7.0, // Milk, yogurt, cheese - moderate (production + refrigeration)
+  meat: 20.0, // Beef, chicken, pork weighted average - high emissions
+  bakery: 1.5, // Wheat-based products
+  frozen: 4.0, // Processing and cold chain energy
   beverages: 1.0, // Low impact drinks
   pantry: 2.0, // Grains, canned goods, dry goods
-  grains: 1.2, // Rice, pasta, bread
-  snacks: 2.5, // Processed snacks
-  other: 3.0, // Default for uncategorized items
+  other: 2.5, // Default for uncategorized items
 };
 
 // Additional disposal emissions avoided (kg CO2e per kg food waste)

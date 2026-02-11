@@ -470,16 +470,13 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
       const todayDate = new Date().toISOString().split("T")[0];
 
       for (const ing of ingredients) {
-        // Fetch product first to get unit and co2Emission
+        // Fetch product first to get unit for normalization
         const product = await db.query.products.findFirst({
           where: eq(products.id, ing.productId)
         });
         const quantityInKg = convertToKg(ing.quantityUsed, product?.unit);
-        // Calculate CO2 value from product's co2Emission (use ing.co2Emission as fallback)
-        const co2Emission = product?.co2Emission ?? ing.co2Emission ?? 0;
-        const co2Value = Math.round(co2Emission * quantityInKg * 100) / 100;
 
-        // 1. Record consumed interaction with normalized quantity and CO2 value
+        // 1. Record consumed interaction with normalized quantity
         const [interaction] = await db.insert(productSustainabilityMetrics).values({
           productId: ing.productId,
           userId: user.id,
@@ -487,7 +484,6 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
           quantity: quantityInKg,
           unit: ing.unit || null,
           type: "consumed",
-          co2Value,
         }).returning();
 
         interactionIds.push(interaction.id);
@@ -558,9 +554,6 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
             where: eq(products.id, ing.productId)
           });
           const wastedInKg = convertToKg(wastedQty, product?.unit);
-          // Calculate CO2 value from product's co2Emission (use ing.co2Emission as fallback)
-          const co2Emission = product?.co2Emission ?? ing.co2Emission ?? 0;
-          const co2Value = Math.round(co2Emission * wastedInKg * 100) / 100;
 
           await db.insert(productSustainabilityMetrics).values({
             productId: ing.productId,
@@ -569,7 +562,6 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
             quantity: wastedInKg,
             unit: ing.unit || null,
             type: "wasted",
-            co2Value,
           });
 
           // Penalize points for waste (skip metric recording since we already recorded above)
