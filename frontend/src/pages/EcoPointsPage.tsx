@@ -5,9 +5,6 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Skeleton, SkeletonCard } from "../components/ui/skeleton";
 import {
-  PieChart,
-  Pie,
-  Cell,
   ResponsiveContainer,
   Tooltip,
   BarChart,
@@ -19,7 +16,6 @@ import {
 
 import {
   Trophy,
-  Leaf,
   Flame,
   Users,
   Check,
@@ -30,7 +26,8 @@ import {
   Award,
   ChevronRight,
   ArrowLeft,
-  History,
+  DollarSign,
+  Gift,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { ACTION_CONFIG, INITIAL_TX_COUNT } from "../constants/gamification";
@@ -78,7 +75,8 @@ export default function EcoBoardPage() {
   const [pointsData, setPointsData] = useState<PointsData | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAllTx, setShowAllTx] = useState(false);
+  const [showAllSold, setShowAllSold] = useState(false);
+  const [showAllRedeem, setShowAllRedeem] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -128,23 +126,11 @@ export default function EcoBoardPage() {
     );
   }
 
-  const breakdown = pointsData?.breakdown || {};
   const transactions = pointsData?.transactions || [];
-  const visibleTx = showAllTx ? transactions : transactions.slice(0, INITIAL_TX_COUNT);
-
-  const pieData = Object.entries(ACTION_CONFIG)
-      .filter(([action]) => (breakdown[action]?.count || 0) > 0)
-      .map(([action, config]) => ({
-        name: config.label,
-        value: Math.abs(breakdown[action]?.totalPoints || 0),
-        rawValue: breakdown[action]?.totalPoints || 0,
-        count: breakdown[action]?.count || 0,
-        color: config.chartColor,
-        action,
-      }));
-
-  const totalPoints = pieData.reduce((sum, d) => sum + d.value, 0);
-  const hasPieData = pieData.length > 0;
+  const soldTransactions = transactions.filter((tx) => tx.action !== "redeemed");
+  const redeemTransactions = transactions.filter((tx) => tx.action === "redeemed");
+  const visibleSold = showAllSold ? soldTransactions : soldTransactions.slice(0, INITIAL_TX_COUNT);
+  const visibleRedeem = showAllRedeem ? redeemTransactions : redeemTransactions.slice(0, INITIAL_TX_COUNT);
 
 
   return (
@@ -263,113 +249,7 @@ export default function EcoBoardPage() {
             </CardContent>
           </Card>
 
-          {/* Panel 3: Activity Summary */}
-          <Card className="overflow-hidden md:col-span-2">
-            <CardHeader className="p-3 sm:p-6">
-              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-                <Leaf className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                Activity Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-              {hasPieData ? (
-                  <div className="flex flex-col lg:flex-row items-center gap-4 sm:gap-6">
-                    {/* Pie Chart */}
-                    <div className="w-full lg:w-1/2 h-48 sm:h-64 lg:h-[280px] min-w-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                              data={pieData}
-                              cx="50%"
-                              cy="50%"
-                              labelLine={false}
-                              outerRadius="60%"
-                              dataKey="value"
-                              label={({ name, percent }) =>
-                                `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
-                              }
-                              fontSize={13}
-                          >
-                            {pieData.map((entry, index) => (
-                                <Cell key={index} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                              formatter={(value: unknown, name: unknown) => [
-                                `${Math.abs(Number(value) || 0)} pts`,
-                                String(name ?? ""),
-                              ]}
-                              contentStyle={{
-                                borderRadius: "12px",
-                                border: "1px solid hsl(var(--border))",
-                                background: "hsl(var(--card))",
-                                color: "hsl(var(--foreground))",
-                                fontSize: "12px",
-                              }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-
-                    {/* Breakdown List */}
-                    <div className="w-full lg:w-1/2 space-y-2 sm:space-y-3 min-w-0">
-                      {pieData.map((entry) => {
-                        const pct =
-                            totalPoints > 0
-                                ? ((Math.abs(entry.value) / totalPoints) * 100).toFixed(1)
-                                : "0";
-                        const config = ACTION_CONFIG[entry.action];
-                        const Icon = config?.icon || Check;
-
-                        return (
-                            <div key={entry.name} className="flex items-center gap-2 sm:gap-3">
-                              <div
-                                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                                  style={{ backgroundColor: `color-mix(in srgb, ${entry.color} 15%, transparent)` }}
-                              >
-                                <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: entry.color }} />
-                              </div>
-
-                                <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-0.5 sm:mb-1 gap-2">
-                                <span className="font-medium text-foreground text-xs sm:text-sm truncate">
-                                  {entry.name}
-                                </span>
-                                    <span className={`font-bold text-xs sm:text-sm flex-shrink-0 ${entry.rawValue >= 0 ?
-                                        "text-success" : "text-destructive"}`}>
-                                  {entry.rawValue > 0 ? "+" : ""}{entry.rawValue} pts
-                                </span>
-                                </div>
-                                <div className="w-full bg-muted rounded-full h-1.5 sm:h-2 overflow-hidden">
-                                  <div
-                                      className="h-full rounded-full"
-                                      style={{
-                                        width: `${pct}%`,
-                                        backgroundColor: entry.color,
-                                      }}
-                                  />
-                                </div>
-                                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
-                                  {pct}% · {entry.count} items
-                                </p>
-                              </div>
-                            </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-              ) : (
-                  <div className="text-center py-6 sm:py-8">
-                    <Leaf className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-muted-foreground text-sm">
-                      No activity yet. Start earning points!
-                    </p>
-                  </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Panel 4: Leaderboard */}
+          {/* Panel 3: Leaderboard */}
           <Card className="overflow-hidden">
             <CardHeader className="p-3 sm:p-6">
               <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
@@ -419,22 +299,22 @@ export default function EcoBoardPage() {
             </CardContent>
           </Card>
 
-          {/* Panel 5: Points History */}
+          {/* Panel 5: Sold Points History */}
           <Card className="overflow-hidden">
             <CardHeader className="p-3 sm:p-6">
               <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-                <History className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                Points History
+                <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-secondary" />
+                Sold Points History
               </CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-              {transactions.length === 0 ? (
+              {soldTransactions.length === 0 ? (
                   <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
-                    No transactions yet
+                    No sold transactions yet
                   </p>
               ) : (
                   <div className="space-y-1.5 sm:space-y-2 max-h-[230px] sm:max-h-[270px] overflow-y-auto">
-                    {visibleTx.map((tx) => {
+                    {visibleSold.map((tx) => {
                       const config = ACTION_CONFIG[tx.action];
                       const Icon = config?.icon || Check;
                       const color = config?.color || "text-muted-foreground";
@@ -467,13 +347,13 @@ export default function EcoBoardPage() {
                           </div>
                       );
                     })}
-                    {transactions.length > INITIAL_TX_COUNT && (
+                    {soldTransactions.length > INITIAL_TX_COUNT && (
                         <Button
                             variant="ghost"
                             className="w-full mt-2 text-sm"
-                            onClick={() => setShowAllTx(!showAllTx)}
+                            onClick={() => setShowAllSold(!showAllSold)}
                         >
-                          {showAllTx ? (
+                          {showAllSold ? (
                               <>
                                 <ChevronUp className="h-4 w-4 mr-1" />
                                 Show Less
@@ -481,7 +361,121 @@ export default function EcoBoardPage() {
                           ) : (
                               <>
                                 <ChevronDown className="h-4 w-4 mr-1" />
-                                Show All ({transactions.length})
+                                Show All ({soldTransactions.length})
+                              </>
+                          )}
+                        </Button>
+                    )}
+                  </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Points Guide */}
+          <Card className="overflow-hidden">
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
+                Points Guide
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Earn points through sales and badges. Spend them on rewards.
+              </p>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+              <div className="grid grid-cols-1 gap-2 sm:gap-3">
+                {Object.entries(ACTION_CONFIG).map(([key, config]) => {
+                  const Icon = config.icon;
+                  return (
+                      <div
+                          key={key}
+                          className={`p-2.5 sm:p-4 rounded-lg sm:rounded-xl ${config.bgColor}`}
+                      >
+                        <div className="flex items-start gap-2 sm:gap-3">
+                          <div
+                              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full ${config.bgColor} flex items-center justify-center flex-shrink-0`}
+                          >
+                            <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${config.color}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-foreground text-xs sm:text-sm">
+                              {config.label}
+                            </h3>
+                            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+                              {config.description}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Redeem Points History */}
+          <Card className="overflow-hidden">
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                <Gift className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
+                Redeem Points History
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+              {redeemTransactions.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
+                    No redemptions yet
+                  </p>
+              ) : (
+                  <div className="space-y-1.5 sm:space-y-2 max-h-[230px] sm:max-h-[270px] overflow-y-auto">
+                    {visibleRedeem.map((tx) => {
+                      const config = ACTION_CONFIG[tx.action];
+                      const Icon = config?.icon || Check;
+                      const color = config?.color || "text-muted-foreground";
+                      const bgColor = config?.bgColor || "bg-muted";
+                      return (
+                          <div
+                              key={tx.id}
+                              className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg sm:rounded-xl bg-muted/50"
+                          >
+                            <div
+                                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${bgColor}`}
+                            >
+                              <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${color}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-medium text-xs sm:text-sm text-foreground truncate">
+                                    {config?.label || tx.action}
+                                </p>
+                                <p className="text-[10px] sm:text-xs text-muted-foreground">
+                                    {new Date(tx.createdAt).toLocaleDateString()}
+                                </p>
+                            </div>
+                            <Badge
+                                variant={tx.amount > 0 ? "success" : "destructive"}
+                                className="text-xs sm:text-sm"
+                            >
+                              {tx.amount > 0 ? "+" : ""}
+                              {tx.amount}
+                            </Badge>
+                          </div>
+                      );
+                    })}
+                    {redeemTransactions.length > INITIAL_TX_COUNT && (
+                        <Button
+                            variant="ghost"
+                            className="w-full mt-2 text-sm"
+                            onClick={() => setShowAllRedeem(!showAllRedeem)}
+                        >
+                          {showAllRedeem ? (
+                              <>
+                                <ChevronUp className="h-4 w-4 mr-1" />
+                                Show Less
+                              </>
+                          ) : (
+                              <>
+                                <ChevronDown className="h-4 w-4 mr-1" />
+                                Show All ({redeemTransactions.length})
                               </>
                           )}
                         </Button>
@@ -491,48 +485,6 @@ export default function EcoBoardPage() {
             </CardContent>
           </Card>
         </div>
-
-        {/* How to Earn More Points */}
-        <Card className="overflow-hidden">
-          <CardHeader className="p-3 sm:p-6">
-            <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-              <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
-              How to Earn More Points
-            </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              Points earned or lost scale with quantity.
-            </p>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-              {Object.entries(ACTION_CONFIG).map(([key, config]) => {
-                const Icon = config.icon;
-                return (
-                    <div
-                        key={key}
-                        className={`p-2.5 sm:p-4 rounded-lg sm:rounded-xl ${config.bgColor}`}
-                    >
-                      <div className="flex items-start gap-2 sm:gap-3">
-                        <div
-                            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full ${config.bgColor} flex items-center justify-center flex-shrink-0`}
-                        >
-                          <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${config.color}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-foreground text-xs sm:text-sm">
-                            {config.label}
-                          </h3>
-                          <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                            {config.description}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
       </div>
   );
 }

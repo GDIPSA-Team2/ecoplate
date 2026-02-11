@@ -38,7 +38,7 @@ export function registerGamificationRoutes(router: Router) {
       const transactions = recentInteractions
         .filter((i) => {
           const t = (i.type || "").toLowerCase();
-          return t !== "add" && t !== "shared";
+          return t !== "add" && t !== "shared" && t !== "consumed" && t !== "wasted";
         })
         .map((i) => {
           const normalizedType = (i.type || "").toLowerCase() as keyof typeof POINT_VALUES;
@@ -64,8 +64,43 @@ export function registerGamificationRoutes(router: Router) {
             productName: i.product?.productName || (({ sold: "Sold", consumed: "Consumed", wasted: "Wasted" } as Record<string, string>)[normalizedType] ?? normalizedType),
             quantity: i.quantity ?? 1,
             unit: i.product?.unit ?? "pcs",
+            _timestamp: Date.parse(i.todayDate + "T00:00:00Z"),
           };
         });
+
+      // Fetch recent redemptions
+      const recentRedemptions = await db.query.userRedemptions.findMany({
+        where: eq(schema.userRedemptions.userId, user.id),
+        orderBy: [desc(schema.userRedemptions.createdAt)],
+        limit: 20,
+        with: { reward: { columns: { name: true } } },
+      });
+
+      // Map redemptions to transaction format
+      const redemptionTx = recentRedemptions.map((r) => ({
+        id: r.id + 1_000_000,
+        amount: -r.pointsSpent,
+        type: "redeemed" as const,
+        action: "redeemed",
+        createdAt: r.createdAt instanceof Date
+          ? r.createdAt.toISOString().slice(0, 10)
+          : typeof r.createdAt === "number"
+            ? new Date(r.createdAt * 1000).toISOString().slice(0, 10)
+            : new Date().toISOString().slice(0, 10),
+        productName: r.reward?.name || "Reward",
+        quantity: 1,
+        unit: "pcs",
+        _timestamp: r.createdAt instanceof Date
+          ? r.createdAt.getTime()
+          : typeof r.createdAt === "number"
+            ? r.createdAt * 1000
+            : Date.now(),
+      }));
+
+      // Merge and sort all transactions
+      const allTransactions = [...transactions, ...redemptionTx]
+        .sort((a, b) => b._timestamp - a._timestamp || b.id - a.id)
+        .slice(0, 20);
 
       return json({
         points: {
@@ -86,7 +121,7 @@ export function registerGamificationRoutes(router: Router) {
         },
         breakdown: detailedStats.breakdownByType,
         pointsByMonth: detailedStats.pointsByMonth,
-        transactions,
+        transactions: allTransactions,
       });
     } catch (error) {
       console.error("Error fetching gamification points:", error);

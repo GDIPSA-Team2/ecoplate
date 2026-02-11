@@ -69,7 +69,7 @@ export default function MarketplacePage() {
 
   const filteredListings = listings.filter((l) => {
     const matchesSearch =
-      l.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      l.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       l.description?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory =
       selectedCategory === "All" || l.category === selectedCategory;

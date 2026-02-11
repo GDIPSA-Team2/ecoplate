@@ -1,10 +1,10 @@
-import { Check, DollarSign, X } from "lucide-react";
+import { DollarSign, Gift } from "lucide-react";
 
 export const ACTION_CONFIG: Record<
   string,
   {
     label: string;
-    icon: typeof Check;
+    icon: typeof DollarSign;
     points: number;
     color: string;
     bgColor: string;
@@ -12,15 +12,6 @@ export const ACTION_CONFIG: Record<
     description: string;
   }
 > = {
-  consumed: {
-    label: "Consumed",
-    icon: Check,
-    points: 0,
-    color: "text-success",
-    bgColor: "bg-success/10",
-    chartColor: "hsl(var(--success))",
-    description: "Points based on CO2 saved",
-  },
   sold: {
     label: "Sold",
     icon: DollarSign,
@@ -28,16 +19,16 @@ export const ACTION_CONFIG: Record<
     color: "text-secondary",
     bgColor: "bg-secondary/10",
     chartColor: "hsl(var(--secondary))",
-    description: "1.5x CO2 bonus for marketplace sales",
+    description: "Sell on the marketplace to earn points.",
   },
-  wasted: {
-    label: "Wasted",
-    icon: X,
+  redeemed: {
+    label: "Redeemed",
+    icon: Gift,
     points: 0,
-    color: "text-destructive",
-    bgColor: "bg-destructive/10",
-    chartColor: "hsl(var(--destructive))",
-    description: "Penalty based on CO2 impact",
+    color: "text-purple-500",
+    bgColor: "bg-purple-500/10",
+    chartColor: "hsl(270, 60%, 55%)",
+    description: "Spend your points on vouchers and rewards in the Rewards store.",
   },
 };
 

@@ -1218,7 +1218,7 @@ async function seed() {
     for (let i = 0; i < createdUsers.length; i++) {
       const user = createdUsers[i];
       // First 5 users have higher points (original demo users)
-      const basePoints = i < 5 ? 500 + Math.floor(Math.random() * 1000) : 100 + Math.floor(Math.random() * 500);
+      const basePoints = i < 5 ? 50 + Math.floor(Math.random() * 100) : 10 + Math.floor(Math.random() * 50);
       const streak = Math.floor(Math.random() * 15) + 1;
 
       await db.insert(schema.userPoints).values({

@@ -10,7 +10,6 @@ import {
   classifyCategory,
   type IngredientInput,
 } from "../services/consumption-service";
-import { awardPoints } from "../services/gamification-service";
 import { convertToKg } from "../utils/co2-calculator";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import type * as schema from "../db/schema";
@@ -488,15 +487,7 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
 
         interactionIds.push(interaction.id);
 
-        // 2. Award points with normalized quantity (skip metric recording since we already recorded above)
-        try {
-          await awardPoints(user.id, "consumed", ing.productId, quantityInKg, true);
-        } catch (pointsError) {
-          console.error(`[Points] Failed to award points for user ${user.id} on product ${ing.productId}:`, pointsError);
-          // Don't fail the entire request, just log the error
-        }
-
-        // 3. Deduct from product quantity (keep raw unit — this is inventory, not points)
+        // 2. Deduct from product quantity (keep raw unit — this is inventory, not points)
         if (product) {
           await db.update(products)
             .set({ quantity: Math.max(0, product.quantity - ing.quantityUsed) })
@@ -564,13 +555,6 @@ Provide a brief overallObservation describing the waste level (e.g., "Minimal wa
             type: "wasted",
           });
 
-          // Penalize points for waste (skip metric recording since we already recorded above)
-          try {
-            await awardPoints(user.id, "wasted", ing.productId, wastedInKg, true);
-          } catch (pointsError) {
-            console.error(`[Points] Failed to penalize points for user ${user.id} on product ${ing.productId}:`, pointsError);
-            // Don't fail the entire request, just log the error
-          }
         }
       }
 

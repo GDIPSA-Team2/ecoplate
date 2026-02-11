@@ -85,8 +85,41 @@ function registerTestGamificationRoutes(
           action: normalizedType,
           createdAt: i.todayDate,
           quantity: i.quantity ?? 1,
+          _timestamp: Date.parse(i.todayDate + "T00:00:00Z"),
         };
       });
+
+    // Fetch recent redemptions
+    const recentRedemptions = await db.query.userRedemptions.findMany({
+      where: eq(schema.userRedemptions.userId, user.id),
+      orderBy: [desc(schema.userRedemptions.createdAt)],
+      limit: 20,
+      with: { reward: { columns: { name: true } } },
+    });
+
+    // Map redemptions to transaction format
+    const redemptionTx = recentRedemptions.map((r) => ({
+      id: r.id + 1_000_000,
+      amount: -r.pointsSpent,
+      type: "redeemed" as const,
+      action: "redeemed",
+      createdAt: r.createdAt instanceof Date
+        ? r.createdAt.toISOString().slice(0, 10)
+        : typeof r.createdAt === "number"
+          ? new Date(r.createdAt * 1000).toISOString().slice(0, 10)
+          : new Date().toISOString().slice(0, 10),
+      quantity: 1,
+      _timestamp: r.createdAt instanceof Date
+        ? r.createdAt.getTime()
+        : typeof r.createdAt === "number"
+          ? r.createdAt * 1000
+          : Date.now(),
+    }));
+
+    // Merge and sort all transactions
+    const allTransactions = [...transactions, ...redemptionTx]
+      .sort((a, b) => b._timestamp - a._timestamp || b.id - a.id)
+      .slice(0, 20);
 
     return json({
       points: {
@@ -107,7 +140,7 @@ function registerTestGamificationRoutes(
       },
       breakdown: {},
       pointsByMonth: [],
-      transactions,
+      transactions: allTransactions,
     });
   });
 
@@ -808,6 +841,139 @@ describe("GET /api/v1/gamification/points", () => {
     expect(soldTx?.amount).toBe(5);
     expect(soldTx?.type).toBe("earned");
   });
+
+  test("sold item appears before same-day redemption in transaction history", async () => {
+    const today = new Date().toISOString().split("T")[0];
+
+    await testDb.insert(schema.userPoints).values({
+      userId: testUserId,
+      totalPoints: 100,
+    });
+
+    // Insert a sold interaction with today's date
+    await testDb.insert(schema.productSustainabilityMetrics).values({
+      userId: testUserId,
+      todayDate: today,
+      type: "sold",
+      quantity: 1,
+    });
+
+    // Create a reward and a redemption with today's timestamp
+    const [reward] = await testDb
+      .insert(schema.rewards)
+      .values({ name: "Test Reward", pointsCost: 10, category: "test" })
+      .returning();
+
+    await testDb.insert(schema.userRedemptions).values({
+      userId: testUserId,
+      rewardId: reward.id,
+      pointsSpent: 10,
+      redemptionCode: "SORT-TEST-001",
+    });
+
+    const router = createRouter();
+    const res = await makeRequest(router, "GET", "/api/v1/gamification/points");
+
+    expect(res.status).toBe(200);
+    const data = res.data as {
+      transactions: Array<{ action: string; _timestamp: number }>;
+    };
+
+    // Should have both a sold transaction and a redeemed transaction
+    const soldIdx = data.transactions.findIndex((t) => t.action === "sold");
+    const redeemedIdx = data.transactions.findIndex((t) => t.action === "redeemed");
+
+    expect(soldIdx).not.toBe(-1);
+    expect(redeemedIdx).not.toBe(-1);
+
+    // Redemptions have real timestamps (e.g. 15:00) which sort above
+    // sold items at start-of-day (00:00:00Z), so redeemed appears first (lower index)
+    expect(redeemedIdx).toBeLessThan(soldIdx);
+  });
+
+  test("newer day transactions appear before older day transactions", async () => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const todayStr = today.toISOString().split("T")[0];
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+    await testDb.insert(schema.userPoints).values({
+      userId: testUserId,
+      totalPoints: 50,
+    });
+
+    // Insert older interaction first
+    await testDb.insert(schema.productSustainabilityMetrics).values([
+      {
+        userId: testUserId,
+        todayDate: yesterdayStr,
+        type: "sold",
+        quantity: 1,
+      },
+      {
+        userId: testUserId,
+        todayDate: todayStr,
+        type: "sold",
+        quantity: 2,
+      },
+    ]);
+
+    const router = createRouter();
+    const res = await makeRequest(router, "GET", "/api/v1/gamification/points");
+
+    expect(res.status).toBe(200);
+    const data = res.data as {
+      transactions: Array<{ action: string; createdAt: string; quantity: number }>;
+    };
+
+    expect(data.transactions.length).toBe(2);
+    // Today's transaction should appear first (index 0)
+    expect(data.transactions[0].createdAt).toBe(todayStr);
+    expect(data.transactions[1].createdAt).toBe(yesterdayStr);
+  });
+
+  test("redemption appears in points history with correct action and amount", async () => {
+    await testDb.insert(schema.userPoints).values({
+      userId: testUserId,
+      totalPoints: 50,
+    });
+
+    // Create a reward and redeem it
+    const [reward] = await testDb
+      .insert(schema.rewards)
+      .values({ name: "Free Coffee", pointsCost: 20, category: "food" })
+      .returning();
+
+    await testDb.insert(schema.userRedemptions).values({
+      userId: testUserId,
+      rewardId: reward.id,
+      pointsSpent: 20,
+      redemptionCode: "REDEEM-TEST-001",
+    });
+
+    const router = createRouter();
+    const res = await makeRequest(router, "GET", "/api/v1/gamification/points");
+
+    expect(res.status).toBe(200);
+    const data = res.data as {
+      transactions: Array<{
+        action: string;
+        amount: number;
+        type: string;
+        quantity: number;
+      }>;
+    };
+
+    expect(data.transactions.length).toBe(1);
+
+    const redemptionTx = data.transactions[0];
+    expect(redemptionTx.action).toBe("redeemed");
+    expect(redemptionTx.amount).toBe(-20);
+    expect(redemptionTx.type).toBe("redeemed");
+    expect(redemptionTx.quantity).toBe(1);
+  });
 });
 
 describe("GET /api/v1/gamification/metrics", () => {
@@ -1383,6 +1549,63 @@ describe("Consumption → Points History integration", () => {
     expect(pointsData.points.total).toBe(20);
     expect(pointsData.points.currentStreak).toBe(5);
     expect(pointsData.transactions.length).toBe(0);
+  });
+
+  test("sold/consumed/wasted transactions are separable from redeemed transactions", async () => {
+    const router = createRouter();
+
+    await testDb.insert(schema.userPoints).values({
+      userId: testUserId,
+      totalPoints: 200,
+    });
+
+    // Create activity-based interactions
+    const [product] = await testDb
+      .insert(schema.products)
+      .values({ userId: testUserId, productName: "Apple", quantity: 10, unit: "kg", category: "produce" })
+      .returning();
+
+    await testDb.insert(schema.productSustainabilityMetrics).values([
+      { userId: testUserId, todayDate: "2025-01-15", type: "sold", quantity: 2, productId: product.id },
+      { userId: testUserId, todayDate: "2025-01-14", type: "consumed", quantity: 1, productId: product.id },
+      { userId: testUserId, todayDate: "2025-01-13", type: "wasted", quantity: 1, productId: product.id },
+    ]);
+
+    // Create a reward and two redemptions
+    const [reward] = await testDb
+      .insert(schema.rewards)
+      .values({ name: "Voucher", pointsCost: 15, category: "food" })
+      .returning();
+
+    await testDb.insert(schema.userRedemptions).values([
+      { userId: testUserId, rewardId: reward.id, pointsSpent: 15, redemptionCode: "SPLIT-001" },
+      { userId: testUserId, rewardId: reward.id, pointsSpent: 15, redemptionCode: "SPLIT-002" },
+    ]);
+
+    const res = await makeRequest(router, "GET", "/api/v1/gamification/points");
+    expect(res.status).toBe(200);
+
+    const data = res.data as {
+      transactions: Array<{ action: string; amount: number }>;
+    };
+
+    // Filter into the two groups the frontend uses
+    const soldGroup = data.transactions.filter((tx) => tx.action !== "redeemed");
+    const redeemGroup = data.transactions.filter((tx) => tx.action === "redeemed");
+
+    // Sold group should contain sold, consumed, wasted — no redeemed
+    expect(soldGroup.length).toBe(3);
+    for (const tx of soldGroup) {
+      expect(tx.action).not.toBe("redeemed");
+      expect(["sold", "consumed", "wasted"]).toContain(tx.action);
+    }
+
+    // Redeem group should only contain redeemed
+    expect(redeemGroup.length).toBe(2);
+    for (const tx of redeemGroup) {
+      expect(tx.action).toBe("redeemed");
+      expect(tx.amount).toBeLessThan(0);
+    }
   });
 
   test("points never go below zero from waste penalties", async () => {

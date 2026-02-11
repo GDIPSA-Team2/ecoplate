@@ -1,6 +1,6 @@
 import { db } from "../db/connection";
 import * as schema from "../db/schema";
-import { eq, and, inArray, desc } from "drizzle-orm";
+import { eq, and, inArray, desc, sql } from "drizzle-orm";
 
 import { notifyStreakMilestone } from "./notification-service";
 import { calculateCo2Saved } from "../utils/co2-calculator";
@@ -76,9 +76,11 @@ export async function awardPoints(
   } else {
     amount = Math.round(co2Value);
   }
-  // Ensure at least ±1 point (so tiny quantities don't round to zero)
-  if (amount === 0) {
-    amount = action === "wasted" ? -1 : 1;
+  // Ensure at least ±3 points (so tiny quantities don't feel unrewarding)
+  if (amount >= 0 && amount < 3) {
+    amount = 3;
+  } else if (amount < 0 && amount > -3) {
+    amount = -3;
   }
 
   console.log(`[Points] Awarding ${amount} points to user ${userId} for action '${action}' (quantity: ${quantity}, category: ${category}, co2Value: ${co2Value})`);
@@ -292,6 +294,12 @@ export async function getDetailedPointsStats(userId: number) {
       points = Math.round(co2Value);
     }
     if (points === 0) points = type === "wasted" ? -1 : 1;
+
+    // Consumed and wasted no longer contribute to points
+    if (type === "consumed" || type === "wasted") {
+      points = 0;
+    }
+
     // Use todayDate directly as dateKey — it's already stored as "YYYY-MM-DD"
     const dateKey = interaction.todayDate;
 
@@ -334,6 +342,16 @@ export async function getDetailedPointsStats(userId: number) {
       activeDateSet.add(dateKey);
     }
   }
+
+  // Subtract total points spent on redemptions
+  const redemptionRows = await db
+    .select({
+      totalSpent: sql<number>`COALESCE(SUM(${schema.userRedemptions.pointsSpent}), 0)`,
+    })
+    .from(schema.userRedemptions)
+    .where(eq(schema.userRedemptions.userId, userId));
+  const totalPointsSpent = redemptionRows[0]?.totalSpent ?? 0;
+  computedTotalPoints -= totalPointsSpent;
 
   // Compute longest streak from sorted unique active dates
   // Parse with explicit UTC suffix to avoid timezone shifts
@@ -378,7 +396,7 @@ export async function getDetailedPointsStats(userId: number) {
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    last6Months.push({ month: key, points: pointsByMonth.get(key) || 0 });
+    last6Months.push({ month: key, points: Math.max(0, pointsByMonth.get(key) || 0) });
   }
 
   return {
@@ -386,12 +404,12 @@ export async function getDetailedPointsStats(userId: number) {
     totalActiveDays,
     lastActiveDate,
     firstActivityDate,
-    pointsToday,
-    pointsThisWeek,
-    pointsThisMonth,
-    pointsThisYear,
-    computedTotalPoints,
-    bestDayPoints,
+    pointsToday: Math.max(0, pointsToday),
+    pointsThisWeek: Math.max(0, pointsThisWeek),
+    pointsThisMonth: Math.max(0, pointsThisMonth),
+    pointsThisYear: Math.max(0, pointsThisYear),
+    computedTotalPoints: Math.max(0, computedTotalPoints),
+    bestDayPoints: Math.max(0, bestDayPoints),
     averagePointsPerActiveDay,
     breakdownByType,
     pointsByMonth: last6Months,
