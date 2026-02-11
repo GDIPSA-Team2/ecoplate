@@ -5,7 +5,7 @@ import { eq, desc, and, sql } from "drizzle-orm";
 import { getUser } from "../middleware/auth";
 import { getOrCreateUserPoints, getUserMetrics, getDetailedPointsStats, awardPoints } from "../services/gamification-service";
 import { POINT_VALUES } from "../services/gamification-service";
-import { calculateCo2Saved } from "../utils/co2-calculator";
+import { calculateCo2Saved } from "../utils/co2-factors";
 import { getBadgeProgress } from "../services/badge-service";
 
 export function registerGamificationRoutes(router: Router) {

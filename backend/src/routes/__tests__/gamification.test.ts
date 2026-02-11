@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/bun-sqlite";
 import { Router, json } from "../../utils/router";
 import * as schema from "../../db/schema";
 import { eq, desc, sql } from "drizzle-orm";
-import { calculateCo2Saved } from "../../utils/co2-calculator";
+import { calculateCo2Saved } from "../../utils/co2-factors";
 
 // Set up in-memory test database
 let sqlite: Database;

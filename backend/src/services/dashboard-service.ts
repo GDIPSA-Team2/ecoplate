@@ -1,21 +1,16 @@
 import { db } from "../db/connection";
 import { eq, and, gte } from "drizzle-orm";
 import * as schema from "../db/schema";
+import { CATEGORY_FALLBACKS } from "../utils/co2-factors";
 
 type Period = "day" | "month" | "annual";
 
-const CATEGORY_CO2_FACTORS: Record<string, number> = {
-  meat: 27.0,
-  dairy: 3.2,
-  produce: 1.5,
-  vegetables: 2.0,
-  fruits: 1.1,
-  grains: 1.4,
-  pantry: 1.5,
-  seafood: 6.1,
-  bakery: 1.3,
-  beverages: 0.8,
-  other: 2.5,
+type ProductRow = {
+  id: number;
+  productName: string;
+  category: string | null;
+  co2Emission: number | null;
+  [key: string]: unknown;
 };
 
 function normalizeCategory(category: string | null): string {
@@ -59,6 +54,22 @@ function toDateString(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+function resolveMetricCo2(
+  metric: { productId?: number | null; quantity?: number | null },
+  productMap: Map<number, ProductRow>
+): number {
+  if (metric.productId == null) return 0;
+  const product = productMap.get(metric.productId);
+  if (!product) return 0;
+  const qty = metric.quantity ?? 0;
+  if (product.co2Emission) {
+    return product.co2Emission * qty;
+  }
+  const cat = normalizeCategory(product.category);
+  const factor = CATEGORY_FALLBACKS[cat] ?? CATEGORY_FALLBACKS["other"];
+  return factor * qty;
+}
+
 // ==================== Summary Stats ====================
 
 export async function getDashboardStats(
@@ -97,69 +108,89 @@ export async function getDashboardStats(
     )
     .all();
 
-  const positiveMetrics = metrics.filter(
-    (m) => m.type && ["consumed", "sold", "shared"].includes(m.type)
-  );
+  const productMap = new Map(products.map((p) => [p.id, p])) as Map<number, ProductRow>;
 
+  // CO2 Reduced = only from sold items (selling prevents waste)
+  const soldMetrics = metrics.filter((m) => m.type === "sold");
   let totalCo2Reduced = 0;
-  const productMap = new Map(products.map((p) => [p.id, p]));
-  for (const m of positiveMetrics) {
-    if (m.productId == null) continue;
-    const product = productMap.get(m.productId);
-    if (!product) continue;
-    const mQuantity = m.quantity ?? 0;
-    let co2: number;
-    // co2Emission is per-unit (kg CO2 per kg food), so multiply directly by quantity
-    if (product.co2Emission) {
-      co2 = product.co2Emission * mQuantity;
-    } else {
-      const cat = normalizeCategory(product.category);
-      const factor = CATEGORY_CO2_FACTORS[cat] ?? CATEGORY_CO2_FACTORS["other"];
-      co2 = factor * mQuantity;
-    }
-    totalCo2Reduced += co2;
+  for (const m of soldMetrics) {
+    totalCo2Reduced += resolveMetricCo2(m, productMap);
   }
 
-  const totalFoodSaved = positiveMetrics.reduce(
-    (sum, m) => sum + (m.quantity ?? 0),
-    0
-  );
+  // CO2 Wasted = from wasted items in track consumption
+  const wastedMetrics = metrics.filter((m) => m.type === "wasted");
+  let totalCo2Wasted = 0;
+  for (const m of wastedMetrics) {
+    totalCo2Wasted += resolveMetricCo2(m, productMap);
+  }
+
   const totalMoneySaved = soldListings.reduce(
     (sum, l) => sum + (l.price || 0),
     0
   );
 
+  // Chart data for CO2 reduced (sold only)
   const co2Map = new Map<string, number>();
-  const foodMap = new Map<string, number>();
-
-  for (const m of positiveMetrics) {
+  for (const m of soldMetrics) {
     const dateObj = parseMetricDate(m.todayDate);
     const dateKey = formatDate(dateObj, period);
-    const product =
-      m.productId != null ? productMap.get(m.productId) : undefined;
-    const mQuantity = m.quantity ?? 0;
-    let co2: number;
-    // co2Emission is per-unit (kg CO2 per kg food), so multiply directly by quantity
-    if (product?.co2Emission) {
-      co2 = product.co2Emission * mQuantity;
-    } else if (product) {
-      const cat = normalizeCategory(product.category);
-      const factor = CATEGORY_CO2_FACTORS[cat] ?? CATEGORY_CO2_FACTORS["other"];
-      co2 = factor * mQuantity;
-    } else {
-      co2 = CATEGORY_CO2_FACTORS["other"] * mQuantity;
-    }
-
+    const co2 = resolveMetricCo2(m, productMap);
     co2Map.set(dateKey, (co2Map.get(dateKey) || 0) + co2);
-    foodMap.set(dateKey, (foodMap.get(dateKey) || 0) + mQuantity);
   }
 
   const co2ChartData = Array.from(co2Map.entries())
     .map(([date, value]) => ({ date, value: Math.round(value * 100) / 100 }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
+  // Chart data for food saved (consumed + sold + shared)
+  const positiveMetrics = metrics.filter(
+    (m) => m.type && ["consumed", "sold", "shared"].includes(m.type)
+  );
+  const foodMap = new Map<string, number>();
+  for (const m of positiveMetrics) {
+    const dateObj = parseMetricDate(m.todayDate);
+    const dateKey = formatDate(dateObj, period);
+    const mQuantity = m.quantity ?? 0;
+    foodMap.set(dateKey, (foodMap.get(dateKey) || 0) + mQuantity);
+  }
   const foodChartData = Array.from(foodMap.entries())
     .map(([date, value]) => ({ date, value: Math.round(value * 100) / 100 }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Total food sold (only from sold items)
+  const totalFoodSold = soldMetrics.reduce(
+    (sum, m) => sum + (m.quantity ?? 0),
+    0
+  );
+
+  // Chart data for waste ratio (wasted / consumed per day)
+  const consumedMetrics = metrics.filter((m) => m.type === "consumed");
+  const wasteByDate = new Map<string, number>();
+  const consumeByDate = new Map<string, number>();
+
+  for (const m of wastedMetrics) {
+    const dateObj = parseMetricDate(m.todayDate);
+    const dateKey = formatDate(dateObj, period);
+    const co2 = resolveMetricCo2(m, productMap);
+    wasteByDate.set(dateKey, (wasteByDate.get(dateKey) || 0) + co2);
+  }
+
+  for (const m of consumedMetrics) {
+    const dateObj = parseMetricDate(m.todayDate);
+    const dateKey = formatDate(dateObj, period);
+    const co2 = resolveMetricCo2(m, productMap);
+    consumeByDate.set(dateKey, (consumeByDate.get(dateKey) || 0) + co2);
+  }
+
+  const allDates = new Set([...wasteByDate.keys(), ...consumeByDate.keys()]);
+  const wasteRatioChartData = Array.from(allDates)
+    .map((date) => {
+      const wasted = wasteByDate.get(date) || 0;
+      const consumed = consumeByDate.get(date) || 0;
+      const total = wasted + consumed;
+      const ratio = total > 0 ? Math.round((wasted / total) * 100) : 0;
+      return { date, wasted: Math.round(wasted * 100) / 100, consumed: Math.round(consumed * 100) / 100, ratio };
+    })
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const impactEquivalence = {
@@ -171,11 +202,13 @@ export async function getDashboardStats(
   return {
     summary: {
       totalCo2Reduced: Math.round(totalCo2Reduced * 100) / 100,
-      totalFoodSaved: Math.round(totalFoodSaved * 100) / 100,
+      totalCo2Wasted: Math.round(totalCo2Wasted * 100) / 100,
+      totalFoodSold: Math.round(totalFoodSold * 100) / 100,
       totalMoneySaved: Math.round(totalMoneySaved * 100) / 100,
     },
     co2ChartData,
     foodChartData,
+    wasteRatioChartData,
     impactEquivalence,
   };
 }
@@ -203,73 +236,47 @@ export async function getCO2Stats(userId: number, period: Period = "month") {
     .where(eq(schema.products.userId, userId))
     .all();
 
-  const productMap = new Map(products.map((p) => [p.id, p]));
+  const productMap = new Map(products.map((p) => [p.id, p])) as Map<number, ProductRow>;
 
   const positiveMetrics = metrics.filter(
     (m) => m.type && ["consumed", "sold", "shared"].includes(m.type)
   );
 
+  // CO2 Reduced = only from sold items (consistent with summary)
+  const soldMetricsForCo2 = metrics.filter((m) => m.type === "sold");
+
   const categoryMap = new Map<string, number>();
   let totalCo2 = 0;
+  let totalCo2Reduced = 0;
 
   for (const m of positiveMetrics) {
-    if (m.productId == null) continue;
-    const product = productMap.get(m.productId);
-    if (!product) continue;
-    const mQuantity = m.quantity ?? 0;
-    let co2: number;
-    // co2Emission is per-unit (kg CO2 per kg food), so multiply directly by quantity
-    if (product.co2Emission) {
-      co2 = product.co2Emission * mQuantity;
-    } else {
-      const cat = normalizeCategory(product.category);
-      const factor = CATEGORY_CO2_FACTORS[cat] ?? CATEGORY_CO2_FACTORS["other"];
-      co2 = factor * mQuantity;
-    }
+    const co2 = resolveMetricCo2(m, productMap);
+    if (co2 === 0 && m.productId != null && !productMap.get(m.productId)) continue;
+    const product = m.productId != null ? productMap.get(m.productId) : undefined;
+    const catLabel = capitalizeCategory(product?.category ?? null);
     totalCo2 += co2;
-    const catLabel = capitalizeCategory(product.category);
     categoryMap.set(catLabel, (categoryMap.get(catLabel) || 0) + co2);
+  }
+
+  for (const m of soldMetricsForCo2) {
+    totalCo2Reduced += resolveMetricCo2(m, productMap);
   }
 
   const trendMap = new Map<string, number>();
   for (const m of positiveMetrics) {
     const dateObj = parseMetricDate(m.todayDate);
     const dateKey = formatDate(dateObj, period);
-    const product =
-      m.productId != null ? productMap.get(m.productId) : undefined;
-    const mQuantity = m.quantity ?? 0;
-    let co2: number;
-    // co2Emission is per-unit (kg CO2 per kg food), so multiply directly by quantity
-    if (product?.co2Emission) {
-      co2 = product.co2Emission * mQuantity;
-    } else if (product) {
-      const cat = normalizeCategory(product.category);
-      const factor = CATEGORY_CO2_FACTORS[cat] ?? CATEGORY_CO2_FACTORS["other"];
-      co2 = factor * mQuantity;
-    } else {
-      co2 = CATEGORY_CO2_FACTORS["other"] * mQuantity;
-    }
+    const co2 = resolveMetricCo2(m, productMap);
     trendMap.set(dateKey, (trendMap.get(dateKey) || 0) + co2);
   }
 
   const itemCo2 = new Map<string, number>();
   for (const m of positiveMetrics) {
-    if (m.productId == null) continue;
-    const product = productMap.get(m.productId);
-    if (!product) continue;
-    const mQuantity = m.quantity ?? 0;
-    let co2: number;
-    // co2Emission is per-unit (kg CO2 per kg food), so multiply directly by quantity
-    if (product.co2Emission) {
-      co2 = product.co2Emission * mQuantity;
-    } else {
-      const cat = normalizeCategory(product.category);
-      co2 =
-        (CATEGORY_CO2_FACTORS[cat] ?? CATEGORY_CO2_FACTORS["other"]) *
-        mQuantity;
-    }
-    const name = product.productName;
-    itemCo2.set(name, (itemCo2.get(name) || 0) + co2);
+    const co2 = resolveMetricCo2(m, productMap);
+    const product = m.productId != null ? productMap.get(m.productId) : undefined;
+    const productName = product?.productName ?? "Unknown";
+    if (co2 === 0 && m.productId != null && !product) continue;
+    itemCo2.set(productName, (itemCo2.get(productName) || 0) + co2);
   }
 
   const co2ByCategory = Array.from(categoryMap.entries())
@@ -285,17 +292,49 @@ export async function getCO2Stats(userId: number, period: Period = "month") {
     .sort((a, b) => b.value - a.value)
     .slice(0, 10);
 
+  // Waste ratio chart data (wasted vs consumed per day)
+  const consumedMetrics = metrics.filter((m) => m.type === "consumed");
+  const wastedMetrics = metrics.filter((m) => m.type === "wasted");
+  const wasteByDate = new Map<string, number>();
+  const consumeByDate = new Map<string, number>();
+
+  for (const m of wastedMetrics) {
+    const dateObj = parseMetricDate(m.todayDate);
+    const dateKey = formatDate(dateObj, period);
+    const co2 = resolveMetricCo2(m, productMap);
+    wasteByDate.set(dateKey, (wasteByDate.get(dateKey) || 0) + co2);
+  }
+
+  for (const m of consumedMetrics) {
+    const dateObj = parseMetricDate(m.todayDate);
+    const dateKey = formatDate(dateObj, period);
+    const co2 = resolveMetricCo2(m, productMap);
+    consumeByDate.set(dateKey, (consumeByDate.get(dateKey) || 0) + co2);
+  }
+
+  const allDates = new Set([...wasteByDate.keys(), ...consumeByDate.keys()]);
+  const wasteRatioChartData = Array.from(allDates)
+    .map((date) => {
+      const wasted = wasteByDate.get(date) || 0;
+      const consumed = consumeByDate.get(date) || 0;
+      const total = wasted + consumed;
+      const ratio = total > 0 ? Math.round((wasted / total) * 100) : 0;
+      return { date, wasted: Math.round(wasted * 100) / 100, consumed: Math.round(consumed * 100) / 100, ratio };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   const impactEquivalence = {
-    carKmAvoided: Math.round(totalCo2 * 6.0 * 10) / 10,
-    treesPlanted: Math.round((totalCo2 / 21.0) * 10) / 10,
-    electricitySaved: Math.round(totalCo2 * 3.6 * 10) / 10,
+    carKmAvoided: Math.round(totalCo2Reduced * 6.0 * 10) / 10,
+    treesPlanted: Math.round((totalCo2Reduced / 21.0) * 10) / 10,
+    electricitySaved: Math.round(totalCo2Reduced * 3.6 * 10) / 10,
   };
 
   return {
-    totalCo2Reduced: Math.round(totalCo2 * 100) / 100,
+    totalCo2Reduced: Math.round(totalCo2Reduced * 100) / 100,
     co2ByCategory,
     co2Trend,
     topItems,
+    wasteRatioChartData,
     impactEquivalence,
   };
 }
@@ -424,6 +463,57 @@ export async function getFinancialStats(
       Math.round((totalHours / validSoldListings.length) * 10) / 10;
   }
 
+  // EcoPoints data
+  const userPointsRecord = db
+    .select()
+    .from(schema.userPoints)
+    .where(eq(schema.userPoints.userId, userId))
+    .get();
+
+  const ecoPointsBalance = userPointsRecord?.totalPoints ?? 0;
+
+  // Calculate earned points from sustainability metrics (only positive actions)
+  const metricsForPoints = db
+    .select()
+    .from(schema.productSustainabilityMetrics)
+    .where(
+      and(
+        eq(schema.productSustainabilityMetrics.userId, userId),
+        gte(schema.productSustainabilityMetrics.todayDate, toDateString(rangeStart))
+      )
+    )
+    .all();
+
+  const productsForPoints = db
+    .select()
+    .from(schema.products)
+    .where(eq(schema.products.userId, userId))
+    .all();
+
+  const pointsProductMap = new Map(productsForPoints.map((p) => [p.id, p])) as Map<number, ProductRow>;
+
+  const earnedPointsMap = new Map<string, number>();
+  for (const m of metricsForPoints) {
+    const type = m.type?.toLowerCase();
+    // Only count positive point actions (consumed, sold, shared)
+    if (type === "consumed" || type === "sold" || type === "shared") {
+      const co2 = resolveMetricCo2(m, pointsProductMap);
+      let points: number;
+      if (type === "sold") {
+        points = Math.round(co2 * 1.5);
+      } else {
+        points = Math.round(co2);
+      }
+      if (points <= 0) points = 1; // Minimum 1 point for positive action
+      const dateKey = formatDate(parseMetricDate(m.todayDate), period);
+      earnedPointsMap.set(dateKey, (earnedPointsMap.get(dateKey) || 0) + points);
+    }
+  }
+
+  const ecoPointsEarned = Array.from(earnedPointsMap.entries())
+    .map(([date, points]) => ({ date, points }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   return {
     totalEarned: Math.round(totalEarned * 100) / 100,
     totalSpent: Math.round(totalSpent * 100) / 100,
@@ -435,6 +525,8 @@ export async function getFinancialStats(
     priceComparison,
     discountDistribution,
     salesSpeed,
+    ecoPointsBalance,
+    ecoPointsEarned,
   };
 }
 
@@ -475,10 +567,11 @@ export async function getFoodStats(userId: number, period: Period = "month") {
   const totalWasted = wasted.reduce((sum, m) => sum + (m.quantity ?? 0), 0);
   const totalShared = shared.reduce((sum, m) => sum + (m.quantity ?? 0), 0);
   const totalSold = sold.reduce((sum, m) => sum + (m.quantity ?? 0), 0);
-  const totalFood = totalConsumed + totalWasted + totalShared + totalSold;
 
+  // Waste rate = wasted / (consumed + wasted)
+  const consumedPlusWasted = totalConsumed + totalWasted;
   const wasteRate =
-    totalFood > 0 ? Math.round((totalWasted / totalFood) * 1000) / 10 : 0;
+    consumedPlusWasted > 0 ? Math.round((totalWasted / consumedPlusWasted) * 1000) / 10 : 0;
 
   const categoryMap = new Map<string, number>();
   for (const m of metrics) {

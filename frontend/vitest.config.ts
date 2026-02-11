@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
+    setupFiles: ['./src/test/setup.ts', './src/test/accessibility.setup.ts'],
     css: true,
     pool: 'forks',
     coverage: {
@@ -21,6 +21,14 @@ export default defineConfig({
         '**/*.config.*',
         '**/index.ts',
       ],
+      thresholds: {
+        global: {
+          statements: 60,
+          branches: 50,
+          functions: 60,
+          lines: 60,
+        },
+      },
     },
   },
   resolve: {

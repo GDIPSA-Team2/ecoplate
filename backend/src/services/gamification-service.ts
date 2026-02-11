@@ -3,7 +3,7 @@ import * as schema from "../db/schema";
 import { eq, and, inArray, desc, sql } from "drizzle-orm";
 
 import { notifyStreakMilestone } from "./notification-service";
-import { calculateCo2Saved } from "../utils/co2-calculator";
+import { calculateCo2Saved, DISPOSAL_EMISSION_FACTORS } from "../utils/co2-factors";
 
 // Point values for different actions
 export const POINT_VALUES = {
@@ -56,18 +56,24 @@ export async function awardPoints(
   skipMetricRecording?: boolean,
   listingData?: ListingDataForCo2
 ) {
-  // Look up product category from DB for CO2-based scoring
+  // Look up product from DB for CO2-based scoring
   let category: string = "other";
+  let co2Emission: number | null = null;
   if (productId) {
     const product = await db.query.products.findFirst({
       where: eq(schema.products.id, productId),
-      columns: { category: true },
+      columns: { category: true, co2Emission: true },
     });
     if (product?.category) category = product.category;
+    if (product?.co2Emission) co2Emission = product.co2Emission;
   }
 
-  // Callers already pass quantityInKg, so use "kg" as unit
-  const co2Value = calculateCo2Saved(quantity ?? 1, "kg", category);
+  // Use product's stored co2Emission as single source of truth;
+  // fall back to category-based calculation if not available
+  const qty = quantity ?? 1;
+  const co2Value = co2Emission != null
+    ? Math.round(qty * (co2Emission + DISPOSAL_EMISSION_FACTORS.landfill) * 100) / 100
+    : calculateCo2Saved(qty, "kg", category);
   let amount: number;
   if (action === "sold") {
     amount = Math.round(co2Value * 1.5);

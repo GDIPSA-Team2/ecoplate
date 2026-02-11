@@ -31,10 +31,10 @@ import {
   Receipt,
 } from "lucide-react";
 import { cn } from "../lib/utils";
-import { formatCO2, getCO2ColorClass, calculateTotalCO2 } from "../utils/co2Utils";
+import { formatCO2, getCO2ColorClass, calculateTotalCO2, calculateProductCO2 } from "../utils/co2Utils";
 import { calculateCO2Emission } from "../utils/co2Calculator";
 import { PRODUCT_UNITS } from "../constants/units";
-import Compressor from "compressorjs";
+import { compressImage, compressBase64 } from "../utils/compressImage";
 
 interface Product {
   id: number;
@@ -412,9 +412,9 @@ function ProductCard({
                 <span>${product.unitPrice.toFixed(2)}</span>
               )}
               {product.co2Emission != null && (
-                <span className={cn("flex items-center gap-1", getCO2ColorClass(product.co2Emission))}>
+                <span className={cn("flex items-center gap-1", getCO2ColorClass(calculateProductCO2(product.co2Emission, product.quantity, product.unit)))}>
                   <Leaf className="h-3 w-3" />
-                  {formatCO2(product.co2Emission)}
+                  {formatCO2(calculateProductCO2(product.co2Emission, product.quantity, product.unit))}
                 </span>
               )}
               {product.purchaseDate && (
@@ -722,6 +722,9 @@ function ScanReceiptModal({
         return;
       }
 
+      const imageSizeKB = Math.round(base64.length / 1024);
+      console.log(`[ProcessReceipt] Image size: ${imageSizeKB}KB (${(imageSizeKB / 1024).toFixed(2)}MB)`);
+
       setScanning(true);
       setShowCamera(false);
       const startTime = Date.now();
@@ -741,20 +744,26 @@ function ScanReceiptModal({
           }))
         );
 
-        // Don't show toast - let the empty state UI handle it
         if (response.items.length === 0) {
           console.log("[ScanReceipt] No items found in receipt");
+          setScanError("No receipt items found. Please make sure the image is a clear grocery receipt.");
+          addToast("No receipt items found. Please try again.", "error");
         } else {
           console.log("[ProcessReceipt] Successfully processed items:", response.items.length);
+          setScanError(null);
         }
-      } catch (error) {
-        console.error("[ProcessReceipt] Error during scan:", error);
+      } catch (error: unknown) {
+        const err = error as { status?: number; message?: string };
+        console.error("[ProcessReceipt] Error during scan:", {
+          message: err?.message,
+          status: err?.status,
+          fullError: error,
+        });
         const message = error instanceof Error
           ? error.message
           : "Failed to analyze receipt. Please check image clarity.";
         addToast(message, "error");
         setScanError(message);
-        // Keep preview visible - don't clear capturedPreview
       } finally {
         // Ensure loading screen shows for at least 800ms
         const elapsedTime = Date.now() - startTime;
@@ -775,37 +784,8 @@ function ScanReceiptModal({
 
   const SUPPORTED_FORMATS = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 
-  const compressImage = async (file: File): Promise<File> => {
-    return new Promise((resolve) => {
-      new Compressor(file, {
-        quality: 0.7,           // 70% quality
-        maxWidth: 1920,         // Max width in pixels
-        maxHeight: 1920,        // Max height in pixels
-        mimeType: "image/jpeg", // Convert to JPEG for better compression
-        success: (result) => {
-          const compressedFile = new File(
-            [result],
-            file.name.replace(/\.\w+$/, ".jpg"),
-            { type: "image/jpeg" }
-          );
-
-          // Show compression stats
-          const originalSize = (file.size / 1024 / 1024).toFixed(2);
-          const compressedSize = (compressedFile.size / 1024 / 1024).toFixed(2);
-          console.log(`[Compression] ${originalSize}MB → ${compressedSize}MB`);
-
-          resolve(compressedFile);
-        },
-        error: (err) => {
-          console.error("[Compression] Failed:", err);
-          // If compression fails, use original
-          resolve(file);
-        },
-      });
-    });
-  };
-
   const processFile = async (file: File) => {
+    setScanError(null);
     if (!SUPPORTED_FORMATS.includes(file.type)) {
       addToast("Unsupported format. Please use PNG, JPEG, GIF, or WebP.", "error");
       return;
@@ -829,16 +809,19 @@ function ScanReceiptModal({
     setShowPreview(true);
   };
 
-  // When user confirms captured photo, show preview
-  const handleConfirmPhoto = () => {
-    if (camera.capturedImage) {
-      setCapturedPreview(camera.capturedImage);
-      setShowPreview(true);
-      camera.stopCamera();
-    }
+  // When user confirms captured photo, compress and show preview
+  const handleConfirmPhoto = async () => {
+    const image = camera.capturedImage;
+    if (!image) return;
+    const base64 = await compressBase64(image);
+    setCapturedPreview(base64);
+    setShowPreview(true);
+    setShowCamera(false);
+    camera.stopCamera();
   };
 
   const handleOpenCamera = () => {
+    setScanError(null);
     setShowCamera(true);
     camera.startCamera();
   };
@@ -938,7 +921,7 @@ function ScanReceiptModal({
         });
         addedCount++;
       }
-      addToast(`Added ${addedCount} items to your fridge!`, "success");
+      addToast(`Added/updated ${addedCount} items in your fridge!`, "success");
       onScanned();
     } catch {
       if (addedCount > 0) {
@@ -1182,6 +1165,17 @@ function ScanReceiptModal({
         <CardContent>
           {scannedItems.length === 0 && !scanning ? (
             <div className="space-y-4">
+              {/* Error message when scan found no items */}
+              {scanError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-red-700">
+                      <p>{scanError}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               {/* Take Photo */}
               <Button
                 variant="outline"
@@ -1666,10 +1660,11 @@ function TrackConsumptionModal({
       addToast("Image is too large. Maximum size is 10MB.", "error");
       return;
     }
+    const compressedFile = await compressImage(file);
     const base64 = await new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(compressedFile);
     });
     handler(base64);
   };
@@ -1793,10 +1788,12 @@ function TrackConsumptionModal({
     [ingredients, addToast]
   );
 
-  const handleConfirmPhoto = () => {
-    if (!camera.capturedImage) return;
+  const handleConfirmPhoto = async () => {
+    const image = camera.capturedImage;
+    if (!image) return;
+    const base64 = await compressBase64(image);
     const handler = step === "raw-input" ? processRawPhoto : processWastePhoto;
-    handler(camera.capturedImage);
+    handler(base64);
     camera.stopCamera();
   };
 
@@ -2476,12 +2473,11 @@ function TrackConsumptionModal({
                 Rescan
               </Button>
               <Button
-                variant="success"
                 onClick={handleConfirmIngredients}
                 disabled={ingredients.length === 0 || confirmingIngredients}
-                className="flex-[2]"
+                className="flex-[2] bg-green-600 text-white hover:bg-green-700"
               >
-                {confirmingIngredients ? "Confirming..." : "Confirm & Next"}
+                {confirmingIngredients ? "Confirming..." : "Next"}
                 {!confirmingIngredients && <ChevronRight className="h-4 w-4 ml-1" />}
               </Button>
             </div>
@@ -2807,12 +2803,11 @@ function TrackConsumptionModal({
                 Retake
               </Button>
               <Button
-                variant="success"
                 onClick={handleConfirmWaste}
                 disabled={confirmingWaste}
-                className="flex-[2]"
+                className="flex-[2] bg-green-600 text-white hover:bg-green-700"
               >
-                {confirmingWaste ? "Confirming..." : "Confirm & Finish"}
+                {confirmingWaste ? "Confirming..." : "Next"}
                 {!confirmingWaste && <ChevronRight className="h-4 w-4 ml-1" />}
               </Button>
             </div>
@@ -2911,7 +2906,7 @@ function TrackConsumptionModal({
             </div>
           </CardContent>
           <div className="px-6 pb-6 pt-3 shrink-0 border-t">
-            <Button variant="success" onClick={handleDone} className="w-full py-3 shadow-md">
+            <Button onClick={handleDone} className="w-full py-3 shadow-md bg-green-600 text-white hover:bg-green-700">
               <Check className="h-4 w-4 mr-2" />
               Done
             </Button>

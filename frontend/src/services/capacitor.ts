@@ -52,6 +52,30 @@ export async function initializeCapacitor() {
   });
 }
 
+// Build the URL for navigating to EcoLocker
+// On Capacitor, uses absolute URL to remote server since EcoLocker isn't bundled in the APK
+// On web, uses relative path which works fine via the same-origin server
+export function getEcoLockerUrl(token: string, listingId: number): string {
+  if (isNative) {
+    const baseUrl = import.meta.env.VITE_API_URL
+      ? import.meta.env.VITE_API_URL.replace('/api/v1', '')
+      : 'https://18.143.173.20';
+    return `${baseUrl}/ecolocker?token=${token}&listingId=${listingId}`;
+  }
+  return `/ecolocker?token=${token}&listingId=${listingId}`;
+}
+
+// Build the URL for navigating to EcoLocker home/orders page (without specific listing)
+export function getEcoLockerHomeUrl(token: string): string {
+  if (isNative) {
+    const baseUrl = import.meta.env.VITE_API_URL
+      ? import.meta.env.VITE_API_URL.replace('/api/v1', '')
+      : 'https://18.143.173.20';
+    return `${baseUrl}/ecolocker?token=${token}`;
+  }
+  return `/ecolocker?token=${token}`;
+}
+
 // Camera utility for receipt scanning
 export async function takePhoto(): Promise<string | null> {
   if (!isNative) {
