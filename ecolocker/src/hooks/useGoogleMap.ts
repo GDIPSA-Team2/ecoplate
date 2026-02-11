@@ -72,7 +72,7 @@ export function useGoogleMap() {
     setInfoWindow(newInfoWindow);
 
     return () => {
-      google.maps.event.clearInstanceListeners(newMap);
+      (google.maps.event as any).clearInstanceListeners?.(newMap);
       newInfoWindow.close();
       setMap(null);
       setInfoWindow(null);
