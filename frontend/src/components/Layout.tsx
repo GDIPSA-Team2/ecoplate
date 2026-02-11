@@ -13,6 +13,7 @@ import {
   Package,
   LogOut,
   User,
+  Package,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import NotificationBell from "./common/NotificationBell";
@@ -23,6 +24,7 @@ const sidebarItems = [
   { to: "/myfridge", icon: Refrigerator, label: "MyFridge" },
   { to: "/marketplace", icon: Store, label: "Marketplace" },
   { to: "/messages", icon: MessageCircle, label: "Messages" },
+  { to: "/ecolocker-redirect", icon: Package, label: "EcoLocker" },
   { to: "/ecopoints", icon: Trophy, label: "EcoPoints" },
   { to: "/ecolocker", icon: Package, label: "EcoLocker" },
   { to: "/rewards", icon: Gift, label: "Rewards" },
@@ -34,7 +36,7 @@ const mobileTabItems = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/myfridge", icon: Refrigerator, label: "Fridge" },
   { to: "/marketplace", icon: Store, label: "Market" },
-  { to: "/rewards", icon: Gift, label: "Rewards" },
+  { to: "/ecolocker-redirect", icon: Package, label: "Locker" },
   { to: "/messages", icon: MessageCircle, label: "Msgs" },
   { to: "/account", icon: User, label: "Account" },
 ];
@@ -45,6 +47,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith("/myfridge")) return "MyFridge";
   if (pathname.startsWith("/marketplace")) return "Marketplace";
   if (pathname.startsWith("/messages")) return "Messages";
+  if (pathname.startsWith("/ecolocker")) return "EcoLocker";
   if (pathname.startsWith("/ecopoints")) return "EcoPoints";
   if (pathname.startsWith("/ecoboard")) return "EcoPoints";
   if (pathname.startsWith("/ecolocker")) return "EcoLocker";

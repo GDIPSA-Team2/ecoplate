@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/bun-sqlite";
 import { Router, json } from "../../utils/router";
 import * as schema from "../../db/schema";
 import { eq, desc, sql } from "drizzle-orm";
-import { calculateCo2Saved } from "../../utils/co2-calculator";
+import { calculateCo2Saved } from "../../utils/co2-factors";
 
 // Set up in-memory test database
 let sqlite: Database;
@@ -455,7 +455,8 @@ beforeAll(async () => {
       today_date TEXT NOT NULL,
       quantity REAL,
     unit TEXT,
-      type TEXT
+      type TEXT,
+      co2_value REAL
     );
 
     CREATE TABLE rewards (

@@ -10,16 +10,16 @@ import {
 
 describe("getEmissionFactor", () => {
   test("resolves by exact product name match (case-insensitive)", () => {
-    expect(getEmissionFactor("Beef", "meat")).toBe(99.0);
-    expect(getEmissionFactor("chicken", "meat")).toBe(9.0);
-    expect(getEmissionFactor("Rice", "pantry")).toBe(4.0);
-    expect(getEmissionFactor("MILK", "dairy")).toBe(8.0);
+    expect(getEmissionFactor("Beef", "meat")).toBe(27.0);
+    expect(getEmissionFactor("chicken", "meat")).toBe(6.9);
+    expect(getEmissionFactor("Rice", "pantry")).toBe(2.7);
+    expect(getEmissionFactor("MILK", "dairy")).toBe(3.2);
   });
 
   test("resolves by partial name match", () => {
-    expect(getEmissionFactor("Chicken Breast", "meat")).toBe(9.0);
-    expect(getEmissionFactor("Organic Beef Steak", "meat")).toBe(99.0);
-    expect(getEmissionFactor("Fresh Salmon Fish", "meat")).toBe(13.0);
+    expect(getEmissionFactor("Chicken Breast", "meat")).toBe(6.9);
+    expect(getEmissionFactor("Organic Beef Steak", "meat")).toBe(27.0);
+    expect(getEmissionFactor("Fresh Salmon Fish", "meat")).toBe(6.0);
   });
 
   test("falls back to category when name not matched", () => {
@@ -277,11 +277,11 @@ describe("getSustainabilityRating", () => {
 
 describe("constant maps", () => {
   test("EMISSION_FACTORS contains key food types", () => {
-    expect(EMISSION_FACTORS.beef).toBe(99.0);
-    expect(EMISSION_FACTORS.chicken).toBe(9.0);
-    expect(EMISSION_FACTORS.rice).toBe(4.0);
-    expect(EMISSION_FACTORS.milk).toBe(8.0);
-    expect(EMISSION_FACTORS.potatoes).toBe(0.5);
+    expect(EMISSION_FACTORS.beef).toBe(27.0);
+    expect(EMISSION_FACTORS.chicken).toBe(6.9);
+    expect(EMISSION_FACTORS.rice).toBe(2.7);
+    expect(EMISSION_FACTORS.milk).toBe(3.2);
+    expect(EMISSION_FACTORS.potato).toBe(0.3);
   });
 
   test("DISPOSAL_EMISSION_FACTORS contains all methods", () => {

@@ -25,6 +25,7 @@ import LockerPaymentPage from "./features/ecolocker/pages/LockerPaymentPage";
 import LockerOrdersPage from "./features/ecolocker/pages/LockerOrdersPage";
 import LockerOrderDetailPage from "./features/ecolocker/pages/LockerOrderDetailPage";
 import LockerNotificationsPage from "./features/ecolocker/pages/LockerNotificationsPage";
+import EcoLockerRedirectPage from "./pages/EcoLockerRedirectPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -73,6 +74,7 @@ function App() {
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="rewards" element={<RewardsPage />} />
         <Route path="rewards/my-redemptions" element={<MyRedemptionsPage />} />
+        <Route path="ecolocker-redirect" element={<EcoLockerRedirectPage />} />
         <Route path="account" element={<AccountPage />} />
         <Route path="ecolocker" element={<EcoLockerHomePage />} />
         <Route path="ecolocker/select-locker" element={<SelectLockerPage />} />
