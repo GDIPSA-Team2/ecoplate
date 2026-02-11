@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const DEFAULT_CENTER = { lat: 1.3521, lng: 103.8198 };
 
@@ -31,7 +31,10 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
 }
 
 export function useGoogleMap() {
-  const mapRef = useRef<HTMLDivElement>(null);
+  const [mapElement, setMapElement] = useState<HTMLDivElement | null>(null);
+  const mapRef = useCallback((node: HTMLDivElement | null) => {
+    setMapElement(node);
+  }, []);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [infoWindow, setInfoWindow] = useState<google.maps.InfoWindow | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -50,11 +53,11 @@ export function useGoogleMap() {
       .catch((err) => setError(err.message));
   }, []);
 
-  // Initialize the map once script is loaded - does NOT depend on user location
+  // Initialize the map once script is loaded and DOM element is available
   useEffect(() => {
-    if (!isLoaded || !mapRef.current || map) return;
+    if (!isLoaded || !mapElement) return;
 
-    setMap(new google.maps.Map(mapRef.current, {
+    const newMap = new google.maps.Map(mapElement, {
       center: DEFAULT_CENTER,
       zoom: 12,
       disableDefaultUI: false,
@@ -62,10 +65,19 @@ export function useGoogleMap() {
       streetViewControl: false,
       mapTypeControl: false,
       fullscreenControl: true,
-    }));
+    });
+    const newInfoWindow = new google.maps.InfoWindow();
 
-    setInfoWindow(new google.maps.InfoWindow());
-  }, [isLoaded, map]);
+    setMap(newMap);
+    setInfoWindow(newInfoWindow);
+
+    return () => {
+      google.maps.event.clearInstanceListeners(newMap);
+      newInfoWindow.close();
+      setMap(null);
+      setInfoWindow(null);
+    };
+  }, [isLoaded, mapElement]);
 
   return {
     mapRef,
