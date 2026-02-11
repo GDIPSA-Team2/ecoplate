@@ -506,16 +506,11 @@ export async function getFinancialStats(
   const earnedPointsMap = new Map<string, number>();
   for (const m of metricsForPoints) {
     const type = m.type?.toLowerCase();
-    // Only count positive point actions (consumed, sold, shared)
-    if (type === "consumed" || type === "sold" || type === "shared") {
+    // Only "sold" earns points (matches gamification-service.ts calculatePointsForAction)
+    if (type === "sold") {
       const co2 = resolveMetricCo2(m, pointsProductMap);
-      let points: number;
-      if (type === "sold") {
-        points = Math.round(co2 * 1.5);
-      } else {
-        points = Math.round(co2);
-      }
-      if (points <= 0) points = 1; // Minimum 1 point for positive action
+      let points = Math.round(co2 * 1.5);
+      if (points < 3) points = 3; // Minimum 3 points for sold action
       const dateKey = formatDate(parseMetricDate(m.todayDate), period);
       earnedPointsMap.set(dateKey, (earnedPointsMap.get(dateKey) || 0) + points);
     }
