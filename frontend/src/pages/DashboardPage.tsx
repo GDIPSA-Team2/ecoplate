@@ -8,7 +8,6 @@ import {
   Trash2,
   Utensils,
   DollarSign,
-  Star,
   Car,
   TreePine,
   Zap,
@@ -94,21 +93,6 @@ interface FoodData {
   topItems: Array<{ name: string; value: number }>;
 }
 
-interface PointsData {
-  points: {
-    total: number;
-    available: number;
-    lifetime: number;
-    currentStreak: number;
-    longestStreak: number;
-  };
-  stats: {
-    pointsToday: number;
-    pointsThisWeek: number;
-    pointsThisMonth: number;
-  };
-}
-
 type Tab = "summary" | "co2" | "financial" | "food";
 type Period = "day" | "month" | "annual";
 
@@ -147,7 +131,6 @@ export default function DashboardPage() {
     null
   );
   const [foodData, setFoodData] = useState<FoodData | null>(null);
-  const [pointsData, setPointsData] = useState<PointsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("summary");
   const [activePeriod, setActivePeriod] = useState<Period>("month");
@@ -163,12 +146,8 @@ export default function DashboardPage() {
       const p = activePeriod;
 
       if (activeTab === "summary") {
-        const [stats, points] = await Promise.all([
-          api.get<DashboardStats>(`/dashboard/stats?period=${p}`),
-          api.get<PointsData>("/gamification/points"),
-        ]);
+        const stats = await api.get<DashboardStats>(`/dashboard/stats?period=${p}`);
         setSummaryData(stats);
-        setPointsData(points);
       } else if (activeTab === "co2") {
         const stats = await api.get<CO2Data>(`/dashboard/co2?period=${p}`);
         setCo2Data(stats);
