@@ -77,6 +77,7 @@ export default function EcoBoardPage() {
   const [loading, setLoading] = useState(true);
   const [showAllSold, setShowAllSold] = useState(false);
   const [showAllRedeem, setShowAllRedeem] = useState(false);
+  const [showAllBadge, setShowAllBadge] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -127,9 +128,11 @@ export default function EcoBoardPage() {
   }
 
   const transactions = pointsData?.transactions || [];
-  const soldTransactions = transactions.filter((tx) => tx.action !== "redeemed");
+  const soldTransactions = transactions.filter((tx) => tx.action !== "redeemed" && tx.action !== "badge");
+  const badgeTransactions = transactions.filter((tx) => tx.action === "badge");
   const redeemTransactions = transactions.filter((tx) => tx.action === "redeemed");
   const visibleSold = showAllSold ? soldTransactions : soldTransactions.slice(0, INITIAL_TX_COUNT);
+  const visibleBadge = showAllBadge ? badgeTransactions : badgeTransactions.slice(0, INITIAL_TX_COUNT);
   const visibleRedeem = showAllRedeem ? redeemTransactions : redeemTransactions.slice(0, INITIAL_TX_COUNT);
 
 
@@ -299,7 +302,7 @@ export default function EcoBoardPage() {
             </CardContent>
           </Card>
 
-          {/* Panel 5: Sold Points History */}
+          {/* Panel 5: Points History */}
           <Card className="overflow-hidden">
             <CardHeader className="p-3 sm:p-6">
               <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
@@ -371,45 +374,75 @@ export default function EcoBoardPage() {
             </CardContent>
           </Card>
 
-          {/* Points Guide */}
+          {/* Bonus Points From Badges */}
           <Card className="overflow-hidden">
             <CardHeader className="p-3 sm:p-6">
               <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-                <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
-                Points Guide
+                <Award className="h-4 w-4 sm:h-5 sm:w-5 text-amber-500" />
+                Bonus Points From Badges
               </CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">
-                Earn points through sales and badges. Spend them on rewards.
-              </p>
             </CardHeader>
             <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-              <div className="grid grid-cols-1 gap-2 sm:gap-3">
-                {Object.entries(ACTION_CONFIG).map(([key, config]) => {
-                  const Icon = config.icon;
-                  return (
-                      <div
-                          key={key}
-                          className={`p-2.5 sm:p-4 rounded-lg sm:rounded-xl ${config.bgColor}`}
-                      >
-                        <div className="flex items-start gap-2 sm:gap-3">
+              {badgeTransactions.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
+                    No badge bonus points yet
+                  </p>
+              ) : (
+                  <div className="space-y-1.5 sm:space-y-2 max-h-[230px] sm:max-h-[270px] overflow-y-auto">
+                    {visibleBadge.map((tx) => {
+                      const config = ACTION_CONFIG[tx.action];
+                      const Icon = config?.icon || Check;
+                      const color = config?.color || "text-muted-foreground";
+                      const bgColor = config?.bgColor || "bg-muted";
+                      return (
                           <div
-                              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full ${config.bgColor} flex items-center justify-center flex-shrink-0`}
+                              key={tx.id}
+                              className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg sm:rounded-xl bg-muted/50"
                           >
-                            <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${config.color}`} />
+                            <div
+                                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${bgColor}`}
+                            >
+                              <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${color}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-medium text-xs sm:text-sm text-foreground truncate">
+                                    {config?.label || tx.action}
+                                </p>
+                                <p className="text-[10px] sm:text-xs text-muted-foreground">
+                                    {new Date(tx.createdAt).toLocaleDateString()}
+                                </p>
+                            </div>
+                            <Badge
+                                variant={tx.amount > 0 ? "success" : "destructive"}
+                                className="text-xs sm:text-sm"
+                            >
+                              {tx.amount > 0 ? "+" : ""}
+                              {tx.amount}
+                            </Badge>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-foreground text-xs sm:text-sm">
-                              {config.label}
-                            </h3>
-                            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-                              {config.description}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                  );
-                })}
-              </div>
+                      );
+                    })}
+                    {badgeTransactions.length > INITIAL_TX_COUNT && (
+                        <Button
+                            variant="ghost"
+                            className="w-full mt-2 text-sm"
+                            onClick={() => setShowAllBadge(!showAllBadge)}
+                        >
+                          {showAllBadge ? (
+                              <>
+                                <ChevronUp className="h-4 w-4 mr-1" />
+                                Show Less
+                              </>
+                          ) : (
+                              <>
+                                <ChevronDown className="h-4 w-4 mr-1" />
+                                Show All ({badgeTransactions.length})
+                              </>
+                          )}
+                        </Button>
+                    )}
+                  </div>
+              )}
             </CardContent>
           </Card>
 
@@ -482,6 +515,48 @@ export default function EcoBoardPage() {
                     )}
                   </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Points Guide */}
+          <Card className="overflow-hidden md:col-span-2">
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
+                Points Guide
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Earn points through sales and badges. Spend them on rewards.
+              </p>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+              <div className="grid grid-cols-1 gap-2 sm:gap-3">
+                {Object.entries(ACTION_CONFIG).map(([key, config]) => {
+                  const Icon = config.icon;
+                  return (
+                      <div
+                          key={key}
+                          className={`p-2.5 sm:p-4 rounded-lg sm:rounded-xl ${config.bgColor}`}
+                      >
+                        <div className="flex items-start gap-2 sm:gap-3">
+                          <div
+                              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full ${config.bgColor} flex items-center justify-center flex-shrink-0`}
+                          >
+                            <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${config.color}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-foreground text-xs sm:text-sm">
+                              {config.label}
+                            </h3>
+                            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+                              {config.description}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                  );
+                })}
+              </div>
             </CardContent>
           </Card>
         </div>

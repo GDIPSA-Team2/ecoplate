@@ -1,4 +1,4 @@
-import { DollarSign, Gift } from "lucide-react";
+import { DollarSign, Gift, Award } from "lucide-react";
 
 export const ACTION_CONFIG: Record<
   string,
@@ -20,6 +20,15 @@ export const ACTION_CONFIG: Record<
     bgColor: "bg-secondary/10",
     chartColor: "hsl(var(--secondary))",
     description: "Sell on the marketplace to earn points.",
+  },
+  badge: {
+    label: "Badge Bonus",
+    icon: Award,
+    points: 0,
+    color: "text-amber-500",
+    bgColor: "bg-amber-500/10",
+    chartColor: "hsl(38, 92%, 50%)",
+    description: "Bonus points awarded for earning badges.",
   },
   redeemed: {
     label: "Redeemed",

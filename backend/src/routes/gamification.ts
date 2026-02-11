@@ -1,7 +1,7 @@
 import { Router, json } from "../utils/router";
 import { db } from "../db/connection";
 import * as schema from "../db/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, sql, gt } from "drizzle-orm";
 import { getUser } from "../middleware/auth";
 import { getOrCreateUserPoints, getUserMetrics, getDetailedPointsStats, awardPoints, computeCo2Value, calculatePointsForAction } from "../services/gamification-service";
 import { POINT_VALUES } from "../services/gamification-service";
@@ -88,8 +88,47 @@ export function registerGamificationRoutes(router: Router) {
             : Date.now(),
       }));
 
+      // Fetch badge awards as transactions
+      const badgeAwards = await db
+        .select({
+          id: schema.userBadges.id,
+          pointsAwarded: schema.badges.pointsAwarded,
+          badgeName: schema.badges.name,
+          earnedAt: schema.userBadges.earnedAt,
+        })
+        .from(schema.userBadges)
+        .innerJoin(schema.badges, eq(schema.userBadges.badgeId, schema.badges.id))
+        .where(
+          and(
+            eq(schema.userBadges.userId, user.id),
+            gt(schema.badges.pointsAwarded, 0)
+          )
+        )
+        .orderBy(desc(schema.userBadges.earnedAt))
+        .limit(20);
+
+      const badgeTx = badgeAwards.map((b) => ({
+        id: b.id + 2_000_000,
+        amount: b.pointsAwarded,
+        type: "earned" as const,
+        action: "badge",
+        createdAt: b.earnedAt instanceof Date
+          ? b.earnedAt.toISOString().slice(0, 10)
+          : typeof b.earnedAt === "number"
+            ? new Date(b.earnedAt * 1000).toISOString().slice(0, 10)
+            : new Date().toISOString().slice(0, 10),
+        productName: b.badgeName,
+        quantity: 1,
+        unit: "pcs",
+        _timestamp: b.earnedAt instanceof Date
+          ? b.earnedAt.getTime()
+          : typeof b.earnedAt === "number"
+            ? b.earnedAt * 1000
+            : Date.now(),
+      }));
+
       // Merge and sort all transactions
-      const allTransactions = [...transactions, ...redemptionTx]
+      const allTransactions = [...transactions, ...redemptionTx, ...badgeTx]
         .sort((a, b) => b._timestamp - a._timestamp || b.id - a.id)
         .slice(0, 20);
 
