@@ -9,14 +9,15 @@ import { Capacitor } from "@capacitor/core";
 const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
 
 // Get the base URL for API calls (with /api/v1)
+// Use HTTP for Android to avoid self-signed certificate issues
 const API_URL = isNative
-  ? (import.meta.env.VITE_API_URL || "https://18.143.173.20/api/v1")
+  ? (import.meta.env.VITE_API_URL || "http://18.143.173.20/api/v1")
   : "/api/v1";
 
 // Get the base URL for static assets like images (without /api/v1)
 const getStaticBaseUrl = (): string => {
   if (!isNative) return "";
-  const apiUrl = import.meta.env.VITE_API_URL || "https://18.143.173.20/api/v1";
+  const apiUrl = import.meta.env.VITE_API_URL || "http://18.143.173.20/api/v1";
   // Strip /api/v1 suffix to get the base URL for static files
   return apiUrl.replace(/\/api\/v1\/?$/, "");
 };
