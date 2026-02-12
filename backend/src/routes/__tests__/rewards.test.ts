@@ -1,153 +1,59 @@
-import { describe, expect, test, beforeAll, afterAll, beforeEach } from "bun:test";
+import { describe, expect, test, mock, beforeAll, afterAll, beforeEach } from "bun:test";
 import { Database } from "bun:sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
-import { Router, json, error, parseBody } from "../../utils/router";
+import { Router } from "../../utils/router";
 import * as schema from "../../db/schema";
 import { eq } from "drizzle-orm";
-import { z } from "zod";
 
 // Set up in-memory test database
 let sqlite: Database;
 let testDb: ReturnType<typeof drizzle<typeof schema>>;
+
+// Track current user for mocking - use object to ensure reference is shared
+const mockState = {
+  userId: 1,
+};
+
+// Mock auth middleware
+// Include all exports from auth.ts to avoid module conflict issues when tests run together
+mock.module("../../middleware/auth", () => ({
+  hashPassword: async (password: string): Promise<string> => `hashed_${password}`,
+  verifyPassword: async (password: string, hash: string): Promise<boolean> =>
+    hash === `hashed_${password}`,
+  generateToken: async (payload: { sub: string; email: string; name: string }): Promise<string> =>
+    `token_${payload.sub}_${payload.email}`,
+  verifyToken: async (token: string): Promise<{ sub: string; email: string; name: string } | null> => {
+    const match = token.match(/^token_(\d+)_(.+)$/);
+    if (!match) return null;
+    return { sub: match[1], email: match[2], name: "Test User" };
+  },
+  getUser: () => ({
+    id: mockState.userId,
+    email: "test@example.com",
+    name: "Test User",
+  }),
+  extractBearerToken: (req: Request): string | null => {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
+    return authHeader.slice(7);
+  },
+  authMiddleware: async (_req: Request, next: () => Promise<Response>) => next(),
+  verifyRequestAuth: async (req: Request) => {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
+    const token = authHeader.slice(7);
+    const match = token.match(/^token_(\d+)_(.+)$/);
+    if (!match) return null;
+    return { sub: match[1], email: match[2], name: "Test User" };
+  },
+}));
+
+// Note: We don't mock reward-service here because mock.module is global
+// and would affect other test files. Instead, we set up the required tables
+// and use __setTestDb to inject our test database.
+
 let testUserId: number;
 let secondUserId: number;
-
-const redeemSchema = z.object({
-  rewardId: z.number().int().positive(),
-});
-
-// Simplified route registration for testing
-function registerTestRewardsRoutes(
-  router: Router,
-  db: ReturnType<typeof drizzle<typeof schema>>,
-  userId: number
-) {
-  router.use(async (req, next) => {
-    (req as Request & { user: { id: number } }).user = { id: userId };
-    return next();
-  });
-
-  const getUser = (req: Request) =>
-    (req as Request & { user: { id: number } }).user;
-
-  // Get all available rewards
-  router.get("/api/v1/rewards", async () => {
-    const rewards = await db
-      .select()
-      .from(schema.rewards)
-      .where(eq(schema.rewards.isActive, true))
-      .orderBy(schema.rewards.pointsCost);
-    return json(rewards);
-  });
-
-  // Get user's points balance
-  router.get("/api/v1/rewards/balance", async (req) => {
-    const user = getUser(req);
-    const result = await db.query.userPoints.findFirst({
-      where: eq(schema.userPoints.userId, user.id),
-    });
-    return json({ balance: result?.totalPoints ?? 0 });
-  });
-
-  // Redeem a reward
-  router.post("/api/v1/rewards/redeem", async (req) => {
-    const user = getUser(req);
-    const body = await parseBody(req);
-    const data = redeemSchema.parse(body);
-
-    // Get the reward
-    const reward = await db.query.rewards.findFirst({
-      where: eq(schema.rewards.id, data.rewardId),
-    });
-
-    if (!reward) {
-      return error("Reward not found", 404);
-    }
-
-    if (!reward.isActive) {
-      return error("Reward is not available", 400);
-    }
-
-    if (reward.stock <= 0) {
-      return error("Reward is out of stock", 400);
-    }
-
-    // Get user's points
-    const userPointsRecord = await db.query.userPoints.findFirst({
-      where: eq(schema.userPoints.userId, user.id),
-    });
-
-    const currentPoints = userPointsRecord?.totalPoints ?? 0;
-
-    if (currentPoints < reward.pointsCost) {
-      return error("Insufficient points", 400);
-    }
-
-    // Generate unique redemption code
-    const redemptionCode = `EP-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
-
-    // Calculate expiry date (30 days from now)
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
-
-    // Create redemption record
-    const [redemption] = await db
-      .insert(schema.userRedemptions)
-      .values({
-        userId: user.id,
-        rewardId: data.rewardId,
-        pointsSpent: reward.pointsCost,
-        redemptionCode,
-        status: "pending",
-        expiresAt,
-      })
-      .returning();
-
-    // Deduct points from user
-    await db
-      .update(schema.userPoints)
-      .set({ totalPoints: currentPoints - reward.pointsCost })
-      .where(eq(schema.userPoints.userId, user.id));
-
-    // Decrease stock
-    await db
-      .update(schema.rewards)
-      .set({ stock: reward.stock - 1 })
-      .where(eq(schema.rewards.id, data.rewardId));
-
-    return json({
-      ...redemption,
-      reward,
-    });
-  });
-
-  // Get user's redemption history
-  router.get("/api/v1/rewards/my-redemptions", async (req) => {
-    const user = getUser(req);
-
-    const redemptions = await db
-      .select({
-        id: schema.userRedemptions.id,
-        pointsSpent: schema.userRedemptions.pointsSpent,
-        redemptionCode: schema.userRedemptions.redemptionCode,
-        status: schema.userRedemptions.status,
-        expiresAt: schema.userRedemptions.expiresAt,
-        createdAt: schema.userRedemptions.createdAt,
-        reward: {
-          id: schema.rewards.id,
-          name: schema.rewards.name,
-          description: schema.rewards.description,
-          category: schema.rewards.category,
-          pointsCost: schema.rewards.pointsCost,
-        },
-      })
-      .from(schema.userRedemptions)
-      .innerJoin(schema.rewards, eq(schema.userRedemptions.rewardId, schema.rewards.id))
-      .where(eq(schema.userRedemptions.userId, user.id));
-
-    return json(redemptions);
-  });
-}
 
 beforeAll(async () => {
   sqlite = new Database(":memory:");
@@ -198,9 +104,76 @@ beforeAll(async () => {
       expires_at INTEGER,
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
     );
+
+    CREATE TABLE products (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      product_name TEXT NOT NULL,
+      category TEXT,
+      quantity REAL NOT NULL,
+      unit TEXT,
+      unit_price REAL,
+      purchase_date INTEGER,
+      description TEXT,
+      co2_emission REAL
+    );
+
+    CREATE TABLE product_sustainability_metrics (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      today_date TEXT NOT NULL,
+      quantity REAL,
+      unit TEXT,
+      type TEXT
+    );
+
+    CREATE TABLE badges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      description TEXT,
+      category TEXT,
+      points_awarded INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      badge_image_url TEXT
+    );
+
+    CREATE TABLE user_badges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      badge_id INTEGER NOT NULL REFERENCES badges(id) ON DELETE CASCADE,
+      earned_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(user_id, badge_id)
+    );
+
+    CREATE TABLE marketplace_listings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      seller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      buyer_id INTEGER REFERENCES users(id),
+      product_id INTEGER REFERENCES products(id),
+      title TEXT NOT NULL,
+      description TEXT,
+      category TEXT,
+      quantity REAL NOT NULL,
+      unit TEXT,
+      price REAL,
+      original_price REAL,
+      expiry_date INTEGER,
+      pickup_location TEXT,
+      images TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      completed_at INTEGER,
+      co2_saved REAL
+    );
   `);
 
   testDb = drizzle(sqlite, { schema });
+
+  // Inject test database
+  const { __setTestDb } = await import("../../db/connection");
+  __setTestDb(testDb as any);
 
   // Seed test users
   const [user1] = await testDb
@@ -231,13 +204,24 @@ afterAll(() => {
 beforeEach(async () => {
   // Clear data before each test
   await testDb.delete(schema.userRedemptions);
+  await testDb.delete(schema.productSustainabilityMetrics);
   await testDb.delete(schema.userPoints);
+  await testDb.delete(schema.userBadges);
+  await testDb.delete(schema.products);
   await testDb.delete(schema.rewards);
 });
 
+// Import actual route registration function AFTER mocks are set up
+let registerRewardsRoutes: (router: Router) => void;
+beforeAll(async () => {
+  const rewardsModule = await import("../rewards");
+  registerRewardsRoutes = rewardsModule.registerRewardsRoutes;
+});
+
 function createRouter(userId: number = testUserId) {
+  mockState.userId = userId;
   const router = new Router();
-  registerTestRewardsRoutes(router, testDb, userId);
+  registerRewardsRoutes(router);
   return router;
 }
 
@@ -348,9 +332,23 @@ describe("GET /api/v1/rewards/balance", () => {
   });
 
   test("returns correct balance for user with points", async () => {
-    await testDb.insert(schema.userPoints).values({
+    // Insert a product with co2_emission that will compute to ~1500 points
+    // Formula: points = Math.round(co2Value * 1.5), so co2Value=1000 gives 1500 points
+    const [product] = await testDb.insert(schema.products).values({
       userId: testUserId,
-      totalPoints: 1500,
+      productName: "Test Product",
+      category: "other",
+      quantity: 1,
+      co2Emission: 1000,
+    }).returning();
+
+    // Insert a 'sold' sustainability metric
+    await testDb.insert(schema.productSustainabilityMetrics).values({
+      userId: testUserId,
+      productId: product.id,
+      quantity: 1,
+      type: "sold",
+      todayDate: new Date().toISOString().split("T")[0],
     });
 
     const router = createRouter();
@@ -361,20 +359,70 @@ describe("GET /api/v1/rewards/balance", () => {
   });
 
   test("returns correct balance for specific user", async () => {
-    await testDb.insert(schema.userPoints).values([
-      { userId: testUserId, totalPoints: 1000 },
-      { userId: secondUserId, totalPoints: 2000 },
-    ]);
+    // User 1: co2=100 -> 150 points (100 * 1.5 = 150)
+    const [product1] = await testDb.insert(schema.products).values({
+      userId: testUserId,
+      productName: "Test Product 1",
+      category: "other",
+      quantity: 1,
+      co2Emission: 100,
+    }).returning();
+    await testDb.insert(schema.productSustainabilityMetrics).values({
+      userId: testUserId,
+      productId: product1.id,
+      quantity: 1,
+      type: "sold",
+      todayDate: new Date().toISOString().split("T")[0],
+    });
+
+    // User 2: co2=200 -> 300 points (200 * 1.5 = 300)
+    const [product2] = await testDb.insert(schema.products).values({
+      userId: secondUserId,
+      productName: "Test Product 2",
+      category: "other",
+      quantity: 1,
+      co2Emission: 200,
+    }).returning();
+    await testDb.insert(schema.productSustainabilityMetrics).values({
+      userId: secondUserId,
+      productId: product2.id,
+      quantity: 1,
+      type: "sold",
+      todayDate: new Date().toISOString().split("T")[0],
+    });
 
     const router1 = createRouter(testUserId);
     const res1 = await makeRequest(router1, "GET", "/api/v1/rewards/balance");
-    expect((res1.data as { balance: number }).balance).toBe(1000);
+    expect((res1.data as { balance: number }).balance).toBe(150);
 
     const router2 = createRouter(secondUserId);
     const res2 = await makeRequest(router2, "GET", "/api/v1/rewards/balance");
-    expect((res2.data as { balance: number }).balance).toBe(2000);
+    expect((res2.data as { balance: number }).balance).toBe(300);
   });
 });
+
+// Helper to set up user points via sustainability metrics
+async function setupUserPoints(userId: number, targetPoints: number) {
+  // Formula: points = Math.round(co2Value * 1.5)
+  // So co2Value = targetPoints / 1.5 = targetPoints * 2/3
+  const co2Value = Math.ceil(targetPoints / 1.5);
+
+  const [product] = await testDb.insert(schema.products).values({
+    userId,
+    productName: `Points Product for ${targetPoints}`,
+    category: "other",
+    quantity: 1,
+    co2Emission: co2Value,
+  }).returning();
+
+  await testDb.insert(schema.productSustainabilityMetrics).values({
+    userId,
+    productId: product.id,
+    quantity: 1,
+    type: "sold",
+    todayDate: new Date().toISOString().split("T")[0],
+  });
+}
 
 describe("POST /api/v1/rewards/redeem", () => {
   test("successfully redeems a reward", async () => {
@@ -389,10 +437,7 @@ describe("POST /api/v1/rewards/redeem", () => {
       })
       .returning();
 
-    await testDb.insert(schema.userPoints).values({
-      userId: testUserId,
-      totalPoints: 1000,
-    });
+    await setupUserPoints(testUserId, 1000);
 
     const router = createRouter();
     const res = await makeRequest(router, "POST", "/api/v1/rewards/redeem", {
@@ -401,13 +446,12 @@ describe("POST /api/v1/rewards/redeem", () => {
 
     expect(res.status).toBe(200);
     const data = res.data as {
-      id: number;
-      redemptionCode: string;
-      pointsSpent: number;
+      redemptions: Array<{ redemptionCode: string; pointsSpent: number }>;
+      totalPointsSpent: number;
       reward: { name: string };
     };
-    expect(data.redemptionCode).toMatch(/^EP-[A-Z0-9]+$/);
-    expect(data.pointsSpent).toBe(500);
+    expect(data.redemptions[0].redemptionCode).toMatch(/^EP-[A-Z0-9]+$/);
+    expect(data.totalPointsSpent).toBe(500);
     expect(data.reward.name).toBe("Test Reward");
   });
 
@@ -423,21 +467,19 @@ describe("POST /api/v1/rewards/redeem", () => {
       })
       .returning();
 
-    await testDb.insert(schema.userPoints).values({
-      userId: testUserId,
-      totalPoints: 1000,
-    });
+    await setupUserPoints(testUserId, 1000);
 
     const router = createRouter();
     await makeRequest(router, "POST", "/api/v1/rewards/redeem", {
       rewardId: reward.id,
     });
 
-    const points = await testDb.query.userPoints.findFirst({
-      where: eq(schema.userPoints.userId, testUserId),
-    });
-
-    expect(points?.totalPoints).toBe(700);
+    // After redeeming 300 points from ~1000, balance should be ~700
+    const balanceRes = await makeRequest(router, "GET", "/api/v1/rewards/balance");
+    const balance = (balanceRes.data as { balance: number }).balance;
+    // Allow some tolerance due to rounding in point calculation
+    expect(balance).toBeGreaterThanOrEqual(690);
+    expect(balance).toBeLessThanOrEqual(710);
   });
 
   test("decreases reward stock", async () => {
@@ -452,10 +494,7 @@ describe("POST /api/v1/rewards/redeem", () => {
       })
       .returning();
 
-    await testDb.insert(schema.userPoints).values({
-      userId: testUserId,
-      totalPoints: 500,
-    });
+    await setupUserPoints(testUserId, 500);
 
     const router = createRouter();
     await makeRequest(router, "POST", "/api/v1/rewards/redeem", {
@@ -470,10 +509,7 @@ describe("POST /api/v1/rewards/redeem", () => {
   });
 
   test("returns 404 for non-existent reward", async () => {
-    await testDb.insert(schema.userPoints).values({
-      userId: testUserId,
-      totalPoints: 1000,
-    });
+    await setupUserPoints(testUserId, 1000);
 
     const router = createRouter();
     const res = await makeRequest(router, "POST", "/api/v1/rewards/redeem", {
@@ -496,10 +532,7 @@ describe("POST /api/v1/rewards/redeem", () => {
       })
       .returning();
 
-    await testDb.insert(schema.userPoints).values({
-      userId: testUserId,
-      totalPoints: 1000,
-    });
+    await setupUserPoints(testUserId, 1000);
 
     const router = createRouter();
     const res = await makeRequest(router, "POST", "/api/v1/rewards/redeem", {
@@ -522,10 +555,7 @@ describe("POST /api/v1/rewards/redeem", () => {
       })
       .returning();
 
-    await testDb.insert(schema.userPoints).values({
-      userId: testUserId,
-      totalPoints: 1000,
-    });
+    await setupUserPoints(testUserId, 1000);
 
     const router = createRouter();
     const res = await makeRequest(router, "POST", "/api/v1/rewards/redeem", {
@@ -548,10 +578,7 @@ describe("POST /api/v1/rewards/redeem", () => {
       })
       .returning();
 
-    await testDb.insert(schema.userPoints).values({
-      userId: testUserId,
-      totalPoints: 500,
-    });
+    await setupUserPoints(testUserId, 500);
 
     const router = createRouter();
     const res = await makeRequest(router, "POST", "/api/v1/rewards/redeem", {
@@ -595,16 +622,14 @@ describe("POST /api/v1/rewards/redeem", () => {
       })
       .returning();
 
-    await testDb.insert(schema.userPoints).values({
-      userId: testUserId,
-      totalPoints: 500,
-    });
+    await setupUserPoints(testUserId, 500);
 
     const router = createRouter();
     const res = await makeRequest(router, "POST", "/api/v1/rewards/redeem", {
       rewardId: reward.id,
     });
 
+    expect(res.status).toBe(200);
     const redemption = await testDb.query.userRedemptions.findFirst({
       where: eq(schema.userRedemptions.userId, testUserId),
     });
