@@ -66,8 +66,11 @@ export class Router {
     const path = url.pathname;
     const method = req.method;
 
+    // Match HEAD requests against GET routes (HTTP spec: HEAD = GET without body)
+    const effectiveMethod = method === "HEAD" ? "GET" : method;
+
     for (const route of this.routes) {
-      if (route.method !== method) continue;
+      if (route.method !== effectiveMethod) continue;
       const match = path.match(route.pattern);
       if (match) {
         const params: Record<string, string> = {};

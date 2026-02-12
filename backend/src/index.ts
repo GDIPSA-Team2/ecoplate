@@ -13,7 +13,7 @@ import { startLockerJobs } from "./jobs/locker-jobs";
 import { registerNotificationRoutes } from "./routes/notifications";
 import { registerRewardsRoutes } from "./routes/rewards";
 import * as schema from "./db/schema";
-import { existsSync, statSync } from "fs";
+import { existsSync } from "fs";
 import { join, resolve } from "path";
 import { db } from "./db/connection";
 
@@ -136,7 +136,7 @@ async function serveStatic(path: string): Promise<Response | null> {
   // Handle uploads directory (stored in public/uploads/)
   if (path.startsWith("/uploads/")) {
     const uploadPath = safePath(publicDir, path);
-    if (!uploadPath || !existsSync(uploadPath) || statSync(uploadPath).isDirectory()) return null;
+    if (!uploadPath || !existsSync(uploadPath)) return null;
     const file = Bun.file(uploadPath);
     return new Response(file, {
       headers: { "Content-Type": getMimeType(uploadPath) },
@@ -145,9 +145,8 @@ async function serveStatic(path: string): Promise<Response | null> {
 
   let filePath = safePath(publicDir, path);
 
-  // Default to index.html for root, non-existent files, or directories (SPA routing)
-  // Directories must be caught here — Bun.file() on a directory causes a sendfile EINVAL error
-  if (!filePath || path === "/" || !existsSync(filePath) || statSync(filePath).isDirectory()) {
+  // Default to index.html for root or non-existent files (SPA routing)
+  if (!filePath || path === "/" || !existsSync(filePath)) {
     filePath = join(publicDir, "index.html");
   }
 

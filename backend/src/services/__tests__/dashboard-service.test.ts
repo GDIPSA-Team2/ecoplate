@@ -159,8 +159,7 @@ beforeAll(async () => {
       today_date TEXT NOT NULL,
       quantity REAL,
     unit TEXT,
-      type TEXT,
-      co2_value REAL
+      type TEXT
     );
 
     CREATE TABLE marketplace_listings (

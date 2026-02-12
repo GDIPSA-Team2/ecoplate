@@ -67,8 +67,6 @@ vi.mock("../services/api", () => ({
         return Promise.resolve({
           points: {
             total: 500,
-            available: 450,
-            lifetime: 600,
             currentStreak: 5,
             longestStreak: 10,
           },
@@ -76,6 +74,7 @@ vi.mock("../services/api", () => ({
             pointsToday: 20,
             pointsThisWeek: 100,
             pointsThisMonth: 300,
+            pointsThisYear: 400,
           },
         });
       }
@@ -124,8 +123,6 @@ const mockDashboardStats = {
 const mockPointsData = {
   points: {
     total: 500,
-    available: 450,
-    lifetime: 600,
     currentStreak: 5,
     longestStreak: 10,
   },
@@ -133,6 +130,7 @@ const mockPointsData = {
     pointsToday: 20,
     pointsThisWeek: 100,
     pointsThisMonth: 300,
+    pointsThisYear: 400,
   },
 };
 

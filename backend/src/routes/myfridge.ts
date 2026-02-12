@@ -227,8 +227,27 @@ export function registerMyFridgeRoutes(router: Router) {
         .set({ quantity: newQuantity })
         .where(eq(products.id, productId));
 
-      // Award/deduct points (also records the sustainability metric)
       const quantityInKg = convertToKg(data.quantity, product.unit);
+
+      if (data.type === "consumed" || data.type === "wasted") {
+        // Record sustainability metric only — no points for consumed/wasted
+        const todayDate = new Date().toISOString().split("T")[0];
+        await db.insert(productSustainabilityMetrics).values({
+          productId,
+          userId: user.id,
+          todayDate,
+          quantity: quantityInKg,
+          type: data.type,
+        });
+
+        return json({
+          message: "Product interaction logged",
+          pointsChange: 0,
+          newQuantity,
+        });
+      }
+
+      // For sold (and any future point-earning types), award points
       const pointsResult = await awardPoints(
         user.id,
         data.type as PointAction,

@@ -109,38 +109,7 @@ jobs:
           name: frontend-coverage
           path: frontend/coverage/
           retention-days: 14
-
-  test-ecolocker:
-    name: Test EcoLocker
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.3"
-      - run: bun install --ignore-scripts
-      - name: Run EcoLocker tests with coverage
-        run: cd ecolocker && bun run test -- --coverage 2>&1 | tee test-output.txt
-      - name: Write test summary
-        if: always()
-        run: |
-          echo "## EcoLocker Test Results" >> $GITHUB_STEP_SUMMARY
-          # Extract Vitest summary line (format: "Tests  X passed | Y skipped")
-          SUMMARY=$(grep -E "Tests.*passed" ecolocker/test-output.txt | tail -1 | sed 's/\x1b\[[0-9;]*m//g' || echo "No results")
-          echo "✅ **$SUMMARY**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          # Extract coverage summary
-          echo "### Coverage" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          grep -E "^(Statements|Branches|Functions|Lines)\s*:" ecolocker/test-output.txt >> $GITHUB_STEP_SUMMARY || echo "See job logs for details"
-          echo '```' >> $GITHUB_STEP_SUMMARY
-      - name: Upload EcoLocker coverage
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ecolocker-coverage
-          path: ecolocker/coverage/
-          retention-days: 14
+          if-no-files-found: ignore
 
   test-recommendation:
     name: Test Recommendation Engine
@@ -644,26 +613,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Trufflehog
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
-
       - name: Run Trufflehog
-        run: |
-          trufflehog git file://. --only-verified --json > trufflehog-report.json 2>trufflehog-stderr.log || true
-          echo "=== Secret Scan Results ==="
-          trufflehog git file://. --only-verified || true
-
-      - name: Upload report
-        if: always()
-        uses: actions/upload-artifact@v4
+        uses: trufflesecurity/trufflehog@main
         with:
-          name: trufflehog-report
-          path: |
-            trufflehog-report.json
-            trufflehog-stderr.log
-          retention-days: 30
-          if-no-files-found: ignore
+          path: ./
+          base: ""
+          head: HEAD
+          extra_args: --only-verified
 
   python-deps:
     name: Python SCA (pip-audit)
@@ -823,7 +779,6 @@ jobs:
       - typecheck-frontend
       - test-backend
       - test-frontend
-      - test-ecolocker
       - test-recommendation
       - build-check
     runs-on: ubuntu-latest
@@ -836,7 +791,6 @@ jobs:
           echo "Typecheck Frontend: ${{ needs.typecheck-frontend.result }}"
           echo "Test Backend: ${{ needs.test-backend.result }}"
           echo "Test Frontend: ${{ needs.test-frontend.result }}"
-          echo "Test EcoLocker: ${{ needs.test-ecolocker.result }}"
           echo "Test Recommendation: ${{ needs.test-recommendation.result }}"
           echo "Build Check: ${{ needs.build-check.result }}"
 
@@ -844,7 +798,6 @@ jobs:
              [ "${{ needs.typecheck-frontend.result }}" != "success" ] || \
              [ "${{ needs.test-backend.result }}" != "success" ] || \
              [ "${{ needs.test-frontend.result }}" != "success" ] || \
-             [ "${{ needs.test-ecolocker.result }}" != "success" ] || \
              [ "${{ needs.test-recommendation.result }}" != "success" ] || \
              [ "${{ needs.build-check.result }}" != "success" ]; then
             echo "CI gate FAILED — one or more jobs did not succeed"

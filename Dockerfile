@@ -52,8 +52,8 @@ FROM oven/bun:1.2.5-alpine AS production
 
 WORKDIR /app
 
-# Update system packages to get security patches and install wget for health checks
-RUN apk update && apk upgrade --no-cache && apk add --no-cache wget
+# Update system packages to get security patches, install wget for health checks, and tzdata for timezone support
+RUN apk update && apk upgrade --no-cache && apk add --no-cache wget tzdata
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S ecoplate && \
@@ -96,7 +96,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=5 \
-    CMD wget -qO/dev/null http://localhost:3000/api/v1/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1
 
 # Start with entrypoint (runs migration + seed, then starts server)
 ENTRYPOINT ["sh", "/app/entrypoint.sh"]

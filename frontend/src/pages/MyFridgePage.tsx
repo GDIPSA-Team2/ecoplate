@@ -2898,7 +2898,7 @@ function TrackConsumptionModal({
                       <div className="bg-white/60 dark:bg-white/5 rounded-lg p-2">
                         <div className="flex items-center gap-1.5 mb-0.5">
                           <Leaf className="h-3 w-3 text-green-600" />
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">CO2 Saved</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">CO2 Consumed</p>
                         </div>
                         <p className="font-semibold text-green-600">{wasteMetrics.totalCO2Saved.toFixed(2)} <span className="text-[10px] font-normal">kg</span></p>
                       </div>

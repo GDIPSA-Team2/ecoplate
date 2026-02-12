@@ -773,25 +773,6 @@ const sampleRewards = [
 
 async function seed() {
   try {
-    // Check if --force flag is passed to force re-seeding
-    const forceReseed = process.argv.includes("--force");
-
-    // Check if database already has data
-    const existingUsers = await db.query.users.findMany({ limit: 1 });
-
-    if (existingUsers.length > 0 && !forceReseed) {
-      console.log("========================================");
-      console.log("Database already has data - skipping seed.");
-      console.log("To force re-seed, run: bun run db:seed --force");
-      console.log("========================================\n");
-      sqlite.close();
-      return;
-    }
-
-    if (forceReseed) {
-      console.log("Force flag detected - re-seeding database...\n");
-    }
-
     // Clear existing data in correct order (respecting foreign keys)
     console.log("Clearing existing data...");
     sqlite.exec("DELETE FROM user_redemptions");
@@ -1237,7 +1218,7 @@ async function seed() {
     for (let i = 0; i < createdUsers.length; i++) {
       const user = createdUsers[i];
       // First 5 users have higher points (original demo users)
-      const basePoints = i < 5 ? 500 + Math.floor(Math.random() * 1000) : 100 + Math.floor(Math.random() * 500);
+      const basePoints = i < 5 ? 50 + Math.floor(Math.random() * 100) : 10 + Math.floor(Math.random() * 50);
       const streak = Math.floor(Math.random() * 15) + 1;
 
       await db.insert(schema.userPoints).values({

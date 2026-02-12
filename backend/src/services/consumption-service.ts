@@ -7,7 +7,6 @@ import {
   getEmissionFactor,
   DISPOSAL_EMISSION_FACTORS,
 } from "../utils/co2-factors";
-import { awardPoints } from "./gamification-service";
 
 // Re-export from co2-factors for backwards compatibility with tests
 export {
@@ -193,8 +192,6 @@ export async function confirmIngredients(
       where: eq(products.id, ing.productId)
     });
     const quantityInKg = convertToKg(ing.quantityUsed, product?.unit);
-    const co2Emission = product?.co2Emission ?? ing.co2Emission ?? 0;
-    const co2Value = Math.round(co2Emission * quantityInKg * 100) / 100;
 
     const [interaction] = await db.insert(productSustainabilityMetrics).values({
       productId: ing.productId,
@@ -203,16 +200,9 @@ export async function confirmIngredients(
       quantity: quantityInKg,
       unit: ing.unit || null,
       type: "consumed",
-      co2Value,
     }).returning();
 
     interactionIds.push(interaction.id);
-
-    try {
-      await awardPoints(userId, "consumed", ing.productId, quantityInKg, true);
-    } catch (pointsError) {
-      console.error(`[Points] Failed to award points for user ${userId} on product ${ing.productId}:`, pointsError);
-    }
 
     if (product) {
       await db.update(products)
@@ -254,8 +244,6 @@ export async function confirmWaste(
         where: eq(products.id, ing.productId)
       });
       const wastedInKg = convertToKg(wastedQty, product?.unit);
-      const co2Emission = product?.co2Emission ?? ing.co2Emission ?? 0;
-      const co2Value = Math.round(co2Emission * wastedInKg * 100) / 100;
 
       await db.insert(productSustainabilityMetrics).values({
         productId: ing.productId,
@@ -264,14 +252,7 @@ export async function confirmWaste(
         quantity: wastedInKg,
         unit: ing.unit || null,
         type: "wasted",
-        co2Value,
       });
-
-      try {
-        await awardPoints(userId, "wasted", ing.productId, wastedInKg, true);
-      } catch (pointsError) {
-        console.error(`[Points] Failed to penalize points for user ${userId} on product ${ing.productId}:`, pointsError);
-      }
     }
   }
 
