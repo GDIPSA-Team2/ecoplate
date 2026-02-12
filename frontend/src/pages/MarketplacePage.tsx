@@ -10,7 +10,7 @@ import { Input } from "../components/ui/input";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { SkeletonProductCard } from "../components/ui/skeleton";
-import { Search, MapPin, Clock, List, Map, MessageCircle } from "lucide-react";
+import { Search, MapPin, Clock, List, Map, MessageCircle, Package } from "lucide-react";
 import { MarketplaceNav } from "../components/marketplace/MarketplaceNav";
 import { getDaysUntilExpiry } from "../lib/utils";
 import MarketplaceMap from "./Marketplace/MarketplaceMap";
