@@ -1,9 +1,6 @@
 """
 Tests for ML modules (price_predictor and product_recommender).
-
 Run with: pytest test_ml.py -v
-
-
 """
 
 import pytest
