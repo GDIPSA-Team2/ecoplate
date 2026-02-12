@@ -43,13 +43,27 @@ const mobileTabItems = [
 function getPageTitle(pathname: string): string {
   if (pathname === "/") return "Dashboard";
   if (pathname.startsWith("/myfridge")) return "MyFridge";
+  // Marketplace subpages
+  if (pathname === "/marketplace/my-listings") return "My Listings";
+  if (pathname === "/marketplace/my-purchases") return "My Purchases";
+  if (pathname === "/marketplace/create") return "Create Listing";
+  if (pathname.match(/^\/marketplace\/\d+\/edit$/)) return "Edit Listing";
+  if (pathname.match(/^\/marketplace\/\d+$/)) return "Listing Details";
   if (pathname.startsWith("/marketplace")) return "Marketplace";
   if (pathname.startsWith("/messages")) return "Messages";
+  // EcoLocker subpages
+  if (pathname.match(/^\/ecolocker\/orders\/\d+$/)) return "Order Details";
+  if (pathname.match(/^\/ecolocker\/payment\/\d+$/)) return "Payment";
+  if (pathname === "/ecolocker/notifications") return "Notifications";
+  if (pathname === "/ecolocker/select-locker") return "Select Locker";
   if (pathname.startsWith("/ecolocker")) return "EcoLocker";
   if (pathname.startsWith("/ecopoints")) return "EcoPoints";
   if (pathname.startsWith("/ecoboard")) return "EcoPoints";
+  // Rewards subpages
+  if (pathname === "/rewards/my-redemptions") return "My Redemptions";
   if (pathname.startsWith("/rewards")) return "Rewards";
   if (pathname.startsWith("/badges")) return "Badges";
+  if (pathname.startsWith("/notifications")) return "Notifications";
   if (pathname.startsWith("/account")) return "Account";
   return "EcoPlate";
 }
@@ -178,7 +192,7 @@ export default function Layout() {
 
         {/* Main content - adjusted for mobile header and bottom tabs, with left margin for fixed sidebar */}
         <main className="flex-1 min-h-screen lg:ml-64 overflow-x-hidden">
-          <div className="pt-[calc(env(safe-area-inset-top,0px)+56px)] sm:pt-[calc(env(safe-area-inset-top,0px)+64px)] pb-[calc(env(safe-area-inset-bottom,0px)+64px)] sm:pb-[calc(env(safe-area-inset-bottom,0px)+72px)] lg:pt-8 lg:pb-8 px-4 lg:px-10">
+          <div className="pt-[calc(env(safe-area-inset-top,0px)+72px)] sm:pt-[calc(env(safe-area-inset-top,0px)+80px)] pb-[calc(env(safe-area-inset-bottom,0px)+72px)] sm:pb-[calc(env(safe-area-inset-bottom,0px)+80px)] lg:pt-8 lg:pb-8 px-4 lg:px-10">
             <Outlet />
           </div>
         </main>

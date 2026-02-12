@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { api } from "../services/api";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
 import { Skeleton } from "../components/ui/skeleton";
 import { cn } from "../lib/utils";
@@ -26,9 +25,8 @@ import {
     Calendar,
     CalendarDays,
     CalendarCheck,
-    type LucideIcon, ArrowLeft,
+    type LucideIcon,
 } from "lucide-react";
-import {useNavigate} from "react-router-dom";
 
 interface BadgeProgress {
   current: number;
@@ -119,7 +117,6 @@ function BadgeSkeleton() {
 }
 
 export default function BadgesPage() {
-  const navigate = useNavigate();
   const [badges, setBadges] = useState<BadgeData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -197,10 +194,6 @@ export default function BadgesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Button variant="ghost" className="lg:hidden mb-2" onClick={() => navigate("/ecopoints")}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to EcoPoints
-        </Button>
         <h1 className="text-2xl font-bold">Badges</h1>
         <p className="text-muted-foreground">
           Collect badges by completing sustainability challenges

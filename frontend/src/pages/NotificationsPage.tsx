@@ -113,10 +113,11 @@ export default function NotificationsPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      {/* Header - title hidden on mobile since header shows it */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="hidden lg:block text-2xl font-bold text-foreground">Notifications</h1>
+          <p className="text-sm lg:text-base text-muted-foreground">
             {unreadCount > 0 ? `${unreadCount} unread` : "All caught up!"}
           </p>
         </div>

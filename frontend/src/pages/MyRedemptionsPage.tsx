@@ -3,7 +3,6 @@ import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import {
-  ArrowLeft,
   Loader2,
   Package,
   Ticket,
@@ -119,15 +118,10 @@ export default function MyRedemptionsPage() {
 
   return (
     <div className="w-full px-4 py-6 pb-24 lg:pb-6">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/rewards")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">My Redemptions</h1>
-          <p className="text-muted-foreground">Your redemption history</p>
-        </div>
+      {/* Header - title hidden on mobile since header shows it */}
+      <div className="mb-6">
+        <h1 className="hidden lg:block text-2xl lg:text-3xl font-bold">My Redemptions</h1>
+        <p className="text-sm lg:text-base text-muted-foreground">Your redemption history</p>
       </div>
 
       {/* Redemptions List */}

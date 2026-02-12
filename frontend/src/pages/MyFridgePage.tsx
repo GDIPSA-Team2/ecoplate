@@ -35,6 +35,7 @@ import { formatCO2, getCO2ColorClass, calculateTotalCO2, calculateProductCO2 } f
 import { calculateCO2Emission } from "../utils/co2Calculator";
 import { PRODUCT_UNITS } from "../constants/units";
 import { compressImage, compressBase64 } from "../utils/compressImage";
+import { showBadgeToasts } from "../utils/badgeNotification";
 
 interface Product {
   id: number;
@@ -183,10 +184,11 @@ export default function MyFridgePage() {
   return (
     <div className="space-y-6">
       <div className="space-y-4 mb-6">
+        {/* Header - title hidden on mobile since header shows it */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-foreground">MyFridge</h1>
-            <p className="text-sm text-muted-foreground">Manage your food inventory</p>
+            <h1 className="hidden lg:block text-2xl lg:text-3xl font-bold text-foreground">MyFridge</h1>
+            <p className="text-sm lg:text-base text-muted-foreground">Manage your food inventory</p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
@@ -1154,7 +1156,7 @@ function ScanReceiptModal({
   // --- Main Modal ---
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-[90vw] sm:max-w-md max-h-[80vh] overflow-y-auto">
+      <Card className="w-full max-w-[90vw] sm:max-w-md max-h-[80vh] flex flex-col">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             Scan Receipt
@@ -1163,7 +1165,7 @@ function ScanReceiptModal({
             </Button>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1 flex flex-col overflow-hidden">
           {scannedItems.length === 0 && !scanning ? (
             <div className="space-y-4">
               {/* Error message when scan found no items */}
@@ -1273,180 +1275,74 @@ function ScanReceiptModal({
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              {/* Purchase Date Field */}
-              <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar className="h-4 w-4 text-primary" />
-                  <label className="text-sm font-medium">Purchase Date</label>
-                </div>
-                <Input
-                  type="date"
-                  value={purchaseDate}
-                  onChange={(e) => setPurchaseDate(e.target.value)}
-                  max={new Date().toISOString().split("T")[0]}
-                  className="h-11"
-                />
-              </div>
-
-              {/* Manual Entry Toggle Button */}
-              <div>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowManualEntry(!showManualEntry)}
-                  className="w-full"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  {showManualEntry ? "Cancel Add Item" : "Add Item Manually"}
-                </Button>
-              </div>
-
-              {/* Manual Entry Form */}
-              {showManualEntry && (
-                <div className="bg-blue-50/50 border border-blue-200 rounded-lg p-4 space-y-3">
+            <>
+              {/* Scrollable content area */}
+              <div className="flex-1 overflow-y-auto space-y-4">
+                {/* Purchase Date Field */}
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <Plus className="h-4 w-4 text-blue-600" />
-                    <p className="text-sm font-medium text-blue-900">Add Item Manually</p>
+                    <Calendar className="h-4 w-4 text-primary" />
+                    <label className="text-sm font-medium">Purchase Date</label>
                   </div>
+                  <Input
+                    type="date"
+                    value={purchaseDate}
+                    onChange={(e) => setPurchaseDate(e.target.value)}
+                    max={new Date().toISOString().split("T")[0]}
+                    className="h-11"
+                  />
+                </div>
 
-                  {/* Item Name */}
-                  <div>
-                    <label className="text-xs text-muted-foreground">Item Name</label>
-                    <Input
-                      value={manualItem.name}
-                      onChange={(e) => setManualItem({ ...manualItem, name: e.target.value })}
-                      placeholder="e.g., Tomatoes, Milk, Bread"
-                      className="h-11"
-                    />
-                  </div>
-
-                  {/* Qty + Unit */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-muted-foreground">Quantity</label>
-                      <Input
-                        type="number"
-                        min="0.1"
-                        step="0.1"
-                        value={manualItem.quantity}
-                        onChange={(e) => setManualItem({ ...manualItem, quantity: parseFloat(e.target.value) || 1 })}
-                        className="h-11"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">Unit</label>
-                      <select
-                        value={manualItem.unit}
-                        onChange={(e) => setManualItem({ ...manualItem, unit: e.target.value })}
-                        className="w-full h-11 rounded-md border border-input bg-background px-3"
-                      >
-                        <option value="pcs">pcs</option>
-                        <option value="kg">kg</option>
-                        <option value="g">g</option>
-                        <option value="L">L</option>
-                        <option value="ml">ml</option>
-                        <option value="pack">pack</option>
-                        <option value="bottle">bottle</option>
-                        <option value="can">can</option>
-                        <option value="loaf">loaf</option>
-                        <option value="dozen">dozen</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Category + Price */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-muted-foreground">Category</label>
-                      <select
-                        value={manualItem.category}
-                        onChange={(e) => setManualItem({ ...manualItem, category: e.target.value })}
-                        className="w-full h-11 rounded-md border border-input bg-background px-3"
-                      >
-                        <option value="produce">Produce</option>
-                        <option value="dairy">Dairy</option>
-                        <option value="meat">Meat</option>
-                        <option value="bakery">Bakery</option>
-                        <option value="frozen">Frozen</option>
-                        <option value="beverages">Beverages</option>
-                        <option value="pantry">Pantry</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">Price ($)</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={manualItem.unitPrice}
-                        onChange={(e) => setManualItem({ ...manualItem, unitPrice: parseFloat(e.target.value) || 0 })}
-                        placeholder="0.00"
-                        className="h-11"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Add Button */}
-                  <Button onClick={addManualItem} className="w-full">
-                    <Check className="h-4 w-4 mr-2" />
-                    Add This Item
+                {/* Manual Entry Toggle Button */}
+                <div>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowManualEntry(!showManualEntry)}
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {showManualEntry ? "Cancel Add Item" : "Add Item Manually"}
                   </Button>
                 </div>
-              )}
 
-              {/* Item Count */}
-              <p className="text-sm text-muted-foreground">
-                Found {scannedItems.length} items. Review and edit before adding:
-              </p>
-              <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                {scannedItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3 bg-muted/50 rounded-lg space-y-2"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <Input
-                        value={item.name}
-                        onChange={(e) => updateItem(item.id, "name", e.target.value)}
-                        className="h-11 font-medium"
-                        placeholder="Product name"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeItem(item.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                {/* Manual Entry Form */}
+                {showManualEntry && (
+                  <div className="bg-blue-50/50 border border-blue-200 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Plus className="h-4 w-4 text-blue-600" />
+                      <p className="text-sm font-medium text-blue-900">Add Item Manually</p>
                     </div>
-                    {/* Row 1: Qty + Unit (always 2 columns) */}
-                    <div className="grid grid-cols-2 gap-3">
+
+                    {/* Row 1: Item Name */}
+                    <div>
+                      <label className="text-xs text-muted-foreground">Item Name</label>
+                      <Input
+                        value={manualItem.name}
+                        onChange={(e) => setManualItem({ ...manualItem, name: e.target.value })}
+                        placeholder="e.g., Tomatoes, Milk, Bread"
+                        className="h-11"
+                      />
+                    </div>
+
+                    {/* Row 2: Qty + Unit + Category */}
+                    <div className="grid grid-cols-3 gap-2">
                       <div>
                         <label className="text-xs text-muted-foreground">Qty</label>
                         <Input
                           type="number"
                           min="0.1"
-                          max="99999"
                           step="0.1"
-                          value={item.quantity}
-                          onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 1;
-                            updateItem(item.id, "quantity", value);
-                            validateItemQuantity(item.id, value);
-                          }}
-                          className={`h-11 ${item.quantityError ? 'border-red-500' : ''}`}
+                          value={manualItem.quantity}
+                          onChange={(e) => setManualItem({ ...manualItem, quantity: parseFloat(e.target.value) || 1 })}
+                          className="h-11"
                         />
-                        {item.quantityError && (
-                          <p className="text-xs text-red-500 mt-0.5">{item.quantityError}</p>
-                        )}
                       </div>
                       <div>
                         <label className="text-xs text-muted-foreground">Unit</label>
                         <select
-                          value={item.unit}
-                          onChange={(e) => updateItem(item.id, "unit", e.target.value)}
-                          className="w-full h-11 rounded-md border border-input bg-background px-3"
+                          value={manualItem.unit}
+                          onChange={(e) => setManualItem({ ...manualItem, unit: e.target.value })}
+                          className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm"
                         >
                           <option value="pcs">pcs</option>
                           <option value="kg">kg</option>
@@ -1460,16 +1356,12 @@ function ScanReceiptModal({
                           <option value="dozen">dozen</option>
                         </select>
                       </div>
-                    </div>
-
-                    {/* Row 2: Category + CO2 (always 2 columns) */}
-                    <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs text-muted-foreground">Category</label>
                         <select
-                          value={item.category}
-                          onChange={(e) => updateItem(item.id, "category", e.target.value)}
-                          className="w-full h-11 rounded-md border border-input bg-background px-3"
+                          value={manualItem.category}
+                          onChange={(e) => setManualItem({ ...manualItem, category: e.target.value })}
+                          className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm"
                         >
                           <option value="produce">Produce</option>
                           <option value="dairy">Dairy</option>
@@ -1481,74 +1373,185 @@ function ScanReceiptModal({
                           <option value="other">Other</option>
                         </select>
                       </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">CO2 (kg)</label>
-                        <Input
-                          type="number"
-                          value={item.co2Emission}
-                          readOnly
-                          disabled
-                          className="h-11 bg-muted"
-                        />
-                      </div>
                     </div>
 
-                    {/* Row 3: Price (full width, optional styling) */}
-                    <div>
-                      <label className="text-xs text-muted-foreground">Price (optional)</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.unitPrice}
-                        onChange={(e) =>
-                          updateItem(item.id, "unitPrice", parseFloat(e.target.value) || 0)
-                        }
-                        className="h-11"
-                        placeholder="0.00"
-                      />
+                    {/* Row 3: Price + Add Button */}
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="text-xs text-muted-foreground">Price ($)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={manualItem.unitPrice}
+                          onChange={(e) => setManualItem({ ...manualItem, unitPrice: parseFloat(e.target.value) || 0 })}
+                          placeholder="0.00"
+                          className="h-11"
+                        />
+                      </div>
+                      <Button onClick={addManualItem} className="h-11 self-end">
+                        <Check className="h-4 w-4 mr-2" />
+                        Add
+                      </Button>
                     </div>
                   </div>
-                ))}
-              </div>
-              {scannedItems.length === 0 && !scanning && (
-                <div className="text-center py-8 space-y-4">
-                  <div className="flex justify-center">
-                    <div className="bg-muted rounded-full p-4">
-                      <Receipt className="h-12 w-12 text-muted-foreground" />
+                )}
+
+                {/* Item Count */}
+                <p className="text-sm text-muted-foreground">
+                  Found {scannedItems.length} items. Review and edit before adding:
+                </p>
+                <div className="space-y-3">
+                  {scannedItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-3 bg-muted/50 rounded-lg space-y-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <Input
+                          value={item.name}
+                          onChange={(e) => updateItem(item.id, "name", e.target.value)}
+                          className="h-11 font-medium"
+                          placeholder="Product name"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeItem(item.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {/* Row 1: Qty + Unit + Category (3 columns) */}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-xs text-muted-foreground">Qty</label>
+                          <Input
+                            type="number"
+                            min="0.1"
+                            max="99999"
+                            step="0.1"
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value) || 1;
+                              updateItem(item.id, "quantity", value);
+                              validateItemQuantity(item.id, value);
+                            }}
+                            className={`h-11 ${item.quantityError ? 'border-red-500' : ''}`}
+                          />
+                          {item.quantityError && (
+                            <p className="text-xs text-red-500 mt-0.5">{item.quantityError}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Unit</label>
+                          <select
+                            value={item.unit}
+                            onChange={(e) => updateItem(item.id, "unit", e.target.value)}
+                            className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm"
+                          >
+                            <option value="pcs">pcs</option>
+                            <option value="kg">kg</option>
+                            <option value="g">g</option>
+                            <option value="L">L</option>
+                            <option value="ml">ml</option>
+                            <option value="pack">pack</option>
+                            <option value="bottle">bottle</option>
+                            <option value="can">can</option>
+                            <option value="loaf">loaf</option>
+                            <option value="dozen">dozen</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Category</label>
+                          <select
+                            value={item.category}
+                            onChange={(e) => updateItem(item.id, "category", e.target.value)}
+                            className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm"
+                          >
+                            <option value="produce">Produce</option>
+                            <option value="dairy">Dairy</option>
+                            <option value="meat">Meat</option>
+                            <option value="bakery">Bakery</option>
+                            <option value="frozen">Frozen</option>
+                            <option value="beverages">Beverages</option>
+                            <option value="pantry">Pantry</option>
+                            <option value="other">Other</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Row 2: Price + CO2 (2 columns) */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-muted-foreground">Price ($)</label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.unitPrice}
+                            onChange={(e) =>
+                              updateItem(item.id, "unitPrice", parseFloat(e.target.value) || 0)
+                            }
+                            className="h-11"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">CO2 (kg)</label>
+                          <Input
+                            type="number"
+                            value={item.co2Emission}
+                            readOnly
+                            disabled
+                            className="h-11 bg-muted"
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="font-medium">No Items Found</p>
-                    <p className="text-sm text-muted-foreground max-w-[280px] mx-auto">
-                      The receipt might be unclear or contain no food items
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2 max-w-[200px] mx-auto">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setScannedItems([]);
-                        setPurchaseDate(new Date().toISOString().split("T")[0]);
-                      }}
-                      className="w-full"
-                    >
-                      <Camera className="h-4 w-4 mr-2" />
-                      Try Again
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        onClose();
-                      }}
-                      className="w-full"
-                    >
-                      Add Manually
-                    </Button>
-                  </div>
+                  ))}
                 </div>
-              )}
-              <div className="flex gap-2 pt-4">
+                {scannedItems.length === 0 && !scanning && (
+                  <div className="text-center py-8 space-y-4">
+                    <div className="flex justify-center">
+                      <div className="bg-muted rounded-full p-4">
+                        <Receipt className="h-12 w-12 text-muted-foreground" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="font-medium">No Items Found</p>
+                      <p className="text-sm text-muted-foreground max-w-[280px] mx-auto">
+                        The receipt might be unclear or contain no food items
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2 max-w-[200px] mx-auto">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setScannedItems([]);
+                          setPurchaseDate(new Date().toISOString().split("T")[0]);
+                        }}
+                        className="w-full"
+                      >
+                        <Camera className="h-4 w-4 mr-2" />
+                        Try Again
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          onClose();
+                        }}
+                        className="w-full"
+                      >
+                        Add Manually
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Sticky footer buttons */}
+              <div className="pt-4 border-t flex gap-2 shrink-0">
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -1567,7 +1570,7 @@ function ScanReceiptModal({
                   {scanning ? "Adding..." : `Add ${scannedItems.length} Items`}
                 </Button>
               </div>
-            </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -2269,7 +2272,7 @@ function TrackConsumptionModal({
       console.log("[FE:confirm] ProductIds:", ingredients.map(ing => ing.productId));
       if (matchedIngredients.length > 0) {
         console.log("[FE:confirm] Calling confirm-ingredients...");
-        const response = await api.post<{ interactionIds: number[] }>("/consumption/confirm-ingredients", {
+        const response = await api.post<{ interactionIds: number[]; newBadges?: Array<{ name: string; pointsAwarded: number }> }>("/consumption/confirm-ingredients", {
           ingredients: matchedIngredients.map(ing => ({
             productId: ing.productId,
             productName: ing.name,
@@ -2290,6 +2293,12 @@ function TrackConsumptionModal({
           }
           return ing;
         }));
+
+        // Show badge toasts and refresh points if badges were awarded
+        if (response.newBadges?.length) {
+          showBadgeToasts(response, addToast);
+          window.dispatchEvent(new Event("points:updated"));
+        }
       }
 
       // Refresh points after confirming ingredients
@@ -2632,6 +2641,7 @@ function TrackConsumptionModal({
           sustainabilityRating: string;
         };
         success: boolean;
+        newBadges?: Array<{ name: string; pointsAwarded: number }>;
       }>("/consumption/confirm-waste", {
         ingredients: ingredients.filter(ing => ing.productId > 0).map(ing => ({
           productId: ing.productId,
@@ -2653,6 +2663,12 @@ function TrackConsumptionModal({
       });
 
       setWasteMetrics(response.metrics);
+
+      // Show badge toasts and refresh points if badges were awarded
+      if (response.newBadges?.length) {
+        showBadgeToasts(response, addToast);
+        window.dispatchEvent(new Event("points:updated"));
+      }
 
       // Refresh points after confirming waste
       try {

@@ -73,8 +73,9 @@ export default function LockerNotificationsPage() {
 
   return (
     <div className="p-4">
+      {/* Header - title hidden on mobile since header shows it */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-semibold">Notifications</h1>
+        <h1 className="hidden lg:block text-xl font-semibold">Notifications</h1>
         {unreadCount > 0 && (
           <Button variant="ghost" size="sm" onClick={handleMarkAllAsRead}>
             <CheckCheck className="h-4 w-4 mr-2" />
