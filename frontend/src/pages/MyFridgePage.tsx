@@ -184,10 +184,11 @@ export default function MyFridgePage() {
   return (
     <div className="space-y-6">
       <div className="space-y-4 mb-6">
+        {/* Header - title hidden on mobile since header shows it */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-foreground">MyFridge</h1>
-            <p className="text-sm text-muted-foreground">Manage your food inventory</p>
+            <h1 className="hidden lg:block text-2xl lg:text-3xl font-bold text-foreground">MyFridge</h1>
+            <p className="text-sm lg:text-base text-muted-foreground">Manage your food inventory</p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">

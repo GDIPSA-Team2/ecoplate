@@ -116,7 +116,8 @@ export default function LockerPaymentPage() {
 
   return (
     <div className="p-4 max-w-lg mx-auto">
-      <h1 className="text-xl font-semibold mb-4">Complete Payment</h1>
+      {/* Title hidden on mobile since header shows it */}
+      <h1 className="hidden lg:block text-xl font-semibold mb-4">Complete Payment</h1>
 
       {/* Countdown */}
       <Card className="mb-4 border-warning bg-warning/10">

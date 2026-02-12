@@ -10,7 +10,8 @@ import { Input } from "../components/ui/input";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { SkeletonProductCard } from "../components/ui/skeleton";
-import { Plus, Search, MapPin, Clock, List, Map, Package, MessageCircle, ShoppingBag } from "lucide-react";
+import { Search, MapPin, Clock, List, Map, MessageCircle } from "lucide-react";
+import { MarketplaceNav } from "../components/marketplace/MarketplaceNav";
 import { getDaysUntilExpiry } from "../lib/utils";
 import MarketplaceMap from "./Marketplace/MarketplaceMap";
 import { Co2Badge } from "../components/common/Co2Badge";
@@ -91,11 +92,11 @@ export default function MarketplacePage() {
 
   return (
     <div className="space-y-5 h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      {/* Header - title hidden on mobile since header shows it */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Marketplace</h1>
-          <p className="text-muted-foreground mt-1">Find great deals on near-expiry food</p>
+          <h1 className="hidden lg:block text-2xl lg:text-3xl font-bold text-foreground">Marketplace</h1>
+          <p className="text-sm lg:text-base text-muted-foreground">Find great deals on near-expiry food</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* View Toggle */}
@@ -123,25 +124,7 @@ export default function MarketplacePage() {
               <span className="hidden sm:inline">Map</span>
             </button>
           </div>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/marketplace/my-listings">
-              <Package className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">My Listings</span>
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/marketplace/my-purchases">
-              <ShoppingBag className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">My Purchases</span>
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link to="/marketplace/create">
-              <Plus className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Create</span>
-              <span className="sm:hidden">New</span>
-            </Link>
-          </Button>
+          <MarketplaceNav />
         </div>
       </div>
 

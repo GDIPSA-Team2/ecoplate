@@ -215,12 +215,32 @@ export function useGeolocation(
             permission.location === 'granted' ||
             permission.coarseLocation === 'granted';
 
+          // On Android, permission can be 'prompt' (not yet asked), 'granted', or 'denied'
+          // Only set to 'denied' if explicitly denied, otherwise treat as 'prompt'
+          let permissionState: 'granted' | 'denied' | 'prompt';
+          if (granted) {
+            permissionState = 'granted';
+          } else if (
+            permission.location === 'denied' ||
+            permission.coarseLocation === 'denied'
+          ) {
+            permissionState = 'denied';
+          } else {
+            // 'prompt' or any other state - user hasn't been asked yet
+            permissionState = 'prompt';
+          }
+
           setState((prev) => ({
             ...prev,
-            permission: granted ? 'granted' : 'denied',
+            permission: permissionState,
           }));
         } catch (error) {
           console.error('Permission check error:', error);
+          // On error, assume we can prompt for permission
+          setState((prev) => ({
+            ...prev,
+            permission: 'prompt',
+          }));
         }
       }
     };

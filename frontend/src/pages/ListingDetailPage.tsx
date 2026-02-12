@@ -9,7 +9,7 @@ import { useToast } from "../contexts/ToastContext";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import { ArrowLeft, MapPin, Clock, Edit, Trash2, CheckCircle, ChevronLeft, ChevronRight, MessageCircle, Package } from "lucide-react";
+import { MapPin, Clock, Edit, Trash2, CheckCircle, ChevronLeft, ChevronRight, MessageCircle, Package } from "lucide-react";
 import { formatDate, getDaysUntilExpiry } from "../lib/utils";
 import { SimilarProducts } from "../components/marketplace/SimilarProducts";
 import { showBadgeToasts } from "../utils/badgeNotification";
@@ -136,12 +136,7 @@ export default function ListingDetailPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <Button variant="ghost" onClick={() => navigate("/marketplace")}>
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Marketplace
-      </Button>
-
+    <div className="max-w-4xl mx-auto space-y-6 pt-2">
       <div className="grid md:grid-cols-2 gap-6">
         {/* Image Gallery */}
         <div className="space-y-4">

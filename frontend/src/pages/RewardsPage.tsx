@@ -156,11 +156,11 @@ export default function RewardsPage() {
 
   return (
     <div className="w-full px-4 py-6 pb-24 lg:pb-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      {/* Header - title hidden on mobile since header shows it */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">Rewards</h1>
-          <p className="text-muted-foreground">Redeem your EcoPoints for rewards</p>
+          <h1 className="hidden lg:block text-2xl lg:text-3xl font-bold">Rewards</h1>
+          <p className="text-sm lg:text-base text-muted-foreground">Redeem your EcoPoints for rewards</p>
         </div>
         <Button
           variant="outline"
@@ -187,27 +187,39 @@ export default function RewardsPage() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 mb-6">
-        <Button
-          variant={filter === "all" ? "default" : "outline"}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4 sm:-mx-0 sm:px-0 touch-pan-x scrollbar-hide">
+        <button
           onClick={() => setFilter("all")}
+          className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-all flex-shrink-0 ${
+            filter === "all"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
         >
           All
-        </Button>
-        <Button
-          variant={filter === "food" ? "default" : "outline"}
+        </button>
+        <button
           onClick={() => setFilter("food")}
+          className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-all flex-shrink-0 flex items-center gap-2 ${
+            filter === "food"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
         >
-          <UtensilsCrossed className="h-4 w-4 mr-2" />
+          <UtensilsCrossed className="h-4 w-4" />
           Food & Beverage
-        </Button>
-        <Button
-          variant={filter === "apparel" ? "default" : "outline"}
+        </button>
+        <button
           onClick={() => setFilter("apparel")}
+          className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-all flex-shrink-0 flex items-center gap-2 ${
+            filter === "apparel"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
         >
-          <Shirt className="h-4 w-4 mr-2" />
+          <Shirt className="h-4 w-4" />
           Apparel
-        </Button>
+        </button>
       </div>
 
       {/* Rewards Grid */}

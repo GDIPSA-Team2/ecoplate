@@ -101,7 +101,6 @@ export default function EcoBoardPage() {
       setLeaderboard(leaderboardData);
     } catch (error) {
       console.error("Failed to load gamification data:", error);
-
     } finally {
       setLoading(false);
     }
@@ -137,9 +136,10 @@ export default function EcoBoardPage() {
 
   return (
       <div className="space-y-6">
+        {/* Header - title hidden on mobile since header shows it */}
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">EcoPoints</h1>
-          <p className="text-muted-foreground">Track your sustainability journey</p>
+          <h1 className="hidden lg:block text-2xl lg:text-3xl font-bold">EcoPoints</h1>
+          <p className="text-sm lg:text-base text-muted-foreground">Track your sustainability journey</p>
         </div>
 
         {/* View Badges Link */}

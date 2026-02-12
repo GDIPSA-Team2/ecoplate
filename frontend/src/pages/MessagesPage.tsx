@@ -115,11 +115,11 @@ export default function MessagesPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
+      {/* Header - title hidden on mobile since header shows it */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Messages</h1>
-          <p className="text-muted-foreground mt-1">Your marketplace conversations</p>
+          <h1 className="hidden lg:block text-2xl lg:text-3xl font-bold text-foreground">Messages</h1>
+          <p className="text-sm lg:text-base text-muted-foreground">Your marketplace conversations</p>
         </div>
         {totalUnread > 0 && (
           <Badge variant="destructive" className="text-sm px-3 py-1.5">

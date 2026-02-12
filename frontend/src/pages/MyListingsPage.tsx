@@ -9,6 +9,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Plus, Clock, MapPin, Edit, Trash2 } from "lucide-react";
 import { getDaysUntilExpiry, formatDate } from "../lib/utils";
+import { MarketplaceNav } from "../components/marketplace/MarketplaceNav";
 import type { MarketplaceListing } from "../types/marketplace";
 
 type FilterTab = "all" | "active" | "sold";
@@ -74,17 +75,13 @@ export default function MyListingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      {/* Header - title hidden on mobile since header shows it */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold">My Listings</h1>
-          <p className="text-muted-foreground">Manage your marketplace listings</p>
+          <h1 className="hidden lg:block text-2xl font-bold">My Listings</h1>
+          <p className="text-sm lg:text-base text-muted-foreground">Manage your marketplace listings</p>
         </div>
-        <Button asChild>
-          <Link to="/marketplace/create">
-            <Plus className="h-4 w-4 mr-2" />
-            Create Listing
-          </Link>
-        </Button>
+        <MarketplaceNav />
       </div>
 
       {/* Filter Tabs */}

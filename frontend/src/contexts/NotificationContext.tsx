@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from "react";
 import { notificationService, Notification } from "../services/notifications";
-import { storageGet, storageSet, storageGetSync } from "../services/capacitor";
+import { storageGet, storageSet, storageGetSync, isNative } from "../services/capacitor";
 
 const CACHE_KEY = "ecoplate_notification_count";
 const TOKEN_KEY = "token";
@@ -18,9 +18,18 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-// Synchronous initial value (for useState)
+// Synchronous initial value (for useState) - only works reliably on web
 function getCachedCountSync(): number {
   const cached = storageGetSync(CACHE_KEY);
+  if (cached) {
+    return parseInt(cached, 10) || 0;
+  }
+  return 0;
+}
+
+// Async cache get for cross-platform support (Android/Web)
+async function getCachedCount(): Promise<number> {
+  const cached = await storageGet(CACHE_KEY);
   if (cached) {
     return parseInt(cached, 10) || 0;
   }
@@ -130,6 +139,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Fetch immediately on mount if logged in
     const initNotifications = async () => {
+      // On native platforms, load cached count asynchronously first for instant display
+      if (isNative) {
+        const cachedCount = await getCachedCount();
+        if (cachedCount > 0) {
+          setUnreadCount(cachedCount);
+        }
+      }
+
       const loggedIn = await isLoggedIn();
       if (loggedIn) {
         refreshUnreadCount();

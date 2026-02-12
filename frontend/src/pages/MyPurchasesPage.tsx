@@ -8,6 +8,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Clock, MapPin, User, ShoppingBag } from "lucide-react";
 import { formatDate } from "../lib/utils";
+import { MarketplaceNav } from "../components/marketplace/MarketplaceNav";
 import type { MarketplaceListing } from "../types/marketplace";
 
 export default function MyPurchasesPage() {
@@ -41,9 +42,13 @@ export default function MyPurchasesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">My Purchases</h1>
-        <p className="text-muted-foreground">Your purchase history from the marketplace</p>
+      {/* Header - title hidden on mobile since header shows it */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="hidden lg:block text-2xl font-bold">My Purchases</h1>
+          <p className="text-sm lg:text-base text-muted-foreground">Your purchase history from the marketplace</p>
+        </div>
+        <MarketplaceNav />
       </div>
 
       {purchases.length === 0 ? (
