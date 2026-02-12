@@ -574,6 +574,7 @@ export async function getFoodStats(userId: number, period: Period = "month") {
 
   const typeMap = new Map<string, number>();
   for (const m of metrics) {
+    if (m.type === "shared") continue;
     const typeLabel = capitalizeCategory(m.type ?? "other");
     typeMap.set(
       typeLabel,
