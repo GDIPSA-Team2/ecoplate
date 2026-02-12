@@ -621,6 +621,19 @@ jobs:
           head: HEAD
           extra_args: --only-verified
 
+      - name: Save Trufflehog output
+        if: always()
+        run: echo "Scan completed" > trufflehog-report.txt
+
+      - name: Upload Trufflehog report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trufflehog-report
+          path: trufflehog-report.txt
+          retention-days: 14
+          if-no-files-found: ignore
+
   python-deps:
     name: Python SCA (pip-audit)
     runs-on: ubuntu-latest

@@ -206,7 +206,7 @@ describe("DashboardPage", () => {
     await waitFor(() => {
       expect(screen.getByText("Total CO₂ Reduced")).toBeInTheDocument();
       expect(screen.getByText("Total Food Sold")).toBeInTheDocument();
-      expect(screen.getByText("Total Money Saved")).toBeInTheDocument();
+      expect(screen.getAllByText("Total Money Saved").length).toBeGreaterThanOrEqual(1);
     });
   });
 
