@@ -23,8 +23,8 @@ mock.module("../../middleware/auth", () => ({
 }));
 
 // Mock image upload service
-const mockUploadProductImage = mock(() => Promise.resolve("uploads/marketplace/test-123.jpg"));
-const mockUploadProductImages = mock(() =>
+const mockUploadProductImage = mock((file: File) => Promise.resolve("uploads/marketplace/test-123.jpg"));
+const mockUploadProductImages = mock((files: File[]) =>
   Promise.resolve([
     "uploads/marketplace/test-1.jpg",
     "uploads/marketplace/test-2.jpg",
@@ -251,7 +251,7 @@ describe("upload routes", () => {
     });
 
     test("only processes fields starting with 'image'", async () => {
-      mockUploadProductImages.mockImplementation((files: File[]) =>
+      mockUploadProductImages.mockImplementation((files) =>
         Promise.resolve(files.map((f) => `uploads/marketplace/${f.name}`))
       );
 

@@ -5,7 +5,7 @@ import { Router } from "../../utils/router";
 const originalEnv = { ...process.env };
 
 // Mock fetch for Google API calls
-const mockFetch = mock(() =>
+const mockFetch = mock((url: string | URL | Request, init?: RequestInit) =>
   Promise.resolve({
     json: () => Promise.resolve({ status: "OK", predictions: [] }),
   } as Response)
@@ -163,8 +163,8 @@ describe("maps routes", () => {
 
     test("uses default country code sg", async () => {
       let capturedUrl = "";
-      mockFetch.mockImplementation((url: string) => {
-        capturedUrl = url;
+      mockFetch.mockImplementation((url) => {
+        capturedUrl = url.toString();
         return Promise.resolve({
           json: () => Promise.resolve({ status: "OK", predictions: [] }),
         } as Response);
@@ -181,8 +181,8 @@ describe("maps routes", () => {
 
     test("uses custom country code when provided", async () => {
       let capturedUrl = "";
-      mockFetch.mockImplementation((url: string) => {
-        capturedUrl = url;
+      mockFetch.mockImplementation((url) => {
+        capturedUrl = url.toString();
         return Promise.resolve({
           json: () => Promise.resolve({ status: "OK", predictions: [] }),
         } as Response);
@@ -220,7 +220,7 @@ describe("maps routes", () => {
 
     test("includes API key in request", async () => {
       let capturedUrl = "";
-      mockFetch.mockImplementation((url: string | URL) => {
+      mockFetch.mockImplementation((url) => {
         capturedUrl = url.toString();
         return Promise.resolve({
           json: () => Promise.resolve({ status: "OK", predictions: [] }),
@@ -327,8 +327,8 @@ describe("maps routes", () => {
 
     test("requests geometry and formatted_address fields", async () => {
       let capturedUrl = "";
-      mockFetch.mockImplementation((url: string) => {
-        capturedUrl = url;
+      mockFetch.mockImplementation((url) => {
+        capturedUrl = url.toString();
         return Promise.resolve({
           json: () =>
             Promise.resolve({
