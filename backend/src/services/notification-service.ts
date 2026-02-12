@@ -12,7 +12,8 @@ export type NotificationType =
   | "locker_payment_received"
   | "locker_item_delivered"
   | "locker_pickup_complete"
-  | "locker_order_cancelled";
+  | "locker_order_cancelled"
+  | "locker_points_earned";
 
 // Notification preferences type
 export interface NotificationPreferences {

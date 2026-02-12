@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { api } from "../services/api";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
 import { Skeleton } from "../components/ui/skeleton";
 import { cn } from "../lib/utils";
