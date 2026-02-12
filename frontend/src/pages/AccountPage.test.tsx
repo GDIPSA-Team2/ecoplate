@@ -570,3 +570,86 @@ describe("AccountPage - User Display", () => {
   });
 });
 
+describe("AccountPage - Error Handling", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  it("should handle notification preferences load error", async () => {
+    const { notificationService } = await import("../services/notifications");
+    vi.mocked(notificationService.getPreferences).mockRejectedValue(new Error("Load failed"));
+
+    renderWithProviders(<AccountPage />);
+    await waitFor(() => {
+      // Page should still render even if preferences fail to load
+      expect(screen.getByText("Account Settings")).toBeInTheDocument();
+    });
+  });
+});
+
+describe("AccountPage - Avatar Images", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should display avatar selection section", async () => {
+    renderWithProviders(<AccountPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Choose Your Avatar")).toBeInTheDocument();
+    });
+  });
+
+  it("should have current avatar highlighted", async () => {
+    renderWithProviders(<AccountPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Your current avatar")).toBeInTheDocument();
+    });
+  });
+});
+
+describe("AccountPage - Form Elements", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should have all form inputs rendered", async () => {
+    renderWithProviders(<AccountPage />);
+    await waitFor(() => {
+      expect(screen.getByLabelText("Name")).toBeInTheDocument();
+      expect(screen.getByLabelText("Email")).toBeInTheDocument();
+      expect(screen.getByLabelText("Location")).toBeInTheDocument();
+    });
+  });
+
+  it("should have Save Changes button enabled", async () => {
+    renderWithProviders(<AccountPage />);
+    await waitFor(() => {
+      const saveButton = screen.getByRole("button", { name: "Save Changes" });
+      expect(saveButton).not.toBeDisabled();
+    });
+  });
+});
+
+describe("AccountPage - Navigation Helpers", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should display mobile navigation section", async () => {
+    renderWithProviders(<AccountPage />);
+    await waitFor(() => {
+      // Check for mobile navigation items that exist
+      expect(screen.getByText("EcoPoints")).toBeInTheDocument();
+      expect(screen.getByText("Badges")).toBeInTheDocument();
+    });
+  });
+
+  it("should display Rewards navigation link", async () => {
+    renderWithProviders(<AccountPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Rewards")).toBeInTheDocument();
+    });
+  });
+});
+
