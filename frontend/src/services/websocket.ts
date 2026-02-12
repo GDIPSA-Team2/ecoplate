@@ -1,3 +1,5 @@
+import { Capacitor } from "@capacitor/core";
+
 /**
  * WebSocket service for real-time messaging
  * - Connects with JWT token via query param
@@ -5,6 +7,9 @@
  * - Ping/pong keep-alive every 30 seconds
  * - Event subscription system
  */
+
+// Check if running on native platform
+const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
 
 // Event types matching backend
 export const WS_EVENTS = {
@@ -104,9 +109,18 @@ class WebSocketService {
     this.isConnecting = true;
 
     // Build WebSocket URL
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/ws?token=${encodeURIComponent(token)}`;
+    let wsUrl: string;
+    if (isNative) {
+      // For Capacitor apps, use the deployment server
+      // Use ws:// (not wss://) to avoid self-signed certificate issues
+      const serverHost = import.meta.env.VITE_WS_URL || "ws://18.143.173.20";
+      wsUrl = `${serverHost}/ws?token=${encodeURIComponent(token)}`;
+    } else {
+      // For web, use the same host as the page
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const host = window.location.host;
+      wsUrl = `${protocol}//${host}/ws?token=${encodeURIComponent(token)}`;
+    }
 
     console.log("[WS] Connecting...");
 

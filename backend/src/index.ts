@@ -12,6 +12,7 @@ import { registerEcoLockerRoutes } from "./routes/ecolocker";
 import { startLockerJobs } from "./jobs/locker-jobs";
 import { registerNotificationRoutes } from "./routes/notifications";
 import { registerRewardsRoutes } from "./routes/rewards";
+import { registerMapsRoutes } from "./routes/maps";
 import * as schema from "./db/schema";
 import { existsSync } from "fs";
 import { join, resolve } from "path";
@@ -41,6 +42,7 @@ registerUploadRoutes(protectedRouter);
 registerEcoLockerRoutes(protectedRouter);
 registerNotificationRoutes(protectedRouter);
 registerRewardsRoutes(protectedRouter);
+registerMapsRoutes(protectedRouter);
 
 // Health check
 publicRouter.get("/api/v1/health", () => json({ status: "ok" }));
@@ -96,8 +98,8 @@ function addSecurityHeaders(response: Response, isApi: boolean = false, nonce?: 
   headers.set("X-XSS-Protection", "1; mode=block");
   // Referrer policy
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  // Permissions policy
-  headers.set("Permissions-Policy", "geolocation=(), camera=(), microphone=()");
+  // Permissions policy - allow geolocation for self (needed for map features)
+  headers.set("Permissions-Policy", "geolocation=(self), camera=(), microphone=()");
   // Cross-Origin isolation headers
   headers.set("Cross-Origin-Resource-Policy", "same-origin");
 
