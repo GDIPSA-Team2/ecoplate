@@ -1311,7 +1311,7 @@ function ScanReceiptModal({
                       <p className="text-sm font-medium text-blue-900">Add Item Manually</p>
                     </div>
 
-                    {/* Item Name */}
+                    {/* Row 1: Item Name */}
                     <div>
                       <label className="text-xs text-muted-foreground">Item Name</label>
                       <Input
@@ -1322,10 +1322,10 @@ function ScanReceiptModal({
                       />
                     </div>
 
-                    {/* Qty + Unit */}
-                    <div className="grid grid-cols-2 gap-3">
+                    {/* Row 2: Qty + Unit + Category */}
+                    <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <label className="text-xs text-muted-foreground">Quantity</label>
+                        <label className="text-xs text-muted-foreground">Qty</label>
                         <Input
                           type="number"
                           min="0.1"
@@ -1340,7 +1340,7 @@ function ScanReceiptModal({
                         <select
                           value={manualItem.unit}
                           onChange={(e) => setManualItem({ ...manualItem, unit: e.target.value })}
-                          className="w-full h-11 rounded-md border border-input bg-background px-3"
+                          className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm"
                         >
                           <option value="pcs">pcs</option>
                           <option value="kg">kg</option>
@@ -1354,16 +1354,12 @@ function ScanReceiptModal({
                           <option value="dozen">dozen</option>
                         </select>
                       </div>
-                    </div>
-
-                    {/* Category + Price */}
-                    <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs text-muted-foreground">Category</label>
                         <select
                           value={manualItem.category}
                           onChange={(e) => setManualItem({ ...manualItem, category: e.target.value })}
-                          className="w-full h-11 rounded-md border border-input bg-background px-3"
+                          className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm"
                         >
                           <option value="produce">Produce</option>
                           <option value="dairy">Dairy</option>
@@ -1375,7 +1371,11 @@ function ScanReceiptModal({
                           <option value="other">Other</option>
                         </select>
                       </div>
-                      <div>
+                    </div>
+
+                    {/* Row 3: Price + Add Button */}
+                    <div className="flex gap-2">
+                      <div className="flex-1">
                         <label className="text-xs text-muted-foreground">Price ($)</label>
                         <Input
                           type="number"
@@ -1387,13 +1387,11 @@ function ScanReceiptModal({
                           className="h-11"
                         />
                       </div>
+                      <Button onClick={addManualItem} className="h-11 self-end">
+                        <Check className="h-4 w-4 mr-2" />
+                        Add
+                      </Button>
                     </div>
-
-                    {/* Add Button */}
-                    <Button onClick={addManualItem} className="w-full">
-                      <Check className="h-4 w-4 mr-2" />
-                      Add This Item
-                    </Button>
                   </div>
                 )}
 
@@ -1422,8 +1420,8 @@ function ScanReceiptModal({
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      {/* Row 1: Qty + Unit (always 2 columns) */}
-                      <div className="grid grid-cols-2 gap-3">
+                      {/* Row 1: Qty + Unit + Category (3 columns) */}
+                      <div className="grid grid-cols-3 gap-2">
                         <div>
                           <label className="text-xs text-muted-foreground">Qty</label>
                           <Input
@@ -1448,7 +1446,7 @@ function ScanReceiptModal({
                           <select
                             value={item.unit}
                             onChange={(e) => updateItem(item.id, "unit", e.target.value)}
-                            className="w-full h-11 rounded-md border border-input bg-background px-3"
+                            className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm"
                           >
                             <option value="pcs">pcs</option>
                             <option value="kg">kg</option>
@@ -1462,16 +1460,12 @@ function ScanReceiptModal({
                             <option value="dozen">dozen</option>
                           </select>
                         </div>
-                      </div>
-
-                      {/* Row 2: Category + CO2 (always 2 columns) */}
-                      <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="text-xs text-muted-foreground">Category</label>
                           <select
                             value={item.category}
                             onChange={(e) => updateItem(item.id, "category", e.target.value)}
-                            className="w-full h-11 rounded-md border border-input bg-background px-3"
+                            className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm"
                           >
                             <option value="produce">Produce</option>
                             <option value="dairy">Dairy</option>
@@ -1483,6 +1477,24 @@ function ScanReceiptModal({
                             <option value="other">Other</option>
                           </select>
                         </div>
+                      </div>
+
+                      {/* Row 2: Price + CO2 (2 columns) */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-muted-foreground">Price ($)</label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.unitPrice}
+                            onChange={(e) =>
+                              updateItem(item.id, "unitPrice", parseFloat(e.target.value) || 0)
+                            }
+                            className="h-11"
+                            placeholder="0.00"
+                          />
+                        </div>
                         <div>
                           <label className="text-xs text-muted-foreground">CO2 (kg)</label>
                           <Input
@@ -1493,22 +1505,6 @@ function ScanReceiptModal({
                             className="h-11 bg-muted"
                           />
                         </div>
-                      </div>
-
-                      {/* Row 3: Price (full width, optional styling) */}
-                      <div>
-                        <label className="text-xs text-muted-foreground">Price (optional)</label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.unitPrice}
-                          onChange={(e) =>
-                            updateItem(item.id, "unitPrice", parseFloat(e.target.value) || 0)
-                          }
-                          className="h-11"
-                          placeholder="0.00"
-                        />
                       </div>
                     </div>
                   ))}
