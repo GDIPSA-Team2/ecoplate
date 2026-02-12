@@ -136,7 +136,7 @@ export default function MyFridgePage() {
   };
 
   const filteredProducts = products.filter((p) => {
-    return p.productName.toLowerCase().includes(searchQuery.toLowerCase());
+    return p.quantity > 0 && p.productName.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   // Sort by purchase date (most recent first)
