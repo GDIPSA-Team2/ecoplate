@@ -7,8 +7,9 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { cn } from "../lib/utils";
-import { User, MapPin, Mail, Bell, Clock, Award, Flame, AlertCircle, Trophy, LogOut, ChevronRight, Gift } from "lucide-react";
+import { User, MapPin, Mail, Bell, Clock, Award, Flame, AlertCircle, Trophy, LogOut, ChevronRight, Gift, Package } from "lucide-react";
 import { notificationService, NotificationPreferences } from "../services/notifications";
+import { useLockerUnread } from "../features/ecolocker/contexts/LockerUnreadContext";
 
 // Predefined avatar options (same as RegisterPage)
 const AVATAR_OPTIONS = [
@@ -25,6 +26,7 @@ const AVATAR_OPTIONS = [
 export default function AccountPage() {
   const { user, updateProfile, logout } = useAuth();
   const { addToast } = useToast();
+  const { lockerUnreadCount } = useLockerUnread();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [notifLoading, setNotifLoading] = useState(false);
@@ -121,6 +123,7 @@ export default function AccountPage() {
   };
 
   const mobileNavItems = [
+    { to: "/ecolocker", icon: Package, label: "EcoLocker", description: "Locker delivery service", color: "bg-primary/10 text-primary" },
     { to: "/ecopoints", icon: Trophy, label: "EcoPoints", description: "View your eco impact", color: "bg-primary/10 text-primary" },
     { to: "/badges", icon: Award, label: "Badges", description: "Achievements & milestones", color: "bg-accent/10 text-accent" },
     { to: "/rewards", icon: Gift, label: "Rewards", description: "Redeem your points", color: "bg-success/10 text-success" },
@@ -178,6 +181,11 @@ export default function AccountPage() {
                   <p className="font-medium text-foreground">{item.label}</p>
                   <p className="text-xs text-muted-foreground">{item.description}</p>
                 </div>
+                {item.to === "/ecolocker" && lockerUnreadCount > 0 && (
+                  <span className="bg-destructive text-destructive-foreground text-xs font-bold h-5 min-w-[20px] flex items-center justify-center rounded-full px-1.5">
+                    {lockerUnreadCount > 99 ? "99+" : lockerUnreadCount}
+                  </span>
+                )}
                 <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               </button>
             ))}

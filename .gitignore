@@ -75,7 +75,7 @@ PRDs/
 claude.md
 agents/
 design/
-/hooks/
+hooks/
 mcp-configs/
 rules/
 scripts/
@@ -93,6 +93,9 @@ design/
 backend/db-full-reset.ts
 backend/db-reset.ts
 backend/test-db.ts
+
+# Security reports
+security-reports/
 
 # Deploy secrets and state
 deploy/.env

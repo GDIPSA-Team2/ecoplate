@@ -82,7 +82,7 @@ export default function ListingDetailPage() {
     setActionLoading(true);
     try {
       const result = await marketplaceService.completeListing(Number(id));
-      addToast(`Listing marked as sold! +${result.points.earned} points`, "success");
+      addToast("Listing marked as sold!", "success");
       showBadgeToasts(result, addToast);
       loadListing();
     } catch (error: unknown) {
@@ -465,14 +465,6 @@ export default function ListingDetailPage() {
                       </p>
                     </CardContent>
                   </Card>
-                  <Button
-                    onClick={handleCompletePurchase}
-                    disabled={actionLoading}
-                    className="w-full"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Confirm Received
-                  </Button>
                   <Button
                     onClick={() => navigate(`/ecolocker/select-locker?listingId=${listing.id}`)}
                     disabled={actionLoading}

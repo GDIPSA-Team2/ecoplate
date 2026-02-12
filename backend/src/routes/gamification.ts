@@ -1,11 +1,10 @@
 import { Router, json } from "../utils/router";
 import { db } from "../db/connection";
 import * as schema from "../db/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, sql, gt } from "drizzle-orm";
 import { getUser } from "../middleware/auth";
-import { getOrCreateUserPoints, getUserMetrics, getDetailedPointsStats, awardPoints } from "../services/gamification-service";
+import { getOrCreateUserPoints, getUserMetrics, getDetailedPointsStats, awardPoints, computeCo2Value, calculatePointsForAction } from "../services/gamification-service";
 import { POINT_VALUES } from "../services/gamification-service";
-import { calculateCo2Saved } from "../utils/co2-factors";
 import { getBadgeProgress } from "../services/badge-service";
 
 export function registerGamificationRoutes(router: Router) {
@@ -29,7 +28,7 @@ export function registerGamificationRoutes(router: Router) {
         limit: 20,
         with: {
           product: {
-            columns: { productName: true, unit: true, category: true },
+            columns: { productName: true, unit: true, category: true, co2Emission: true },
           },
         },
       });
@@ -38,22 +37,14 @@ export function registerGamificationRoutes(router: Router) {
       const transactions = recentInteractions
         .filter((i) => {
           const t = (i.type || "").toLowerCase();
-          return t !== "add" && t !== "shared";
+          return t !== "add" && t !== "shared" && t !== "consumed" && t !== "wasted";
         })
         .map((i) => {
           const normalizedType = (i.type || "").toLowerCase() as keyof typeof POINT_VALUES;
           const category = i.product?.category || "other";
-          // Stored quantity is already in kg
-          const co2Value = calculateCo2Saved(i.quantity ?? 1, "kg", category);
-          let amount: number;
-          if (normalizedType === "sold") {
-            amount = Math.round(co2Value * 1.5);
-          } else if (normalizedType === "wasted") {
-            amount = -Math.round(co2Value);
-          } else {
-            amount = Math.round(co2Value);
-          }
-          if (amount === 0) amount = normalizedType === "wasted" ? -1 : 1;
+          const co2Emission = i.product?.co2Emission ?? null;
+          const co2Value = computeCo2Value(i.quantity ?? 1, co2Emission, category);
+          const amount = calculatePointsForAction(normalizedType, co2Value);
 
           return {
             id: i.id,
@@ -64,14 +55,88 @@ export function registerGamificationRoutes(router: Router) {
             productName: i.product?.productName || (({ sold: "Sold", consumed: "Consumed", wasted: "Wasted" } as Record<string, string>)[normalizedType] ?? normalizedType),
             quantity: i.quantity ?? 1,
             unit: i.product?.unit ?? "pcs",
+            _timestamp: Date.parse(i.todayDate + "T00:00:00Z"),
           };
         });
 
+      // Fetch recent redemptions
+      const recentRedemptions = await db.query.userRedemptions.findMany({
+        where: eq(schema.userRedemptions.userId, user.id),
+        orderBy: [desc(schema.userRedemptions.createdAt)],
+        limit: 20,
+        with: { reward: { columns: { name: true } } },
+      });
+
+      // Map redemptions to transaction format
+      const redemptionTx = recentRedemptions.map((r) => ({
+        id: r.id + 1_000_000,
+        amount: -r.pointsSpent,
+        type: "redeemed" as const,
+        action: "redeemed",
+        createdAt: r.createdAt instanceof Date
+          ? r.createdAt.toISOString().slice(0, 10)
+          : typeof r.createdAt === "number"
+            ? new Date(r.createdAt * 1000).toISOString().slice(0, 10)
+            : new Date().toISOString().slice(0, 10),
+        productName: r.reward?.name || "Reward",
+        quantity: 1,
+        unit: "pcs",
+        _timestamp: r.createdAt instanceof Date
+          ? r.createdAt.getTime()
+          : typeof r.createdAt === "number"
+            ? r.createdAt * 1000
+            : Date.now(),
+      }));
+
+      // Fetch badge awards as transactions
+      const badgeAwards = await db
+        .select({
+          id: schema.userBadges.id,
+          pointsAwarded: schema.badges.pointsAwarded,
+          badgeName: schema.badges.name,
+          earnedAt: schema.userBadges.earnedAt,
+        })
+        .from(schema.userBadges)
+        .innerJoin(schema.badges, eq(schema.userBadges.badgeId, schema.badges.id))
+        .where(
+          and(
+            eq(schema.userBadges.userId, user.id),
+            gt(schema.badges.pointsAwarded, 0)
+          )
+        )
+        .orderBy(desc(schema.userBadges.earnedAt))
+        .limit(20);
+
+      const badgeTx = badgeAwards.map((b) => ({
+        id: b.id + 2_000_000,
+        amount: b.pointsAwarded,
+        type: "earned" as const,
+        action: "badge",
+        createdAt: b.earnedAt instanceof Date
+          ? b.earnedAt.toISOString().slice(0, 10)
+          : typeof b.earnedAt === "number"
+            ? new Date(b.earnedAt * 1000).toISOString().slice(0, 10)
+            : new Date().toISOString().slice(0, 10),
+        productName: b.badgeName,
+        quantity: 1,
+        unit: "pcs",
+        _timestamp: b.earnedAt instanceof Date
+          ? b.earnedAt.getTime()
+          : typeof b.earnedAt === "number"
+            ? b.earnedAt * 1000
+            : Date.now(),
+      }));
+
+      // Merge and sort all transactions
+      const allTransactions = [...transactions, ...redemptionTx, ...badgeTx]
+        .sort((a, b) => b._timestamp - a._timestamp || b.id - a.id)
+        .slice(0, 20);
+
       return json({
         points: {
-          total: points.totalPoints,
+          total: detailedStats.computedTotalPoints,
           currentStreak: points.currentStreak,
-          longestStreak: detailedStats.longestStreak,
+          longestStreak: Math.max(detailedStats.longestStreak, points.currentStreak),
         },
         stats: {
           totalActiveDays: detailedStats.totalActiveDays,
@@ -80,12 +145,13 @@ export function registerGamificationRoutes(router: Router) {
           pointsToday: detailedStats.pointsToday,
           pointsThisWeek: detailedStats.pointsThisWeek,
           pointsThisMonth: detailedStats.pointsThisMonth,
+          pointsThisYear: detailedStats.pointsThisYear,
           bestDayPoints: detailedStats.bestDayPoints,
           averagePointsPerActiveDay: detailedStats.averagePointsPerActiveDay,
         },
         breakdown: detailedStats.breakdownByType,
         pointsByMonth: detailedStats.pointsByMonth,
-        transactions,
+        transactions: allTransactions,
       });
     } catch (error) {
       console.error("Error fetching gamification points:", error);
@@ -201,6 +267,7 @@ export function registerGamificationRoutes(router: Router) {
     const activeListings = userListings.filter((l) => l.status === "active");
     const soldListings = userListings.filter((l) => l.status === "completed");
 
+    const detailedStats = await getDetailedPointsStats(user.id);
     const points = await getOrCreateUserPoints(user.id);
     const metrics = await getUserMetrics(user.id);
 
@@ -213,7 +280,7 @@ export function registerGamificationRoutes(router: Router) {
         sold: soldListings.length,
       },
       gamification: {
-        points: points.totalPoints,
+        points: detailedStats.computedTotalPoints,
         streak: points.currentStreak,
         wasteReductionRate: metrics.wasteReductionRate,
         co2Saved: metrics.estimatedCo2Saved,

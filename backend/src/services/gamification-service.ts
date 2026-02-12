@@ -1,17 +1,37 @@
 import { db } from "../db/connection";
 import * as schema from "../db/schema";
-import { eq, and, inArray, desc } from "drizzle-orm";
+import { eq, and, inArray, desc, sql } from "drizzle-orm";
 
 import { notifyStreakMilestone } from "./notification-service";
-import { calculateCo2Saved, DISPOSAL_EMISSION_FACTORS } from "../utils/co2-factors";
+import { calculateCo2Saved } from "../utils/co2-factors";
 
-// Point values for different actions
+// Point values for different actions (only sold earns points)
 export const POINT_VALUES = {
-  consumed: 5,
-  shared: 10,
+  consumed: 0,
+  shared: 0,
   sold: 8,
-  wasted: -3,
+  wasted: 0,
 } as const;
+
+/**
+ * Compute CO2 value for a given quantity, using product co2Emission if available,
+ * otherwise falling back to category-based calculation.
+ */
+export function computeCo2Value(quantity: number, co2Emission: number | null, category: string): number {
+  return co2Emission != null
+    ? Math.round(quantity * co2Emission * 100) / 100
+    : calculateCo2Saved(quantity, "kg", category);
+}
+
+/**
+ * Calculate points for an action. Only "sold" earns points.
+ */
+export function calculatePointsForAction(action: string, co2Value: number): number {
+  if (action !== "sold") return 0;
+  let amount = Math.round(co2Value * 1.5);
+  if (amount < 3) amount = 3;
+  return amount;
+}
 
 export type PointAction = keyof typeof POINT_VALUES;
 
@@ -56,49 +76,48 @@ export async function awardPoints(
   skipMetricRecording?: boolean,
   listingData?: ListingDataForCo2
 ) {
-  // Look up product from DB for CO2-based scoring
+  // Calculate CO2 value for points
+  let co2Value: number;
   let category: string = "other";
-  let co2Emission: number | null = null;
-  if (productId) {
-    const product = await db.query.products.findFirst({
-      where: eq(schema.products.id, productId),
-      columns: { category: true, co2Emission: true },
-    });
-    if (product?.category) category = product.category;
-    if (product?.co2Emission) co2Emission = product.co2Emission;
+
+  // For sold actions, use the pre-calculated co2Saved from the listing
+  // This is important because the product may have been deleted when listing was created
+  if (action === "sold" && listingData?.co2Saved != null && listingData.co2Saved > 0) {
+    co2Value = listingData.co2Saved;
+  } else {
+    // Look up product from DB for CO2-based scoring
+    let co2Emission: number | null = null;
+    if (productId) {
+      const product = await db.query.products.findFirst({
+        where: eq(schema.products.id, productId),
+        columns: { category: true, co2Emission: true },
+      });
+      if (product?.category) category = product.category;
+      if (product?.co2Emission) co2Emission = product.co2Emission;
+    }
+
+    const qty = quantity ?? 1;
+    co2Value = computeCo2Value(qty, co2Emission, category);
   }
 
-  // Use product's stored co2Emission as single source of truth;
-  // fall back to category-based calculation if not available
-  const qty = quantity ?? 1;
-  const co2Value = co2Emission != null
-    ? Math.round(qty * (co2Emission + DISPOSAL_EMISSION_FACTORS.landfill) * 100) / 100
-    : calculateCo2Saved(qty, "kg", category);
-  let amount: number;
-  if (action === "sold") {
-    amount = Math.round(co2Value * 1.5);
-  } else if (action === "wasted") {
-    amount = -Math.round(co2Value);
-  } else {
-    amount = Math.round(co2Value);
-  }
-  // Ensure at least ±1 point (so tiny quantities don't round to zero)
-  if (amount === 0) {
-    amount = action === "wasted" ? -1 : 1;
-  }
+  // Only sold earns points
+  const amount = calculatePointsForAction(action, co2Value);
 
   console.log(`[Points] Awarding ${amount} points to user ${userId} for action '${action}' (quantity: ${quantity}, category: ${category}, co2Value: ${co2Value})`);
 
   const userPoints = await getOrCreateUserPoints(userId);
 
-  const newTotal = Math.max(0, userPoints.totalPoints + amount);
+  const newTotal = amount > 0
+    ? Math.max(0, userPoints.totalPoints + amount)
+    : userPoints.totalPoints;
 
-  console.log(`[Points] User ${userId} points: ${userPoints.totalPoints} -> ${newTotal}`);
-
-  await db
-    .update(schema.userPoints)
-    .set({ totalPoints: newTotal })
-    .where(eq(schema.userPoints.userId, userId));
+  if (amount > 0) {
+    console.log(`[Points] User ${userId} points: ${userPoints.totalPoints} -> ${newTotal}`);
+    await db
+      .update(schema.userPoints)
+      .set({ totalPoints: newTotal })
+      .where(eq(schema.userPoints.userId, userId));
+  }
 
   // Record the sustainability metric (skip if caller already recorded it)
   if (!skipMetricRecording) {
@@ -112,15 +131,10 @@ export async function awardPoints(
     });
   }
 
-  // Only update streak for positive sustainability actions (not wasted)
-  const streakActions = ["consumed", "shared", "sold"];
+  // Only update streak for sold actions
+  const streakActions = ["sold"];
   if (streakActions.includes(action)) {
     await updateStreak(userId);
-  } else if (action === "wasted") {
-    await db
-      .update(schema.userPoints)
-      .set({ currentStreak: 0 })
-      .where(eq(schema.userPoints.userId, userId));
   }
 
   // Handle CO2 tracking for sold items
@@ -167,7 +181,7 @@ export async function updateStreak(userId: number) {
   yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
   const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
 
-  const streakActions = ["consumed", "shared", "sold"];
+  const streakActions = ["sold"];
 
   // Fetch all qualifying interactions for this user
   const allInteractions = await db.query.productSustainabilityMetrics.findMany({
@@ -180,6 +194,11 @@ export async function updateStreak(userId: number) {
 
   // Filter today's interactions using string comparison (matches storage format)
   const todayInteractions = allInteractions.filter((i) => i.todayDate === todayStr);
+
+  // If no qualifying interactions today, nothing to do
+  if (todayInteractions.length === 0) {
+    return;
+  }
 
   // If more than 1 interaction today, streak already counted for today
   if (todayInteractions.length > 1) {
@@ -241,10 +260,10 @@ export async function getDetailedPointsStats(userId: number) {
   const allInteractions = await db.query.productSustainabilityMetrics.findMany({
     where: eq(schema.productSustainabilityMetrics.userId, userId),
     orderBy: [desc(schema.productSustainabilityMetrics.todayDate)],
-    with: { product: { columns: { category: true } } },
+    with: { product: { columns: { category: true, co2Emission: true } } },
   });
 
-  const streakActions = ["consumed", "shared", "sold"];
+  const streakActions = ["sold"];
   const now = new Date();
 
   // Use UTC date strings to match how todayDate is stored
@@ -258,6 +277,8 @@ export async function getDetailedPointsStats(userId: number) {
   monthAgoDate.setUTCMonth(monthAgoDate.getUTCMonth() - 1);
   const monthAgoStr = monthAgoDate.toISOString().slice(0, 10);
 
+  const yearStartStr = `${now.getUTCFullYear()}-01-01`;
+
   // Breakdown by type (all interactions)
   const breakdownByType: Record<string, { count: number; totalPoints: number }> = {
     consumed: { count: 0, totalPoints: 0 },
@@ -269,6 +290,8 @@ export async function getDetailedPointsStats(userId: number) {
   let pointsToday = 0;
   let pointsThisWeek = 0;
   let pointsThisMonth = 0;
+  let pointsThisYear = 0;
+  let computedTotalPoints = 0;
 
   // Collect unique dates with positive actions for streak computation
   const activeDateSet = new Set<string>();
@@ -282,18 +305,12 @@ export async function getDetailedPointsStats(userId: number) {
 
   for (const interaction of allInteractions) {
     const type = (interaction.type || "").toLowerCase() as keyof typeof POINT_VALUES;
-    // CO2-based points: stored quantity is already in kg
-    const category = (interaction as { product?: { category?: string | null } }).product?.category || "other";
-    const co2Value = calculateCo2Saved(interaction.quantity ?? 1, "kg", category);
-    let points: number;
-    if (type === "sold") {
-      points = Math.round(co2Value * 1.5);
-    } else if (type === "wasted") {
-      points = -Math.round(co2Value);
-    } else {
-      points = Math.round(co2Value);
-    }
-    if (points === 0) points = type === "wasted" ? -1 : 1;
+    const product = (interaction as { product?: { category?: string | null; co2Emission?: number | null } }).product;
+    const category = product?.category || "other";
+    const co2Emission = product?.co2Emission ?? null;
+    const co2Value = computeCo2Value(interaction.quantity ?? 1, co2Emission, category);
+    const points = calculatePointsForAction(type, co2Value);
+
     // Use todayDate directly as dateKey — it's already stored as "YYYY-MM-DD"
     const dateKey = interaction.todayDate;
 
@@ -314,6 +331,9 @@ export async function getDetailedPointsStats(userId: number) {
     const monthKey = dateKey.substring(0, 7); // YYYY-MM
     pointsByMonth.set(monthKey, (pointsByMonth.get(monthKey) || 0) + points);
 
+    // Accumulate computed total from all interactions
+    computedTotalPoints += points;
+
     // Time-windowed points using string comparison (YYYY-MM-DD sorts lexicographically)
     if (dateKey >= todayStr) {
       pointsToday += points;
@@ -324,12 +344,42 @@ export async function getDetailedPointsStats(userId: number) {
     if (dateKey >= monthAgoStr) {
       pointsThisMonth += points;
     }
+    if (dateKey >= yearStartStr) {
+      pointsThisYear += points;
+    }
 
     // Track active days for streak (positive actions only)
     if (streakActions.includes(type)) {
       activeDateSet.add(dateKey);
     }
   }
+
+  // Subtract total points spent on redemptions
+  const redemptionRows = await db
+    .select({
+      totalSpent: sql<number>`COALESCE(SUM(${schema.userRedemptions.pointsSpent}), 0)`,
+    })
+    .from(schema.userRedemptions)
+    .where(eq(schema.userRedemptions.userId, userId));
+  const totalPointsSpent = redemptionRows[0]?.totalSpent ?? 0;
+  computedTotalPoints -= totalPointsSpent;
+
+  // Add badge bonus points to computed total
+  const badgePointsRows = await db
+    .select({
+      totalBadgePoints: sql<number>`COALESCE(SUM(${schema.badges.pointsAwarded}), 0)`,
+    })
+    .from(schema.userBadges)
+    .innerJoin(schema.badges, eq(schema.userBadges.badgeId, schema.badges.id))
+    .where(eq(schema.userBadges.userId, userId));
+  const totalBadgePoints = badgePointsRows[0]?.totalBadgePoints ?? 0;
+  computedTotalPoints += totalBadgePoints;
+
+  // Self-healing: sync computed total back to DB so dashboard stays consistent
+  await db
+    .update(schema.userPoints)
+    .set({ totalPoints: Math.max(0, computedTotalPoints) })
+    .where(eq(schema.userPoints.userId, userId));
 
   // Compute longest streak from sorted unique active dates
   // Parse with explicit UTC suffix to avoid timezone shifts
@@ -374,7 +424,7 @@ export async function getDetailedPointsStats(userId: number) {
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    last6Months.push({ month: key, points: pointsByMonth.get(key) || 0 });
+    last6Months.push({ month: key, points: Math.max(0, pointsByMonth.get(key) || 0) });
   }
 
   return {
@@ -382,10 +432,12 @@ export async function getDetailedPointsStats(userId: number) {
     totalActiveDays,
     lastActiveDate,
     firstActivityDate,
-    pointsToday,
-    pointsThisWeek,
-    pointsThisMonth,
-    bestDayPoints,
+    pointsToday: Math.max(0, pointsToday),
+    pointsThisWeek: Math.max(0, pointsThisWeek),
+    pointsThisMonth: Math.max(0, pointsThisMonth),
+    pointsThisYear: Math.max(0, pointsThisYear),
+    computedTotalPoints: Math.max(0, computedTotalPoints),
+    bestDayPoints: Math.max(0, bestDayPoints),
     averagePointsPerActiveDay,
     breakdownByType,
     pointsByMonth: last6Months,

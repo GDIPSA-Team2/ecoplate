@@ -55,12 +55,9 @@ function toDateString(d: Date): string {
 }
 
 function resolveMetricCo2(
-  metric: { co2Value?: number | null; productId?: number | null; quantity?: number | null },
+  metric: { productId?: number | null; quantity?: number | null },
   productMap: Map<number, ProductRow>
 ): number {
-  if (metric.co2Value != null && metric.co2Value > 0) {
-    return metric.co2Value;
-  }
   if (metric.productId == null) return 0;
   const product = productMap.get(metric.productId);
   if (!product) return 0;
@@ -113,12 +110,12 @@ export async function getDashboardStats(
 
   const productMap = new Map(products.map((p) => [p.id, p])) as Map<number, ProductRow>;
 
-  // CO2 Reduced = only from sold items (selling prevents waste)
+  // CO2 Reduced = from sold listings (use pre-calculated co2Saved, resilient to product deletion)
   const soldMetrics = metrics.filter((m) => m.type === "sold");
-  let totalCo2Reduced = 0;
-  for (const m of soldMetrics) {
-    totalCo2Reduced += resolveMetricCo2(m, productMap);
-  }
+  let totalCo2Reduced = soldListings.reduce(
+    (sum, l) => sum + (l.co2Saved || 0),
+    0
+  );
 
   // CO2 Wasted = from wasted items in track consumption
   const wastedMetrics = metrics.filter((m) => m.type === "wasted");
@@ -132,12 +129,12 @@ export async function getDashboardStats(
     0
   );
 
-  // Chart data for CO2 reduced (sold only)
+  // Chart data for CO2 reduced (from sold listings, resilient to product deletion)
   const co2Map = new Map<string, number>();
-  for (const m of soldMetrics) {
-    const dateObj = parseMetricDate(m.todayDate);
-    const dateKey = formatDate(dateObj, period);
-    const co2 = resolveMetricCo2(m, productMap);
+  for (const l of soldListings) {
+    if (!l.completedAt) continue;
+    const dateKey = formatDate(l.completedAt, period);
+    const co2 = l.co2Saved || 0;
     co2Map.set(dateKey, (co2Map.get(dateKey) || 0) + co2);
   }
 
@@ -145,18 +142,14 @@ export async function getDashboardStats(
     .map(([date, value]) => ({ date, value: Math.round(value * 100) / 100 }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // Chart data for food saved (consumed + sold + shared)
-  const positiveMetrics = metrics.filter(
-    (m) => m.type && ["consumed", "sold", "shared"].includes(m.type)
-  );
-  const foodMap = new Map<string, number>();
-  for (const m of positiveMetrics) {
-    const dateObj = parseMetricDate(m.todayDate);
-    const dateKey = formatDate(dateObj, period);
-    const mQuantity = m.quantity ?? 0;
-    foodMap.set(dateKey, (foodMap.get(dateKey) || 0) + mQuantity);
+  // Chart data for money saved over time (from sold listings)
+  const moneySavedMap = new Map<string, number>();
+  for (const l of soldListings) {
+    if (!l.completedAt) continue;
+    const dateKey = formatDate(l.completedAt, period);
+    moneySavedMap.set(dateKey, (moneySavedMap.get(dateKey) || 0) + (l.price || 0));
   }
-  const foodChartData = Array.from(foodMap.entries())
+  const moneySavedChartData = Array.from(moneySavedMap.entries())
     .map(([date, value]) => ({ date, value: Math.round(value * 100) / 100 }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -210,7 +203,7 @@ export async function getDashboardStats(
       totalMoneySaved: Math.round(totalMoneySaved * 100) / 100,
     },
     co2ChartData,
-    foodChartData,
+    moneySavedChartData,
     wasteRatioChartData,
     impactEquivalence,
   };
@@ -241,46 +234,48 @@ export async function getCO2Stats(userId: number, period: Period = "month") {
 
   const productMap = new Map(products.map((p) => [p.id, p])) as Map<number, ProductRow>;
 
-  const positiveMetrics = metrics.filter(
-    (m) => m.type && ["consumed", "sold", "shared"].includes(m.type)
+  // Query sold listings for reliable CO2 data (resilient to product deletion)
+  const soldListings = db
+    .select()
+    .from(schema.marketplaceListings)
+    .where(
+      and(
+        eq(schema.marketplaceListings.sellerId, userId),
+        eq(schema.marketplaceListings.status, "sold"),
+        gte(schema.marketplaceListings.completedAt, rangeStart)
+      )
+    )
+    .all();
+
+  // CO2 Reduced = from sold listings only (use pre-calculated co2Saved)
+  let totalCo2Reduced = soldListings.reduce(
+    (sum, l) => sum + (l.co2Saved || 0),
+    0
   );
 
-  // CO2 Reduced = only from sold items (consistent with summary)
-  const soldMetricsForCo2 = metrics.filter((m) => m.type === "sold");
-
+  // CO2 by category (from sold listings)
   const categoryMap = new Map<string, number>();
-  let totalCo2 = 0;
-  let totalCo2Reduced = 0;
-
-  for (const m of positiveMetrics) {
-    const co2 = resolveMetricCo2(m, productMap);
-    if (co2 === 0 && m.co2Value == null && m.productId != null && !productMap.get(m.productId)) continue;
-    const product = m.productId != null ? productMap.get(m.productId) : undefined;
-    const catLabel = capitalizeCategory(product?.category ?? null);
-
-    totalCo2 += co2;
+  for (const l of soldListings) {
+    const co2 = l.co2Saved || 0;
+    const catLabel = capitalizeCategory(l.category ?? null);
     categoryMap.set(catLabel, (categoryMap.get(catLabel) || 0) + co2);
   }
 
-  for (const m of soldMetricsForCo2) {
-    totalCo2Reduced += resolveMetricCo2(m, productMap);
-  }
-
+  // CO2 trend over time (from sold listings)
   const trendMap = new Map<string, number>();
-  for (const m of positiveMetrics) {
-    const dateObj = parseMetricDate(m.todayDate);
-    const dateKey = formatDate(dateObj, period);
-    const co2 = resolveMetricCo2(m, productMap);
+  for (const l of soldListings) {
+    if (!l.completedAt) continue;
+    const dateKey = formatDate(l.completedAt, period);
+    const co2 = l.co2Saved || 0;
     trendMap.set(dateKey, (trendMap.get(dateKey) || 0) + co2);
   }
 
+  // Top items by CO2 saved (from sold listings)
   const itemCo2 = new Map<string, number>();
-  for (const m of positiveMetrics) {
-    const co2 = resolveMetricCo2(m, productMap);
-    const product = m.productId != null ? productMap.get(m.productId) : undefined;
-    const productName = product?.productName ?? "Unknown";
-    if (co2 === 0 && m.co2Value == null && m.productId != null && !product) continue;
-    itemCo2.set(productName, (itemCo2.get(productName) || 0) + co2);
+  for (const l of soldListings) {
+    const co2 = l.co2Saved || 0;
+    const name = l.title || "Unknown";
+    itemCo2.set(name, (itemCo2.get(name) || 0) + co2);
   }
 
   const co2ByCategory = Array.from(categoryMap.entries())
@@ -488,19 +483,22 @@ export async function getFinancialStats(
     )
     .all();
 
+  const productsForPoints = db
+    .select()
+    .from(schema.products)
+    .where(eq(schema.products.userId, userId))
+    .all();
+
+  const pointsProductMap = new Map(productsForPoints.map((p) => [p.id, p])) as Map<number, ProductRow>;
+
   const earnedPointsMap = new Map<string, number>();
   for (const m of metricsForPoints) {
     const type = m.type?.toLowerCase();
-    // Only count positive point actions (consumed, sold, shared)
-    if (type === "consumed" || type === "sold" || type === "shared") {
-      const co2Value = m.co2Value ?? 0;
-      let points: number;
-      if (type === "sold") {
-        points = Math.round(co2Value * 1.5);
-      } else {
-        points = Math.round(co2Value);
-      }
-      if (points <= 0) points = 1; // Minimum 1 point for positive action
+    // Only "sold" earns points (matches gamification-service.ts calculatePointsForAction)
+    if (type === "sold") {
+      const co2 = resolveMetricCo2(m, pointsProductMap);
+      let points = Math.round(co2 * 1.5);
+      if (points < 3) points = 3; // Minimum 3 points for sold action
       const dateKey = formatDate(parseMetricDate(m.todayDate), period);
       earnedPointsMap.set(dateKey, (earnedPointsMap.get(dateKey) || 0) + points);
     }

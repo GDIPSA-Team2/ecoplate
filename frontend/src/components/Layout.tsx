@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useUnreadCount } from "../contexts/UnreadCountContext";
+import { useLockerUnread } from "../features/ecolocker/contexts/LockerUnreadContext";
 import {
   Home,
   Refrigerator,
@@ -23,19 +24,18 @@ const sidebarItems = [
   { to: "/myfridge", icon: Refrigerator, label: "MyFridge" },
   { to: "/marketplace", icon: Store, label: "Marketplace" },
   { to: "/messages", icon: MessageCircle, label: "Messages" },
-  { to: "/ecolocker-redirect", icon: Package, label: "EcoLocker" },
+  { to: "/ecolocker", icon: Package, label: "EcoLocker" },
   { to: "/ecopoints", icon: Trophy, label: "EcoPoints" },
   { to: "/ecolocker", icon: Package, label: "EcoLocker" },
   { to: "/rewards", icon: Gift, label: "Rewards" },
   { to: "/badges", icon: Award, label: "Badges" },
 ];
 
-// Mobile bottom tab items (6 main tabs)
+// Mobile bottom tab items (5 main tabs)
 const mobileTabItems = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/myfridge", icon: Refrigerator, label: "Fridge" },
   { to: "/marketplace", icon: Store, label: "Market" },
-  { to: "/ecolocker-redirect", icon: Package, label: "Locker" },
   { to: "/messages", icon: MessageCircle, label: "Msgs" },
   { to: "/account", icon: User, label: "Account" },
 ];
@@ -71,6 +71,7 @@ const AVATAR_MAP: Record<string, string> = {
 export default function Layout() {
   const { user, logout } = useAuth();
   const { unreadCount } = useUnreadCount();
+  const { lockerUnreadCount } = useLockerUnread();
   const navigate = useNavigate();
   const location = useLocation();
   const [, forceUpdate] = useState(0);
@@ -136,6 +137,11 @@ export default function Layout() {
                 {item.to === "/messages" && unreadCount > 0 && (
                   <span className="ml-auto bg-destructive text-destructive-foreground text-xs font-bold h-5 min-w-[20px] flex items-center justify-center rounded-full px-1.5">
                     {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+                {item.to === "/ecolocker" && lockerUnreadCount > 0 && (
+                  <span className="ml-auto bg-destructive text-destructive-foreground text-xs font-bold h-5 min-w-[20px] flex items-center justify-center rounded-full px-1.5">
+                    {lockerUnreadCount > 99 ? "99+" : lockerUnreadCount}
                   </span>
                 )}
               </NavLink>

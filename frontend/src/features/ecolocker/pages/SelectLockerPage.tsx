@@ -180,26 +180,27 @@ export default function SelectLockerPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-7.5rem)]">
-      {/* Header */}
-      <div className="p-4 border-b border-border">
+      {/* Compact nav bar */}
+      <div className="px-4 py-2 flex items-center gap-3">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-2"
+          className="text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Back
+          <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-xl font-semibold">Select Pickup Locker</h1>
-        {listing && (
-          <p className="text-sm text-muted-foreground mt-1">
-            For: {listing.title} ({formatPrice(listing.price || 0)})
-          </p>
-        )}
-        {!listing && listingId && listingError && (
-          <p className="text-sm text-warning mt-1">
-            Could not load listing details. You can still select a locker.
-          </p>
-        )}
+        <div className="flex-1 min-w-0">
+          {listing ? (
+            <p className="text-sm text-muted-foreground truncate">
+              For: {listing.title} ({formatPrice(listing.price || 0)})
+            </p>
+          ) : listingId && listingError ? (
+            <p className="text-sm text-warning truncate">
+              Could not load listing details. You can still select a locker.
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">Select a pickup locker</p>
+          )}
+        </div>
       </div>
 
       {/* Error banner for locker loading failures */}

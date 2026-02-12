@@ -30,32 +30,7 @@ COPY frontend/ .
 RUN bun run build
 
 # =============================================================================
-# Stage 2: Build EcoLocker Frontend
-# =============================================================================
-FROM oven/bun:1.2.5-alpine AS ecolocker-builder
-
-# Build args for ecolocker environment variables (same as frontend)
-# hadolint ignore=DL3044
-ARG VITE_GOOGLE_MAPS_API_KEY
-# hadolint ignore=DL3044
-ENV VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY
-
-WORKDIR /app/ecolocker
-
-# Copy ecolocker package files
-COPY ecolocker/package.json ecolocker/bun.lockb* ./
-
-# Install ecolocker dependencies
-RUN bun install
-
-# Copy ecolocker source
-COPY ecolocker/ .
-
-# Build ecolocker (vite build defaults to production mode)
-RUN bun run build
-
-# =============================================================================
-# Stage 3: Build Backend
+# Stage 2: Build Backend
 # =============================================================================
 FROM oven/bun:1.2.5-alpine AS backend-builder
 
@@ -71,14 +46,14 @@ RUN bun install
 COPY backend/ .
 
 # =============================================================================
-# Stage 4: Production Runtime
+# Stage 3: Production Runtime
 # =============================================================================
 FROM oven/bun:1.2.5-alpine AS production
 
 WORKDIR /app
 
-# Update system packages to get security patches and install wget for health checks
-RUN apk update && apk upgrade --no-cache && apk add --no-cache wget
+# Update system packages to get security patches, install wget for health checks, and tzdata for timezone support
+RUN apk update && apk upgrade --no-cache && apk add --no-cache wget tzdata
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S ecoplate && \
@@ -102,9 +77,6 @@ RUN bun install --production && \
 # Copy frontend build output to be served by backend
 COPY --from=frontend-builder /app/frontend/dist ./public
 
-# Copy ecolocker build output under public/ecolocker/
-COPY --from=ecolocker-builder /app/ecolocker/dist ./public/ecolocker
-
 # Copy entrypoint script
 COPY entrypoint.sh ./entrypoint.sh
 
@@ -124,7 +96,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=5 \
-    CMD wget -qO/dev/null http://localhost:3000/api/v1/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1
 
 # Start with entrypoint (runs migration + seed, then starts server)
 ENTRYPOINT ["sh", "/app/entrypoint.sh"]
