@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { getCurrentPosition } from "../services/capacitor";
+import { getCurrentPosition } from "@/services/capacitor";
 
 const BLUE_DOT_SVG =
   "data:image/svg+xml," +

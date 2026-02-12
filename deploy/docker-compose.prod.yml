@@ -35,16 +35,16 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DATABASE_PATH=/app/data/ecoplate.db
       - RECOMMENDATION_ENGINE_URL=http://ecoplate-recommendation:5000
+      - TZ=Asia/Singapore
     volumes:
       - ecoplate-data:/app/data
-      - ecoplate-uploads:/app/public/uploads
     depends_on:
       ecoplate-recommendation:
         condition: service_healthy
     networks:
       - ecoplate-net
     healthcheck:
-      test: ["CMD", "wget", "-qO/dev/null", "http://localhost:3000/api/v1/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/v1/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -74,6 +74,4 @@ networks:
 
 volumes:
   ecoplate-data:
-    external: true
-  ecoplate-uploads:
     external: true

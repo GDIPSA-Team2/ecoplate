@@ -102,7 +102,6 @@ export const productSustainabilityMetrics = sqliteTable("product_sustainability_
   quantity: real("quantity"),
   unit: text("unit"), // e.g., "kg", "L", "pcs", "bottles"
   type: text("type"), // e.g., "consumed", "wasted", "shared", "sold"
-  co2Value: real("co2_value"), // Pre-calculated CO2 value from products.co2_emission
 });
 
 // ==================== Pending Consumption Records ====================

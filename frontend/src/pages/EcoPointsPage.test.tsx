@@ -4,9 +4,6 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import EcoBoardPage from "./EcoPointsPage";
 
-// Mock fetch
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
 
 // Mock ResizeObserver for Recharts
 class ResizeObserverMock {
@@ -43,8 +40,6 @@ vi.mock("../services/api", () => ({
         return Promise.resolve({
           points: {
             total: 500,
-            available: 450,
-            lifetime: 600,
             currentStreak: 5,
             longestStreak: 10,
           },
@@ -55,6 +50,7 @@ vi.mock("../services/api", () => ({
             pointsToday: 20,
             pointsThisWeek: 100,
             pointsThisMonth: 300,
+            pointsThisYear: 400,
           },
           breakdown: {
             logging: 200,
@@ -88,8 +84,6 @@ vi.mock("../services/api", () => ({
 const mockPointsData = {
   points: {
     total: 500,
-    available: 450,
-    lifetime: 600,
     currentStreak: 5,
     longestStreak: 10,
   },
@@ -100,6 +94,7 @@ const mockPointsData = {
     pointsToday: 20,
     pointsThisWeek: 100,
     pointsThisMonth: 300,
+    pointsThisYear: 400,
     bestDayPoints: 50,
     averagePointsPerActiveDay: 25,
   },
@@ -132,21 +127,6 @@ function renderWithRouter(ui: React.ReactElement) {
 describe("EcoPointsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("/gamification/points")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockPointsData),
-        });
-      }
-      if (url.includes("/gamification/leaderboard")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockLeaderboard),
-        });
-      }
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
-    });
   });
 
   it("should show loading state initially", () => {
@@ -208,10 +188,10 @@ describe("EcoPointsPage", () => {
     });
   });
 
-  it("should display Activity Summary section", async () => {
+  it("should display Bonus Points From Badges section", async () => {
     renderWithRouter(<EcoBoardPage />);
     await waitFor(() => {
-      expect(screen.getByText("Activity Summary")).toBeInTheDocument();
+      expect(screen.getByText("Bonus Points From Badges")).toBeInTheDocument();
     });
   });
 
@@ -231,10 +211,10 @@ describe("EcoPointsPage", () => {
     });
   });
 
-  it("should display Points History section", async () => {
+  it("should display Sold Points History section", async () => {
     renderWithRouter(<EcoBoardPage />);
     await waitFor(() => {
-      expect(screen.getByText("Points History")).toBeInTheDocument();
+      expect(screen.getByText("Sold Points History")).toBeInTheDocument();
     });
   });
 
@@ -246,10 +226,10 @@ describe("EcoPointsPage", () => {
     });
   });
 
-  it("should display How to Earn More Points section", async () => {
+  it("should display Points Guide section", async () => {
     renderWithRouter(<EcoBoardPage />);
     await waitFor(() => {
-      expect(screen.getByText("How to Earn More Points")).toBeInTheDocument();
+      expect(screen.getByText("Points Guide")).toBeInTheDocument();
     });
   });
 

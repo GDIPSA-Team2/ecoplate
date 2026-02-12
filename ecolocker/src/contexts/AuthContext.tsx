@@ -6,14 +6,12 @@ import {
   type ReactNode,
 } from "react";
 import { api, verifyAuthToken } from "../services/api";
-import { storage } from "../services/storage";
 import type { User } from "../types";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   listingId: number | null;
-  clearListingId: () => void;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -33,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (ssoToken) {
       // Store the SSO token
-      storage.setToken(ssoToken);
+      localStorage.setItem("ecolocker_token", ssoToken);
 
       // Clear URL parameters
       const newUrl = window.location.pathname;
@@ -42,23 +40,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Store listing ID if provided
       if (listingIdParam) {
         setListingId(parseInt(listingIdParam, 10));
-        storage.setPendingListing(listingIdParam);
+        localStorage.setItem("ecolocker_pending_listing", listingIdParam);
       }
 
       // Verify the token and get user info
       verifyToken(ssoToken);
     } else {
       // Check for existing token
-      const token = storage.getToken();
-      const userData = storage.getUser();
-      const pendingListing = storage.getPendingListing();
+      const token = localStorage.getItem("ecolocker_token");
+      const userData = localStorage.getItem("ecolocker_user");
+      const pendingListing = localStorage.getItem("ecolocker_pending_listing");
 
       if (pendingListing) {
         setListingId(parseInt(pendingListing, 10));
       }
 
       if (token && userData) {
-        setUser(userData);
+        try {
+          setUser(JSON.parse(userData));
+        } catch {
+          localStorage.removeItem("ecolocker_token");
+          localStorage.removeItem("ecolocker_user");
+        }
       }
       setLoading(false);
     }
@@ -67,32 +70,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function verifyToken(token: string) {
     try {
       // Use the token to get current user info
-      storage.setToken(token);
+      localStorage.setItem("ecolocker_token", token);
       const response = await verifyAuthToken();
       if (response) {
-        storage.setUser(response as User);
-        setUser(response as User);
+        localStorage.setItem("ecolocker_user", JSON.stringify(response));
+        setUser(response);
       } else {
-        storage.removeToken();
-        storage.removeUser();
+        localStorage.removeItem("ecolocker_token");
+        localStorage.removeItem("ecolocker_user");
       }
     } catch {
-      storage.removeToken();
-      storage.removeUser();
+      localStorage.removeItem("ecolocker_token");
+      localStorage.removeItem("ecolocker_user");
     } finally {
       setLoading(false);
     }
   }
-
-  // Listen for 401 unauthorized events from api.ts to force re-login
-  useEffect(() => {
-    const handleUnauthorized = () => {
-      setUser(null);
-      setListingId(null);
-    };
-    window.addEventListener("auth:unauthorized", handleUnauthorized);
-    return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
-  }, []);
 
   const login = async (email: string, password: string) => {
     const response = await api.post<{
@@ -100,24 +93,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token: string;
     }>("/auth/login", { email, password });
 
-    storage.setToken(response.token);
-    storage.setUser(response.user);
+    localStorage.setItem("ecolocker_token", response.token);
+    localStorage.setItem("ecolocker_user", JSON.stringify(response.user));
     setUser(response.user);
   };
 
-  const clearListingId = () => {
-    setListingId(null);
-    storage.removePendingListing();
-  };
-
   const logout = () => {
-    storage.clearAll();
+    localStorage.removeItem("ecolocker_token");
+    localStorage.removeItem("ecolocker_user");
+    localStorage.removeItem("ecolocker_pending_listing");
     setUser(null);
     setListingId(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, listingId, clearListingId, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, listingId, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

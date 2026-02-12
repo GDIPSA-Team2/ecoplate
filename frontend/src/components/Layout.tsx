@@ -23,18 +23,17 @@ const sidebarItems = [
   { to: "/myfridge", icon: Refrigerator, label: "MyFridge" },
   { to: "/marketplace", icon: Store, label: "Marketplace" },
   { to: "/messages", icon: MessageCircle, label: "Messages" },
-  { to: "/ecolocker-redirect", icon: Package, label: "EcoLocker" },
+  { to: "/ecolocker", icon: Package, label: "EcoLocker" },
   { to: "/ecopoints", icon: Trophy, label: "EcoPoints" },
   { to: "/rewards", icon: Gift, label: "Rewards" },
   { to: "/badges", icon: Award, label: "Badges" },
 ];
 
-// Mobile bottom tab items (6 main tabs)
+// Mobile bottom tab items (5 main tabs)
 const mobileTabItems = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/myfridge", icon: Refrigerator, label: "Fridge" },
   { to: "/marketplace", icon: Store, label: "Market" },
-  { to: "/ecolocker-redirect", icon: Package, label: "Locker" },
   { to: "/messages", icon: MessageCircle, label: "Msgs" },
   { to: "/account", icon: User, label: "Account" },
 ];

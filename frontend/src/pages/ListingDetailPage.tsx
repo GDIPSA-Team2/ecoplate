@@ -10,7 +10,6 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { ArrowLeft, MapPin, Clock, Edit, Trash2, CheckCircle, ChevronLeft, ChevronRight, MessageCircle, Package } from "lucide-react";
-import { getEcoLockerUrl } from "../services/capacitor";
 import { formatDate, getDaysUntilExpiry } from "../lib/utils";
 import { SimilarProducts } from "../components/marketplace/SimilarProducts";
 import { showBadgeToasts } from "../utils/badgeNotification";
@@ -83,7 +82,7 @@ export default function ListingDetailPage() {
     setActionLoading(true);
     try {
       const result = await marketplaceService.completeListing(Number(id));
-      addToast(`Listing marked as sold! +${result.points.earned} points`, "success");
+      addToast("Listing marked as sold!", "success");
       showBadgeToasts(result, addToast);
       loadListing();
     } catch (error: unknown) {
@@ -430,10 +429,7 @@ export default function ListingDetailPage() {
                     Message to Buy
                   </Button>
                   <Button
-                    onClick={() => {
-                      const token = localStorage.getItem("token");
-                      window.location.href = getEcoLockerUrl(token!, listing.id);
-                    }}
+                    onClick={() => navigate(`/ecolocker/select-locker?listingId=${listing.id}`)}
                     disabled={actionLoading}
                     variant="outline"
                     className="w-full border-primary/50 hover:bg-primary/10"
@@ -452,10 +448,7 @@ export default function ListingDetailPage() {
                     </CardContent>
                   </Card>
                   <Button
-                    onClick={() => {
-                      const token = localStorage.getItem("token");
-                      window.location.href = getEcoLockerUrl(token!, listing.id);
-                    }}
+                    onClick={() => navigate(`/ecolocker/select-locker?listingId=${listing.id}`)}
                     disabled={actionLoading}
                     className="w-full border-primary/50 hover:bg-primary/10"
                   >

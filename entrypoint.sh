@@ -3,18 +3,13 @@ set -e
 
 DB_PATH="${DATABASE_PATH:-/app/data/ecoplate.db}"
 
-# Check if database exists
-if [ -f "$DB_PATH" ]; then
-    echo "[entrypoint] Database exists, preserving data..."
-else
-    echo "[entrypoint] No database found, will create new one..."
-fi
+# Always reset database on deployment (fresh migrate + seed)
+echo "[entrypoint] Resetting database..."
+rm -f "$DB_PATH"
 
-# Run migrations (safe - only applies new changes)
 echo "[entrypoint] Running database migrations..."
 bun run src/db/migrate.ts
 
-# Run seed (safe - skips if data exists, use --force to reset)
 echo "[entrypoint] Running database seed..."
 bun run src/db/seed.ts
 

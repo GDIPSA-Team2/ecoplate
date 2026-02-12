@@ -21,6 +21,9 @@ import {
   History,
   Package,
   Ticket,
+  Minus,
+  Plus,
+  Copy,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
@@ -37,39 +40,46 @@ interface Reward {
   isActive: boolean;
 }
 
-interface RedemptionResult {
+interface Redemption {
   id: number;
   redemptionCode: string;
   pointsSpent: number;
+}
+
+interface RedemptionResult {
+  redemptions: Redemption[];
+  totalPointsSpent: number;
+  quantity: number;
   reward: Reward;
 }
 
 export default function RewardsPage() {
   const navigate = useNavigate();
-  const [rewards, setRewards] = useState<Reward[]>([]);
-  const [balance, setBalance] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
-  const [selectedReward, setSelectedReward] = useState<Reward | null>(null);
-  const [redeeming, setRedeeming] = useState(false);
-  const [redemptionResult, setRedemptionResult] = useState<RedemptionResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "food" | "apparel">("all");
+  const [rewards, setRewards] = useState<Reward[]>([]);                        // rewards list
+  const [balance, setBalance] = useState<number>(0);                           // ecopoints balance
+  const [loading, setLoading] = useState(true);                                // loading mode
+  const [selectedReward, setSelectedReward] = useState<Reward | null>(null);   // selected reward
+  const [quantity, setQuantity] = useState(1);                                 // redeem quantity
+  const [redeeming, setRedeeming] = useState(false);                           // redeem request
+  const [redemptionResult, setRedemptionResult] = useState<RedemptionResult | null>(null); // redeem result
+  const [error, setError] = useState<string | null>(null);                     // error msg
+  const [filter, setFilter] = useState<"all" | "food" | "apparel">("all");     // category filter
 
-  useEffect(() => {
+  useEffect(() => { // get data when loading page
     fetchRewardsAndBalance();
   }, []);
 
-  const fetchRewardsAndBalance = async () => {
+  const fetchRewardsAndBalance = async () => { // get rewards and ecopoints
     try {
       setLoading(true);
 
-      const [rewardsData, balanceData] = await Promise.all([
+      const [rewardsData, pointsData] = await Promise.all([
         api.get<Reward[]>("/rewards"),
-        api.get<{ balance: number }>("/rewards/balance"),
+        api.get<{ points: { total: number } }>("/gamification/points"),
       ]);
 
       setRewards(rewardsData);
-      setBalance(balanceData.balance);
+      setBalance(pointsData.points.total);
     } catch (err) {
       console.error("Failed to fetch rewards:", err);
     } finally {
@@ -77,42 +87,58 @@ export default function RewardsPage() {
     }
   };
 
+  // redeem logic
   const handleRedeem = async () => {
-    if (!selectedReward) return;
+    if (!selectedReward) return; // avoid commit twice
 
     setRedeeming(true);
     setError(null);
 
-    try {
-      const data = await api.post<RedemptionResult>("/rewards/redeem", { rewardId: selectedReward.id });
+    try { // send request
+      const data = await api.post<RedemptionResult>("/rewards/redeem", {
+        rewardId: selectedReward.id,
+        quantity
+      });
 
-      setRedemptionResult(data);
-      setBalance((prev) => prev - selectedReward.pointsCost);
+      setRedemptionResult(data);                          // save results, success pop up ui
+      setBalance((prev) => prev - data.totalPointsSpent); // deduct ecopoints
 
       setRewards((prev) =>
         prev.map((r) =>
-          r.id === selectedReward.id ? { ...r, stock: r.stock - 1 } : r
+          r.id === selectedReward.id ? { ...r, stock: r.stock - quantity } : r
         )
-      );
+      );// update stock
+
+      window.dispatchEvent(new Event("points:updated")); // boardcast (success / fail)
     } catch (err: any) {
       setError(err.message || "Failed to redeem reward. Please try again.");
     } finally {
       setRedeeming(false);
     }
   };
-
+ 
   const closeDialog = () => {
     setSelectedReward(null);
+    setQuantity(1);
     setRedemptionResult(null);
     setError(null);
-  };
+  }; // close pop up ui
 
-  const filteredRewards = rewards.filter((r) => {
+  // The largest number can user buy for each voucher
+  // selectedReward.stock -> stock limit
+  // Math.floor(balance / pointsCost) -> ecopoints limit
+  // 10 -> quantity limit
+  const totalCost = selectedReward ? selectedReward.pointsCost * quantity : 0; // total points cost
+  const maxQuantity = selectedReward
+    ? Math.min(selectedReward.stock, Math.floor(balance / selectedReward.pointsCost), 10)
+    : 1;
+
+  const filteredRewards = rewards.filter((r) => { //category filter
     if (filter === "all") return true;
     return r.category === filter;
   });
 
-  const getCategoryIcon = (category: string) => {
+  const getCategoryIcon = (category: string) => { // category ui
     return category === "apparel" ? (
       <Shirt className="h-4 w-4" />
     ) : (
@@ -272,8 +298,14 @@ export default function RewardsPage() {
           {selectedReward && (
             <div className="py-4">
               <div className="flex items-center gap-4 mb-4">
-                <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center">
-                  {selectedReward.category === "physical" ? (
+                <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                  {selectedReward.imageUrl ? (
+                    <img
+                      src={selectedReward.imageUrl}
+                      alt={selectedReward.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : selectedReward.category === "physical" ? (
                     <Package className="h-8 w-8 text-muted-foreground" />
                   ) : (
                     <Ticket className="h-8 w-8 text-muted-foreground" />
@@ -283,8 +315,34 @@ export default function RewardsPage() {
                   <h4 className="font-semibold">{selectedReward.name}</h4>
                   <div className="flex items-center gap-1 text-primary">
                     <Coins className="h-4 w-4" />
-                    <span>{selectedReward.pointsCost.toLocaleString()} points</span>
+                    <span>{selectedReward.pointsCost.toLocaleString()} points each</span>
                   </div>
+                </div>
+              </div>
+
+              {/* Quantity Selector */}
+              <div className="flex items-center justify-between mb-4 p-3 bg-muted rounded-lg">
+                <span className="text-sm font-medium">Quantity:</span>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    disabled={quantity <= 1}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <span className="w-8 text-center font-semibold">{quantity}</span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}
+                    disabled={quantity >= maxQuantity}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
 
@@ -294,13 +352,13 @@ export default function RewardsPage() {
                   <span>{balance.toLocaleString()} points</span>
                 </div>
                 <div className="flex justify-between mb-1">
-                  <span>Cost:</span>
-                  <span>-{selectedReward.pointsCost.toLocaleString()} points</span>
+                  <span>Cost ({quantity}x):</span>
+                  <span>-{totalCost.toLocaleString()} points</span>
                 </div>
                 <div className="border-t pt-1 mt-1 flex justify-between font-semibold">
                   <span>Remaining:</span>
                   <span>
-                    {(balance - selectedReward.pointsCost).toLocaleString()} points
+                    {(balance - totalCost).toLocaleString()} points
                   </span>
                 </div>
               </div>
@@ -334,7 +392,7 @@ export default function RewardsPage() {
 
       {/* Success Dialog */}
       <Dialog open={!!redemptionResult} onOpenChange={closeDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-green-600">
               <CheckCircle className="h-5 w-5" />
@@ -346,18 +404,39 @@ export default function RewardsPage() {
             <div className="py-4">
               <p className="text-muted-foreground mb-4">
                 You have successfully redeemed{" "}
-                <span className="font-semibold">{redemptionResult.reward.name}</span>
+                <span className="font-semibold">
+                  {redemptionResult.quantity}x {redemptionResult.reward.name}
+                </span>
               </p>
 
-              <div className="bg-muted p-4 rounded-lg text-center">
-                <p className="text-sm text-muted-foreground mb-2">
-                  Your Redemption Code
+              <div className="bg-muted p-4 rounded-lg">
+                <p className="text-sm text-muted-foreground mb-3 text-center">
+                  Your Redemption Code{redemptionResult.quantity > 1 ? "s" : ""}
                 </p>
-                <p className="text-2xl font-mono font-bold tracking-wider">
-                  {redemptionResult.redemptionCode}
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Copy this code and redeem it in the merchant's app
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {redemptionResult.redemptions.map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex items-center justify-between bg-background p-2 rounded border"
+                    >
+                      <span className="font-mono font-bold tracking-wider">
+                        {r.redemptionCode}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => {
+                          navigator.clipboard.writeText(r.redemptionCode);
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-3 text-center">
+                  Copy these codes and redeem them in the merchant's app
                 </p>
               </div>
 
