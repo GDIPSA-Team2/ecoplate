@@ -135,24 +135,6 @@ export default function ListingDetailPage() {
     }
   };
 
-  const handleCompletePurchase = async () => {
-    if (!listing) return;
-    if (!window.confirm("Confirm that you've received this item? This will complete the transaction.")) {
-      return;
-    }
-    setActionLoading(true);
-    try {
-      await marketplaceService.buyListing(listing.id);
-      addToast("Purchase completed!", "success");
-      loadListing();
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to complete purchase";
-      addToast(message, "error");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <Button variant="ghost" onClick={() => navigate("/marketplace")}>
